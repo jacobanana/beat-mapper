@@ -203,13 +203,13 @@ export function pins({ g, app, L, C, xOf }: Frame): void {
 }
 
 /**
- * The tempo lane: each bar's BPM as a step line. While the warp is heard, the grid's tempo too, as a
- * dashed line: a bar above it is slowed down onto the grid, a bar below it sped up.
+ * The tempo lane: each bar's BPM as a step line. In the Warp step, the grid's tempo too, as a dashed
+ * line, and the gap each bar is moved across to reach it.
  */
 export function tempoLane({ g, app, L, C, xOf }: Frame): void {
   const bars = app.bars;
   if (!bars.length) return;
-  const { w, ly, laneH } = L, v = app.view, warp = app.step === 2 && app.warp.listen ? app.warpPlan : null;
+  const { w, ly, laneH } = L, v = app.view, warp = app.step === 3 ? app.warpPlan : null;
   let lo = Infinity, hi = -Infinity;
   for (const b of bars) { if (b.bpm < lo) lo = b.bpm; if (b.bpm > hi) hi = b.bpm; }
   if (warp) { lo = Math.min(lo, warp.bpm); hi = Math.max(hi, warp.bpm); }
@@ -239,8 +239,10 @@ export function tempoLane({ g, app, L, C, xOf }: Frame): void {
   if (warp) {
     const range = warp.map.src, xa = Math.max(0, xOf(range[0])), xb = Math.min(w, xOf(range[range.length - 1]));
     g.strokeStyle = C.ink; g.setLineDash([4, 3]); g.beginPath(); g.moveTo(xa, yw + 0.5); g.lineTo(xb, yw + 0.5); g.stroke(); g.setLineDash([]);
-    const lab = 'grid ' + fmtBpm(warp.bpm);
-    g.fillStyle = C.ink; g.textAlign = 'right'; g.fillText(lab, Math.max(xa + 60, xb - 4), yw > ly + 16 ? yw - 3 : yw + 13); g.textAlign = 'left';
+    // On a backing, since it sits among the bars' own tempo labels.
+    const lab = 'grid ' + fmtBpm(warp.bpm), tw = g.measureText(lab).width, xr = Math.max(xa + tw + 8, xb - 4), yt = yw > ly + 16 ? yw - 3 : yw + 13;
+    g.fillStyle = C.panel; g.fillRect(xr - tw - 4, yt - 11, tw + 8, 14);
+    g.fillStyle = C.ink; g.textAlign = 'right'; g.fillText(lab, xr, yt); g.textAlign = 'left';
   }
 }
 

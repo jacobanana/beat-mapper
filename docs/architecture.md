@@ -72,8 +72,8 @@ bridge when the app runs inside one).
 - `panels/` bind each step's controls to features and re-render their text on the topics they show.
   `export-dialog.ts` is the Export window: what the current step makes, each format showing only the
   options that change it; `session-panel.ts` saves and opens sessions from beside Open;
-  `mixer-panel.ts` is the mixer popover. Step 3 was Export; it is kept as a `Step` value so old
-  sessions load, and `Workflow` sends it to Beats.
+  `mixer-panel.ts` is the mixer popover. Step 3 was Export and is Warp now (`warp-panel.ts`), so
+  a session saved in the old Export step opens in Warp.
 - Where a new button goes (top bar groups, panel clusters, dialogs) is set out in
   [ui-conventions.md](ui-conventions.md).
 

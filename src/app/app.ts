@@ -175,10 +175,15 @@ export class App {
     const w = planWarp(map, r, bpm);
     return { map: w, bpm, avgBpm, q0: r.q0, srcDur: r.b - r.a, outDur: w.outDur, ratios: w.ratioRange(), loop: !!loop };
   });
-  /** The warp onto a straight grid: the loop when it is on, else the whole file. Null without a tempo map. */
+  /**
+   * The warp onto a straight grid: the whole file, or the loop alone when the Warp step says so. Null
+   * without a tempo map, or when it is the loop and there is none.
+   */
   get warpPlan(): WarpPlan | null {
     if (!this.audio || !this.hasMap) return null;
-    return this._warp(this.tempoMap, this.doc.meter, this.dur, this.exportSettings.lead, this.activeLoop, this.warp.bpm);
+    const loop = this.warp.range === 'loop' ? this.activeLoop : null;
+    if (this.warp.range === 'loop' && !loop) return null;
+    return this._warp(this.tempoMap, this.doc.meter, this.dur, this.exportSettings.lead, loop, this.warp.bpm);
   }
 
   get dur(): number { return this.audio?.dur ?? 0; }

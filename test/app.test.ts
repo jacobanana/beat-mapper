@@ -203,6 +203,9 @@ describe('export', () => {
     const b1 = app.tempoMap.posToTime(4), b3 = app.tempoMap.posToTime(12);
     f.playback.setLoop({ a: b1, b: b3 }, false);
     f.playback.toggleLoop();
+    // A loop that is on is still not warped on its own until the Warp step says so.
+    expect(f.warp.plan()!.loop).toBe(false);
+    f.warp.setRange('loop');
     const l = f.warp.plan()!;
     expect(l.loop).toBe(true);
     expect(l.outDur).toBeCloseTo((8 * 60) / 100, 6);
@@ -210,36 +213,52 @@ describe('export', () => {
   });
 });
 
-describe('hearing the warp', () => {
-  it('is wanted in Beats with listening on, and renders once until the warp changes', async () => {
+describe('the Warp step', () => {
+  it('plays it warped by default, and renders once until the warp changes', async () => {
     const { app, f } = t;
     f.workflow.goTo(2);
     f.beats.autoMap();
     f.warp.update({ mode: 'repitch' });
     expect(f.warp.wanted()).toBe(false);
-    f.warp.toggleListen();
+    f.workflow.goTo(3);
     expect(app.warp.listen).toBe(true);
     expect(f.warp.wanted()).toBe(true);
+    f.warp.toggleListen();
+    expect(f.warp.wanted()).toBe(false);
+    f.warp.toggleListen();
     const r = (await f.warp.render())!;
     expect(r.chans[0].length).toBe(Math.round(r.plan.outDur * 44100));
     // Nothing changed: the same render, for listening and for saving.
     expect(await f.warp.render()).toBe(r);
-    // A pin moved: rendered again.
-    const a = app.doc.tempo.anchors[5];
-    f.beats.nudge(a, 0.01);
+    // A pin moved (in Beats): rendered again.
+    f.beats.nudge(app.doc.tempo.anchors[5], 0.01);
     const r2 = (await f.warp.render())!;
     expect(r2).not.toBe(r);
     expect(r2.plan).toBe(app.warpPlan);
-    // Only in Beats.
     f.workflow.goTo(4);
     expect(f.warp.wanted()).toBe(false);
   });
 
-  it('refuses to listen before there is a map', () => {
+  it('takes the grid tempo from a looped section and warps the whole file to it', () => {
     const { app, f, toasts } = t;
-    f.warp.toggleListen();
-    expect(app.warp.listen).toBe(false);
-    expect(toasts.at(-1)).toMatch(/bar 1/);
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.workflow.goTo(3);
+    f.warp.fromLoop();
+    expect(toasts.at(-1)).toMatch(/^Loop the section/);
+    // Bars 13 to 17 are the demo's fastest.
+    const map = app.tempoMap;
+    f.playback.setLoop({ a: map.posToTime(48), b: map.posToTime(64) }, true);
+    f.warp.fromLoop();
+    const p = f.warp.plan()!;
+    expect(p.bpm).toBe(Math.round((16 * 60) / (map.posToTime(64) - map.posToTime(48))));
+    expect(p.bpm).toBeGreaterThan(Math.round(p.avgBpm));
+    expect(p.loop).toBe(false);
+    expect(p.srcDur).toBeCloseTo(app.dur, 6);
+    expect(f.warp.summary()).toMatch(new RegExp(`^The file averages .* warped to ${p.bpm} BPM`));
+    expect(f.workflow.canReset).toBe(true);
+    f.workflow.resetStep();
+    expect(app.warp).toEqual({ mode: 'music', bpm: null, range: 'file', listen: true });
   });
 });
 
@@ -268,12 +287,10 @@ describe('resetting a step', () => {
     f.beats.autoMap();
     f.beats.setMeter({ num: 3 });
     f.beats.setBaseBpm(120);
-    f.warp.update({ mode: 'poly', bpm: 100, listen: true });
     expect(f.workflow.canReset).toBe(true);
     f.workflow.resetStep();
     expect(app.doc.tempo).toEqual({ anchors: bar1, baseBpm: 96.5 });
     expect(app.doc.meter).toEqual({ num: 4, den: 4 });
-    expect(app.warp).toEqual({ mode: 'music', bpm: null, listen: false });
     expect(f.workflow.canReset).toBe(false);
     app.undo();
     expect(app.doc.meter.num).toBe(3);
@@ -350,9 +367,9 @@ describe('sessions', () => {
 });
 
 describe('workflow', () => {
-  it('sends a session saved in the old Export step to Beats', () => {
+  it('opens a session saved in the old Export step in Warp, which came to have its number', () => {
     t.f.workflow.goTo(3);
-    expect(t.app.step).toBe(2);
+    expect(t.app.step).toBe(3);
     expect(t.app.hasMap).toBe(true);
   });
 });

@@ -67,6 +67,7 @@
     <nav class="steps" role="tablist" aria-label="Workflow">
       <button role="tab" id="t1" aria-selected="true" title="Transients (1)" aria-label="Transients"><svg class="ic"><use href="#i-wave"/></svg><span class="lbl">Transients</span></button>
       <button role="tab" id="t2" aria-selected="false" title="Beats (2)" aria-label="Beats"><svg class="ic"><use href="#i-beats"/></svg><span class="lbl">Beats</span></button>
+      <button role="tab" id="t3" aria-selected="false" title="Warp onto a straight grid (3)" aria-label="Warp"><svg class="ic"><use href="#i-warp"/></svg><span class="lbl">Warp</span></button>
       <button role="tab" id="t4" aria-selected="false" title="Slice samples (4)" aria-label="Slice samples"><svg class="ic"><use href="#i-slice"/></svg><span class="lbl">Slice</span></button>
       <button role="tab" id="t5" aria-selected="false" title="Groove: the pocket of kick, snare and hats (5)" aria-label="Groove"><svg class="ic"><use href="#i-groove"/></svg><span class="lbl">Groove</span></button>
     </nav>
@@ -197,17 +198,34 @@
             <label class="sl" title="Search window around each beat"><svg class="ic"><use href="#i-tol"/></svg><input type="range" id="tol" min="5" max="45" value="20" aria-label="Search window"><output id="tolO">±20%</output></label>
           </span>
           <span class="cluster">
-            <button class="btn" id="warpListen" title="Hear it warped: the audio re-timed onto a straight grid, with the click on that grid (W)" aria-label="Hear it warped" aria-pressed="false"><svg class="ic"><use href="#i-warp"/></svg>Warped</button>
-            <select id="warpModeB" title="Material: sets how the audio is stretched" aria-label="Material, which sets the warp algorithm"><option value="beats">Drums</option><option value="mono">Mono</option><option value="vocal">Vocal</option><option value="poly">Poly</option><option value="music">Full mix</option><option value="repitch">Re-pitch</option></select>
-            <input type="number" id="warpBpmB" min="20" max="400" step="0.01" title="Grid tempo (BPM); empty follows the audio" aria-label="Grid tempo in BPM; empty follows the audio"><span class="num" style="padding:0 4px 0 0">grid</span>
-          </span>
-          <span class="cluster">
             <button class="btn" id="resetB" title="Reset Beats: bar 1 on the first transient, nothing else pinned, 4/4 at the starting tempo. Undo brings your map back" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
           </span>
         </div>
         <div class="bars">
           <p id="sum"></p>
           <div class="wrap"><table><thead><tr><th>Bar</th><th>Start</th><th>BPM</th><th>±</th></tr></thead><tbody id="barRows"></tbody></table></div>
+        </div>
+      </div>
+
+      <div class="pane" id="p3" hidden>
+        <div class="col">
+          <div class="bar groups">
+            <span class="cluster">
+              <span class="seg" role="group" aria-label="What plays"><button class="btn" id="wOrig" title="Play the original (W)" aria-pressed="false">Original</button><button class="btn on" id="wWarped" title="Play it warped onto the grid, with the click on the grid (W)" aria-pressed="true">Warped</button></span>
+            </span>
+            <span class="cluster">
+              <input type="number" id="warpBpmB" min="20" max="400" step="0.01" title="Grid tempo (BPM); empty takes the average" aria-label="Grid tempo in BPM; empty takes the average"><span class="num" style="padding:0 4px 0 0">BPM</span>
+              <button class="btn primary" id="wFromLoop" title="Grid tempo from the loop: the tempo the looped section averages, to the nearest BPM (F)" aria-label="Grid tempo from the loop"><svg class="ic"><use href="#i-loop"/></svg>From loop</button>
+            </span>
+            <span class="cluster">
+              <select id="warpRange" title="What is warped, heard and saved" aria-label="What is warped"><option value="file">whole file</option><option value="loop">just the loop</option></select>
+              <select id="warpModeB" title="Material: sets how the audio is stretched" aria-label="Material, which sets the warp algorithm"><option value="beats">Drums</option><option value="mono">Mono</option><option value="vocal">Vocal</option><option value="poly">Poly</option><option value="music">Full mix</option><option value="repitch">Re-pitch</option></select>
+            </span>
+            <span class="cluster">
+              <button class="btn" id="resetW" title="Reset Warp: the average tempo, the whole file, Full mix" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
+            </span>
+          </div>
+          <p id="wSum"></p>
         </div>
       </div>
 
@@ -314,11 +332,12 @@
     <h3>Top bar, left to right</h3>
     <div><svg class="ic"><use href="#i-open"/></svg><span>Open audio</span><span><kbd>Ctrl/⌘</kbd><kbd>O</kbd></span></div>
     <div><svg class="ic"><use href="#i-save"/></svg><span>Session: save your work, or open a saved one</span><span></span></div>
-    <div><svg class="ic"><use href="#i-export"/></svg><span>Export what this step makes: tempo map and warped audio (Beats), samples (Slice), drums (Groove). Off in Transients</span><span><kbd>3</kbd> <kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
+    <div><svg class="ic"><use href="#i-export"/></svg><span>Export what this step makes: tempo map (Beats), warped audio (Warp), samples (Slice), drums (Groove). Off in Transients</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
     <div><svg class="ic"><use href="#i-undo"/></svg><span>Undo</span><span><kbd>Ctrl/⌘</kbd><kbd>Z</kbd></span></div>
     <div><svg class="ic"><use href="#i-redo"/></svg><span>Redo</span><span><kbd>Ctrl/⌘</kbd><kbd>⇧</kbd><kbd>Z</kbd></span></div>
     <div><svg class="ic"><use href="#i-wave"/></svg><span>Step 1 · Transients</span><span><kbd>1</kbd></span></div>
     <div><svg class="ic"><use href="#i-beats"/></svg><span>Step 2 · Beats</span><span><kbd>2</kbd></span></div>
+    <div><svg class="ic"><use href="#i-warp"/></svg><span>Step 3 · Warp</span><span><kbd>3</kbd></span></div>
     <div><svg class="ic"><use href="#i-slice"/></svg><span>Step 4 · Slice samples</span><span><kbd>4</kbd></span></div>
     <div><svg class="ic"><use href="#i-groove"/></svg><span>Step 5 · Groove</span><span><kbd>5</kbd></span></div>
     <div><svg class="ic"><use href="#i-tostart"/></svg><span>Play from first transient, or loop start</span><span><kbd>Enter</kbd></span></div>
@@ -351,10 +370,17 @@
     <div><svg class="ic"><use href="#i-derive"/></svg><span>Derive from loop: keep the loop, rebuild the rest</span><span><kbd>F</kbd></span></div>
     <div><svg class="ic"><use href="#i-auto"/></svg><span>Auto-map from bar 1</span><span><kbd>M</kbd></span></div>
     <div><svg class="ic"><use href="#i-tol"/></svg><span>Search window around each beat</span><span></span></div>
-    <div><svg class="ic"><use href="#i-warp"/></svg><span>Warped: hear the audio re-timed onto a straight grid, with the click on that grid, before saving it (Export). The playhead follows the original, so you see which hit you hear. Pick the material, and a grid tempo or leave it empty for the average. Move a pin and it is warped again</span><span><kbd>W</kbd></span></div>
     <div><svg class="ic"><use href="#i-reset"/></svg><span>Reset: bar 1 on the first transient, nothing else pinned, 4/4 at the starting tempo</span><span></span></div>
+    <h3>Warp</h3>
+    <div><svg class="ic"><use href="#i-warp"/></svg><span>The audio re-timed so every beat of the map lands on a straight grid at one tempo. The tempo map is made in Beats; here it is only read. The tempo lane shows the grid's tempo dashed, and how far each bar moves to reach it</span><span></span></div>
+    <div><span>Original · Warped</span><span>What plays. Warped plays it with the click on the grid; the playhead follows the original, so it sits on the hit you hear</span><span><kbd>W</kbd></span></div>
+    <div><svg class="ic"><use href="#i-loop"/></svg><span>From loop: loop a section that is played right, and the grid takes the tempo it averages, to the nearest BPM. Or type a tempo; empty takes the average of what is warped</span><span><kbd>F</kbd></span></div>
+    <div><span>whole file · just the loop</span><span>What is warped, heard and saved. Drawing a loop to take its tempo doesn't make it the loop alone</span><span></span></div>
+    <div><span>Material</span><span>How it is stretched: Drums cut at the transients, Mono and Vocal overlap-add, Poly a phase vocoder, Full mix both, Re-pitch like a turntable</span><span></span></div>
+    <div><svg class="ic"><use href="#i-reset"/></svg><span>Reset: the whole file at the tempo it averages, Full mix</span><span></span></div>
+    <div><svg class="ic"><use href="#i-export"/></svg><span>Save the warped audio as a .wav: in Export</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
     <h3>Export</h3>
-    <div><svg class="ic"><use href="#i-export"/></svg><span>One window for every file BeatMapper saves: the tempo map as MIDI or a REAPER project, the slices, the selected slice or the loop as .wav, the drums as MIDI, the groove, and the session. Each format shows only its own options, and what the file will hold</span><span><kbd>3</kbd></span></div>
+    <div><svg class="ic"><use href="#i-export"/></svg><span>One window for every file BeatMapper saves: the tempo map as MIDI or a REAPER project, the warped audio, the slices, the selected slice or the loop as .wav, the drums as MIDI, the groove, and the session. Each format shows only its own options, and what the file will hold</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
     <div><svg class="ic"><use href="#i-import"/></svg><span>Open a session file (Session, in Export), then the same audio</span><span></span></div>
     <h3>Slice samples</h3>
     <div><svg class="ic"><use href="#i-slice"/></svg><span>Every transient from step 1 starts a slice, running to the next transient (plus a tail) or for a fixed length. Switch the loop on and only what is inside it is sliced</span><span></span></div>
@@ -364,7 +390,7 @@
     <div><svg class="ic"><use href="#i-clear"/></svg><span>Keep or drop the selected slice</span><span><kbd>X</kbd></span></div>
     <div><svg class="ic"><use href="#i-reset"/></svg><span>Reset: every transient starts a slice, and all are kept</span><span></span></div>
     <div><svg class="ic"><use href="#i-loop"/></svg><span>Save the whole loop as one .wav, named with the bars and BPM it works out at – written without fades so it loops seamlessly</span><span></span></div>
-    <div><svg class="ic"><use href="#i-export"/></svg><span>Save the selected slice, every kept slice as a .zip of .wav files, or a REAPER project with the slices in place: in Export, with the fades, level, channels and bit depth</span><span><kbd>3</kbd></span></div>
+    <div><svg class="ic"><use href="#i-export"/></svg><span>Save the selected slice, every kept slice as a .zip of .wav files, or a REAPER project with the slices in place: in Export, with the fades, level, channels and bit depth</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
     <h3>Groove</h3>
     <div><svg class="ic"><use href="#i-groove"/></svg><span>Kick, snare and hats are found in the audio, and each hit is measured against the beat. The waveform shows them in three lanes, each with a tail back to its grid line. Map the beats first (step 2) if the take drifts</span><span></span></div>
     <div><span>Source</span><span>Drums only, or a full mix (experimental: the other instruments are modelled apart from the drums, but expect misses)</span></div>
@@ -373,7 +399,7 @@
     <div><svg class="ic"><use href="#i-reset"/></svg><span>Reset: the hits as found at the starting sensitivities, measured as they start</span><span></span></div>
     <div><svg class="ic"><use href="#i-mix"/></svg><span>Hear the drums as MIDI on a synth kit: in the mixer, tap its icon to unmute it, and the audio's to hear the kit alone</span><span><kbd>M</kbd></span></div>
     <div><span>Chart</span><span>Left: where each voice sits, ahead or behind – every hit, its middle half, and its median. Right: the typical bar – dot size is velocity, faint dots are steps played in only some bars, tails show the lean</span></div>
-    <div><svg class="ic"><use href="#i-export"/></svg><span>Save the drums as MIDI (every hit where it was played, on the tempo map), or the typical bar as a Pocket Science groove file: in Export</span><span><kbd>3</kbd></span></div>
+    <div><svg class="ic"><use href="#i-export"/></svg><span>Save the drums as MIDI (every hit where it was played, on the tempo map), or the typical bar as a Pocket Science groove file: in Export</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
   </div>
   <h2 style="margin-top:18px">Keyboard shortcuts</h2>
   <div class="keys">
@@ -393,8 +419,8 @@
     <div><span><kbd>+</kbd> <kbd>−</kbd> <kbd>Z</kbd></span><span>Zoom in, out, fit whole file</span></div>
     <div><span><kbd>Home</kbd> <kbd>End</kbd></span><span>Go to start / end</span></div>
     <div><span><kbd>K</kbd></span><span>Click on markers or beats</span></div>
-    <div><span><kbd>1</kbd> <kbd>2</kbd> <kbd>4</kbd> <kbd>5</kbd></span><span>Transients, Beats, Slice, Groove</span></div>
-    <div><span><kbd>3</kbd> or <kbd>Ctrl/⌘</kbd><kbd>E</kbd></span><span>Export</span></div>
+    <div><span><kbd>1</kbd> … <kbd>5</kbd></span><span>Transients, Beats, Warp, Slice, Groove</span></div>
+    <div><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span><span>Export</span></div>
     <div><span><kbd>Ctrl/⌘</kbd><kbd>Z</kbd></span><span>Undo (add ⇧ to redo)</span></div>
     <div><span><kbd>Esc</kbd></span><span>Deselect</span></div>
     <h3>Step 1 – Transients</h3>
@@ -411,7 +437,9 @@
     <div><span><kbd>T</kbd></span><span>Tap tempo</span></div>
     <div><span><kbd>S</kbd></span><span>Magnet: transients, grid, or nothing (⇧ the other way)</span></div>
     <div><span><kbd>Del</kbd></span><span>Unpin selected</span></div>
-    <div><span><kbd>W</kbd></span><span>Hear it warped onto a straight grid, or the original</span></div>
+    <h3>Step 3 – Warp</h3>
+    <div><span><kbd>W</kbd></span><span>Warped or the original</span></div>
+    <div><span><kbd>F</kbd></span><span>Grid tempo from the loop</span></div>
     <h3>Step 4 – Slice samples</h3>
     <div><span><kbd>Tab</kbd> <kbd>⇧</kbd><kbd>Tab</kbd></span><span>Next / previous slice, and hear it</span></div>
     <div><span><kbd>E</kbd></span><span>Play the selected slice on its own</span></div>

@@ -123,7 +123,8 @@ tbody tr{cursor:pointer}
 tbody tr:hover{background:color-mix(in srgb,var(--beat) 14%,transparent)}
 tbody tr.cur td:first-child{color:var(--beat);font-weight:600}
 td.up{color:var(--mark)} td.dn{color:var(--beat)}
-#sum,#slSum{color:var(--dim);margin:0 0 4px;font-size:14px}
+#sum,#slSum,#wSum{color:var(--dim);margin:0 0 4px;font-size:14px}
+#p3 .col{flex:1 1 100%;min-width:0;display:flex;flex-direction:column;gap:6px}
 #sliceRows tr.cur{background:color-mix(in srgb,var(--beat) 16%,transparent)}
 #sliceRows tr.off td{opacity:.45}
 #sliceRows td:first-child,#sliceRows th:first-child{padding-right:2px}

@@ -1,36 +1,38 @@
 # Warping
 
 Once the beats are mapped, the tempo map says where every bar and beat falls in the audio. Warping
-re-times the audio so that map becomes a straight grid: every bar the same length at one tempo. The
-result is saved as a `.wav` from the Export window (**Audio → Warped to the grid**), ready to drop
-into a DAW on bar 1 with no tempo map at all.
+re-times the audio so that map becomes a straight grid: every bar the same length at one tempo. It has
+its own step, **Warp** (3), after Beats: Beats builds the map, Warp only reads it. The result is saved
+as a `.wav` from the Export window (**Audio → Warped to the grid**), ready to drop into a DAW on bar 1
+with no tempo map at all.
 
-It is not a new step: everything it needs is already made in the Beats step (the map) and the
-Transients step (where Drums mode cuts).
+## The step
 
-## Hearing it before saving
+- **Original · Warped** (<kbd>W</kbd>): what plays. Warped plays the warped audio with the click on
+  the straight grid, so what you hear is the file Export saves.
+- **Grid tempo**: empty takes the tempo of what is warped, to the nearest whole BPM. **From loop**
+  (<kbd>F</kbd>) takes it from a section instead: loop the part that is played right, and the grid
+  gets the tempo that section averages, to the nearest BPM. The whole file is then warped to it.
+- **whole file · just the loop**: what is warped, heard and saved. Drawing a loop to take its tempo
+  leaves this on the whole file. A loop warped alone starts the file and is exactly as many beats long
+  as it holds at the new tempo, named like the loop export: `name_4bars_100bpm_warped.wav`.
+- **Material**: the method (below).
+- **Reset** goes back to the whole file at its average tempo, Full mix.
 
-**Warped** in the Beats panel (or <kbd>W</kbd>) plays the warped audio in place of the original, with
-the click on the straight grid, so what you hear is the file Export would save. The material and grid
-tempo beside it are the Export window's own. The first play renders the warp in the worker; after
-that the render is reused, for playing and for saving, until something it depends on changes (a pin,
-the meter, the loop, the material, the grid tempo, the transients in Drums mode). An edit while
-playing is rendered again once the edits settle, and playback carries on from the same place.
+In Export, *Whole file + lead-in* keeps what comes before bar 1 and puts silence ahead of it so the
+file starts on a bar line; *Trim to bar 1* starts the file on bar 1. Channels, normalizing and bit
+depth are the slicer's.
 
-The editor stays on the original's timeline, so the playhead moves through the original: fast where
-a bar is being slowed down, slow where it is sped up, and always on the hit you are hearing
-(`Take` in `app/features/playback.ts` maps the two timelines both ways). The tempo lane draws the
-grid's tempo as a dashed line, with the gap between each bar's tempo and it shaded: blue for a bar
-that is slowed down, red for one sped up. Outside Beats, or with Warped off, the original plays.
+The first play renders the warp in the worker; after that the render is reused, for playing and for
+saving, until something it depends on changes (a pin, the meter, the loop when only the loop is warped,
+the material, the grid tempo, the transients in Drums mode). A change while playing is rendered again
+once the changes settle, and playback carries on from the same place.
 
-## What gets warped
-
-- **The loop, when it is on**: just the loop, starting the file, and exactly as many beats long as it
-  holds at the new tempo. It is named like the loop export: `name_4bars_100bpm_warped.wav`.
-- **Otherwise the whole file.** *Whole file + lead-in* keeps what comes before bar 1 and puts silence
-  ahead of it so the file starts on a bar line; *Trim to bar 1* starts the file on bar 1.
-- **Grid tempo**: empty takes the tempo the audio averages, to the nearest whole BPM. Type any other.
-- Channels, normalizing and bit depth are the slicer's.
+The editor stays on the original's timeline, so the playhead moves through the original: fast where a
+bar is being slowed down, slow where it is sped up, and always on the hit you are hearing (`Take` in
+`app/features/playback.ts` maps the two timelines both ways). The tempo lane draws the grid's tempo as
+a dashed line, with the gap between each bar's tempo and it shaded: blue for a bar that is slowed
+down, red for one sped up.
 
 The tempo map is straight lines between pins, so moving each pin to where a steady tempo puts it
 defines the warp exactly (`core/warp/map.ts`). Between pins the stretch is constant.

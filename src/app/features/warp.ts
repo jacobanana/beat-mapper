@@ -1,10 +1,10 @@
-// Warping: the audio re-timed so that the tempo map becomes a straight grid, heard in the Beats step
-// and saved as a .wav that drops into a DAW at a steady tempo. The loop, when it is on, is warped on
-// its own.
-import { fmtBpm, safeName } from '../../core/format';
+// Step 3, Warp: the audio re-timed so that the tempo map becomes a straight grid at one tempo, heard
+// here and saved as a .wav that drops into a DAW with no tempo map at all. The tempo map is made in
+// Beats; here it is only read.
+import { fmtBpm, fmtTime, safeName } from '../../core/format';
 import { renderSlice } from '../../core/slices/slices';
 import { barQ } from '../../core/tempo/meter';
-import { gridBeats } from '../../core/warp/map';
+import { averageBpm, gridBeats } from '../../core/warp/map';
 import { WARP_MODE_INFO, type WarpMode } from '../../core/warp/modes';
 import type { Analyzer } from '../../analysis/analyzer';
 import { bufferFrom } from '../../engine/audio-context';
@@ -41,8 +41,8 @@ export class Warp implements TakeSource {
     private readonly playback: Playback,
   ) {
     playback.setTakeSource(this);
-    // What plays follows what is wanted: the original outside Beats or with listening off, and a fresh
-    // take after an edit changes the warp.
+    // What plays follows what is wanted: the original outside this step or with Original chosen, and a
+    // fresh take after a change to the warp.
     app.bus.on(['doc', 'warp', 'export', 'transport', 'step', 'candidates', 'detection', 'audio'], () => this.follow());
   }
 
@@ -53,25 +53,65 @@ export class Warp implements TakeSource {
 
   setMode(mode: WarpMode): void {
     this.update({ mode });
-    if (this.app.warp.listen) this.app.notify.toast(WARP_MODE_INFO[mode].label + ': ' + WARP_MODE_INFO[mode].desc);
+    this.app.notify.toast(WARP_MODE_INFO[mode].label + ': ' + WARP_MODE_INFO[mode].desc);
   }
 
-  /** W: hear the audio warped onto the grid, or the original again. */
+  /** Warped or the original: what plays in this step. */
+  setListen(listen: boolean): void { this.update({ listen }); }
+
+  /** W: the other one. */
   toggleListen(): void {
-    const { app } = this;
-    if (!app.warp.listen && !this.plan()) return app.notify.toast('Set bar 1 first (D), then map the beats.');
-    this.update({ listen: !app.warp.listen });
-    const p = this.plan();
-    app.notify.toast(app.warp.listen && p ? `Hearing it warped to ${fmtBpm(p.bpm)} BPM · ${WARP_MODE_INFO[app.warp.mode].label}` : 'Hearing the original');
+    this.setListen(!this.app.warp.listen);
+    this.app.notify.toast(this.app.warp.listen ? 'Hearing it warped' : 'Hearing the original');
   }
 
-  /** Back to how the warp starts: the full-mix method, the averaged tempo, the original playing. */
-  reset(): void { this.update(defaultWarp()); }
+  setRange(range: WarpSettings['range']): void {
+    this.update({ range });
+    if (range === 'loop' && !this.app.activeLoop) this.app.notify.toast('Switch the loop on to warp just the loop (drag in the top strip to draw one).');
+  }
 
-  // ---------- the take heard in the Beats step ----------
+  /**
+   * F: the grid tempo from the loop. A section that is played right sets the tempo, and the whole file
+   * is warped to it. To the nearest BPM, since a straight grid is almost always wanted at a round one.
+   */
+  fromLoop(): void {
+    const { app } = this, L = app.transport.loop;
+    if (!app.hasMap) return app.notify.toast('Map the beats first (step 2).');
+    if (!L || L.b - L.a < 0.05) return app.notify.toast('Loop the section to take the tempo from first (drag in the top strip).');
+    const avg = averageBpm(app.tempoMap, L), bpm = Math.max(20, Math.min(400, Math.round(avg)));
+    this.update({ bpm });
+    app.notify.toast(`The loop averages ${fmtBpm(+avg.toFixed(2))} BPM · the grid is ${bpm} BPM`);
+  }
+
+  /** Something in this step differs from how it starts. */
+  get changed(): boolean {
+    const w = this.app.warp, w0 = defaultWarp();
+    return !!this.app.audio && (w.mode !== w0.mode || w.bpm !== w0.bpm || w.range !== w0.range);
+  }
+
+  /** Back to how the step starts: the averaged tempo, the whole file, the full-mix method, heard warped. */
+  reset(): void {
+    if (!this.changed) return;
+    this.update(defaultWarp());
+    this.app.notify.toast('Warp reset: the whole file at the tempo it averages.');
+  }
+
+  /** One line for the panel: what is warped, to what, and how far it is stretched. */
+  summary(): string {
+    const { app } = this, p = this.plan();
+    if (!app.audio) return '';
+    if (!app.hasMap) return 'Map the beats first (step 2): the warp puts every beat of the map on a straight grid.';
+    if (!p) return 'Switch the loop on to warp just the loop.';
+    const pct = (r: number) => Math.round(r * 100) + ' %', [lo, hi] = p.ratios;
+    const what = p.loop ? 'The loop' : 'The file';
+    const stretch = Math.abs(hi - lo) < 0.005 ? `stretched to ${pct(lo)}` : `stretched ${pct(lo)}–${pct(hi)}`;
+    return `${what} averages ${fmtBpm(+p.avgBpm.toFixed(2))} BPM · warped to ${fmtBpm(p.bpm)} BPM, ${stretch} · ${fmtTime(p.srcDur)} → ${fmtTime(p.outDur)}`;
+  }
+
+  // ---------- the take heard in the Warp step ----------
   wanted(): boolean {
     const { app } = this;
-    return app.step === 2 && app.warp.listen && !!this.plan();
+    return app.step === 3 && app.warp.listen && !!this.plan();
   }
 
   current(): Take | null {

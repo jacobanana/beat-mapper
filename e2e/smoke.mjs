@@ -55,11 +55,11 @@ try {
     assert.match(await text('sum'), /^17 bars · avg 98\.16/);
   });
   await step('Export: MIDI file downloads', async () => {
-    await page.keyboard.press('3');
+    await page.keyboard.press('Control+e');
     assert.equal(await page.isVisible('#exportDlg'), true);
     assert.equal(await page.getAttribute('[data-fmt=midi]', 'aria-pressed'), 'true');
-    // Only what Beats makes is listed.
-    assert.equal(await page.isVisible('[data-fmt=warpWav]'), true);
+    // Only what Beats makes is listed: the warped audio is the Warp step's.
+    assert.equal(await page.isVisible('[data-fmt=warpWav]'), false);
     assert.equal(await page.isVisible('[data-fmt=slices]'), false);
     assert.equal(await page.isVisible('[data-fmt=drumsMidi]'), false);
     assert.match(await text('expInfo'), /tempo changes/);
@@ -69,59 +69,87 @@ try {
     assert.equal(await page.isVisible('#exportDlg'), false);
     assert.equal(d.suggestedFilename(), 'drifting-drum-loop-tempo-map.mid');
   });
-  await step('Export: the audio warped onto a straight grid downloads as a .wav', async () => {
+  await step('Warp: the grid tempo from a looped section', async () => {
     await page.keyboard.press('3');
-    await page.click('[data-fmt=warpWav]');
-    assert.equal(await page.isVisible('#warpMode'), true);
+    assert.equal(await page.isVisible('#p3'), true);
+    assert.equal(await page.isVisible('#warpListen'), false);
+    assert.equal(await page.getAttribute('#wWarped', 'aria-pressed'), 'true');
+    assert.match(await text('wSum'), /^The file averages 97\.87 BPM · warped to 98 BPM, stretched \d+ %–\d+ %/);
+    assert.equal(await page.getAttribute('#warpBpmB', 'placeholder'), '98');
+    assert.equal(await page.isDisabled('#wFromLoop'), true);
+    // Loop the last third, where the demo is fastest, and take its tempo.
+    await page.keyboard.press('z');
+    const b = await (await page.$('#cv')).boundingBox();
+    await page.mouse.move(b.x + b.width * 0.66, b.y + 10);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width * 0.8, b.y + 10, { steps: 5 });
+    await page.mouse.move(b.x + b.width - 4, b.y + 10, { steps: 5 });
+    await page.mouse.up();
+    assert.equal(await page.isDisabled('#wFromLoop'), false);
+    await page.click('#wFromLoop');
+    const bpm = await page.inputValue('#warpBpmB');
+    assert.ok(+bpm >= 100, 'the end of the demo is faster: ' + bpm);
+    // Taking the loop's tempo still warps the whole file.
+    assert.match(await text('wSum'), new RegExp(`^The file averages .* warped to ${bpm} BPM`));
+    await page.keyboard.press('l');
+  });
+  await step('Warp: hear it, with the playhead on the original, and A/B', async () => {
+    await page.selectOption('#warpModeB', 'beats');
+    await page.keyboard.press('Home');
+    await page.keyboard.press(' ');
+    await page.waitForFunction(() => document.getElementById('playBtn').dataset.state === 'true' && document.getElementById('busy').hidden, null, { timeout: 30000 });
+    await page.waitForTimeout(700);
+    assert.notEqual(await text('rTime'), '0:00.000');
+    await page.keyboard.press('w');
+    assert.equal(await page.getAttribute('#wOrig', 'aria-pressed'), 'true');
+    await page.waitForTimeout(300);
+    assert.equal(await page.$eval('#playBtn', (b) => b.dataset.state), 'true');
+    await page.keyboard.press(' ');
+    await page.keyboard.press('w');
+  });
+  await step('Export: the audio warped onto a straight grid downloads as a .wav', async () => {
+    await page.keyboard.press('Control+e');
+    assert.equal(await page.getAttribute('[data-fmt=warpWav]', 'aria-pressed'), 'true');
+    assert.equal(await page.isVisible('[data-fmt=midi]'), false);
+    assert.equal(await page.inputValue('#warpMode'), 'beats');
     assert.equal(await page.isVisible('#clicks'), false);
-    assert.equal(await page.getAttribute('#warpBpm', 'placeholder'), '98');
-    await page.selectOption('#warpMode', 'beats');
-    assert.match(await text('expInfo'), /^Cut at the transients.* at 98 BPM, stretched \d+ %–\d+ %\./);
+    assert.match(await text('expInfo'), /^Cut at the transients.* at \d+ BPM, stretched \d+ %–\d+ %\./);
     await page.fill('#warpBpm', '100');
     await page.dispatchEvent('#warpBpm', 'change');
     assert.match(await text('expInfo'), / at 100 BPM/);
     const [d] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#expSave')]);
     assert.equal(d.suggestedFilename(), 'drifting-drum-loop_warped_100bpm.wav');
-  });
-  await step('Beats: hear it warped, with the playhead on the original', async () => {
-    // The Export window left the material on Drums and the grid on 100 BPM; the Beats panel shows both.
-    assert.equal(await page.inputValue('#warpModeB'), 'beats');
     assert.equal(await page.inputValue('#warpBpmB'), '100');
-    await page.keyboard.press('w');
-    assert.equal(await page.getAttribute('#warpListen', 'aria-pressed'), 'true');
-    await page.keyboard.press('Home');
-    await page.keyboard.press(' ');
-    await page.waitForFunction(() => document.getElementById('playBtn').dataset.state === 'true' && document.getElementById('busy').hidden, null, { timeout: 30000 });
-    await page.waitForTimeout(700);
-    const t = await text('rTime');
-    assert.notEqual(t, '0:00.000');
-    await page.keyboard.press(' ');
-    await page.keyboard.press('w');
-    assert.equal(await page.getAttribute('#warpListen', 'aria-pressed'), 'false');
+  });
+  await step('Warp: Reset goes back to the average', async () => {
+    await page.click('#resetW');
+    assert.equal(await page.inputValue('#warpBpmB'), '');
+    assert.equal(await page.inputValue('#warpModeB'), 'music');
+    assert.equal(await page.isDisabled('#resetW'), true);
   });
   await step('Beats: Reset starts the map again, undo brings it back', async () => {
+    await page.keyboard.press('2');
     assert.equal(await page.isDisabled('#resetB'), false);
     await page.click('#resetB');
     assert.equal(await text('aCount'), '1 pin');
-    assert.equal(await page.inputValue('#warpBpmB'), '');
     assert.equal(await page.isDisabled('#resetB'), true);
     await page.keyboard.press('Control+z');
     assert.equal(await text('aCount'), '64 pins');
   });
   await step('Export on a phone: the formats are a dropdown', async () => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.keyboard.press('3');
+    await page.keyboard.press('Control+e');
     assert.equal(await page.isVisible('#fmtList'), false);
     // It opens on the format last chosen in this step.
-    assert.equal(await text('fmtPickNm'), 'Warped to the grid');
-    // With the long Warp options below, the button keeps its height: nothing of its subtitle is cut.
+    assert.equal(await text('fmtPickNm'), 'MIDI');
+    // With the options below, the button keeps its height: nothing of its subtitle is cut.
     assert.equal(await page.$eval('#fmtPick', (b) => b.scrollHeight - b.clientHeight), 0);
     await page.click('#fmtPick');
     assert.equal(await page.getAttribute('#fmtPick', 'aria-expanded'), 'true');
-    await page.click('#fmtList [data-fmt=midi]');
+    await page.click('#fmtList [data-fmt=rpp]');
     assert.equal(await page.isVisible('#fmtList'), false);
-    assert.equal(await text('fmtPickNm'), 'MIDI');
-    assert.equal(await page.isVisible('#clicks'), true);
+    assert.equal(await text('fmtPickNm'), 'REAPER');
+    assert.equal(await page.isVisible('#rppAudio'), true);
     // Escape closes the list first, then the window.
     await page.click('#fmtPick');
     await page.keyboard.press('Escape');
@@ -151,7 +179,7 @@ try {
     assert.equal(await text('gN-kick'), '32');
     assert.equal(await text('gN-snare'), '32');
     assert.match(await text('gSum'), /^16 bars · 9\d\.\d BPM · Against the hats/);
-    await page.keyboard.press('3');
+    await page.keyboard.press('Control+e');
     assert.equal(await page.getAttribute('[data-fmt=drumsMidi]', 'aria-pressed'), 'true');
     const [d] = await Promise.all([page.waitForEvent('download'), page.click('#expSave')]);
     assert.equal(d.suggestedFilename(), 'drifting-drum-loop-drums.mid');

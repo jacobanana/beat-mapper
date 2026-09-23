@@ -7,8 +7,7 @@ import { fmtTime } from '../../core/format';
 import { $, $btn, icon, setPressed } from '../dom';
 import { STEP_FORMATS } from './export-dialog';
 
-// Step 3 was Export; it is the Export window now, so the tabs skip it.
-const STEPS = [1, 2, 4, 5] as const;
+const STEPS = [1, 2, 3, 4, 5] as const;
 
 export function bindHeader(app: App, f: Features, openHelp: () => void, openExport: () => void): void {
   for (const n of STEPS) $('t' + n).onclick = () => f.workflow.goTo(n);
@@ -33,7 +32,7 @@ export function bindHeader(app: App, f: Features, openHelp: () => void, openExpo
   $('scrubBtn').onclick = () => f.playback.toggleScrub();
   $('clickBtn').onclick = () => f.playback.toggleClick();
   // Each step's Reset, last in its panel: it starts that step again.
-  const RESETS = ['resetM', 'resetB', 'resetS', 'gReset'];
+  const RESETS = ['resetM', 'resetB', 'resetW', 'resetS', 'gReset'];
   for (const id of RESETS) $(id).onclick = () => f.workflow.resetStep();
 
   const syncSteps = () => {

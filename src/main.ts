@@ -18,6 +18,7 @@ import { bindHeader } from './ui/panels/header';
 import { bindMixerPanel } from './ui/panels/mixer-panel';
 import { bindSessionPanel } from './ui/panels/session-panel';
 import { bindSlicePanel } from './ui/panels/slice-panel';
+import { bindWarpPanel } from './ui/panels/warp-panel';
 
 const safeStorage = (() => { try { return window.localStorage; } catch { return null; } })();
 
@@ -76,6 +77,7 @@ bindMixerPanel(app, f);
 bindSessionPanel(app, f, onPick);
 bindDetectPanel(app, f);
 bindBeatsPanel(app, f, refocus);
+bindWarpPanel(app, f, refocus);
 bindSlicePanel(app, f);
 const grooveChart = bindGroovePanel(app, f);
 bindKeyboard(app, f, { openHelp, openFile: () => fileIn.click(), openExport: () => openExport(), refocus, canvas: cv });
