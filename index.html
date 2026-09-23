@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BeatMapper – tempo map from audio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+<meta name="description" content="Tempo map from a recording: find every hit, follow the beat, export a MIDI tempo map or a REAPER project, and slice the audio into samples.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%A5%81%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-open" viewBox="0 0 20 20"><path d="M2.5 5.5v10h15v-8h-8l-1.5-2Z"/></symbol>
+<symbol id="i-wave" viewBox="0 0 20 20"><path d="M3.5 9v2M6.8 6v8M10 3v14M13.2 7v6M16.5 9v2"/></symbol>
+<symbol id="i-beats" viewBox="0 0 20 20"><path d="M3 3v14M7.7 9v8M12.3 9v8M17 3v14"/><path class="f" d="M3 2l3 3-3 3-3-3Z" transform="translate(0 0)"/></symbol>
+<symbol id="i-export" viewBox="0 0 20 20"><path d="M10 3v9M6.5 8.5 10 12l3.5-3.5M4 16h12"/></symbol>
+<symbol id="i-play" viewBox="0 0 20 20"><path class="f" d="M6 3.5 16.5 10 6 16.5Z"/></symbol>
+<symbol id="i-stop" viewBox="0 0 20 20"><path class="f" d="M5 5h10v10H5Z"/></symbol>
+<symbol id="i-tostart" viewBox="0 0 20 20"><path d="M5 4v12"/><path class="f" d="M16 4 7.5 10 16 16Z"/></symbol>
+<symbol id="i-loop" viewBox="0 0 20 20"><path d="M4 9V8a2.5 2.5 0 0 1 2.5-2.5H15M12.5 3 15 5.5 12.5 8M16 11v1a2.5 2.5 0 0 1-2.5 2.5H5M7.5 17 5 14.5 7.5 12"/></symbol>
+<symbol id="i-scrub" viewBox="0 0 20 20"><path d="M10 3v14M7 7l-3 3 3 3M13 7l3 3-3 3"/></symbol>
+<symbol id="i-click" viewBox="0 0 20 20"><path d="M7.5 3h5l3 14h-11ZM10 13l4.5-8"/></symbol>
+<symbol id="i-zin" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5"/><path d="M12.3 12.3 17 17M6.3 8.5h4.4M8.5 6.3v4.4"/></symbol>
+<symbol id="i-zout" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5"/><path d="M12.3 12.3 17 17M6.3 8.5h4.4"/></symbol>
+<symbol id="i-fit" viewBox="0 0 20 20"><path d="M3 4v12M17 4v12M6 10h8M8 8l-2 2 2 2M12 8l2 2-2 2"/></symbol>
+<symbol id="i-undo" viewBox="0 0 20 20"><path d="M7 5 3.5 8.5 7 12M3.5 8.5H12a4 4 0 0 1 0 8H9"/></symbol>
+<symbol id="i-prev" viewBox="0 0 20 20"><path d="M12 4 6 10l6 6"/></symbol>
+<symbol id="i-next" viewBox="0 0 20 20"><path d="M8 4l6 6-6 6"/></symbol>
+<symbol id="i-add" viewBox="0 0 20 20"><path d="M10 4v12M4 10h12"/></symbol>
+<symbol id="i-del" viewBox="0 0 20 20"><path d="M4 6h12M8 6V4h4v2M6 6l.7 10.5h6.6L14 6"/></symbol>
+<symbol id="i-reset" viewBox="0 0 20 20"><path d="M4.5 11a5.8 5.8 0 1 0 1.6-5L4 8M4 4v4h4"/></symbol>
+<symbol id="i-down" viewBox="0 0 20 20"><path d="M5 17V3h10l-2.5 3.5L15 10H5"/></symbol>
+<symbol id="i-pin" viewBox="0 0 20 20"><path d="M10 11v7M10 2l4.5 4.5L10 11 5.5 6.5Z"/></symbol>
+<symbol id="i-unpin" viewBox="0 0 20 20"><path d="M10 11v7M10 2l4.5 4.5L10 11 5.5 6.5ZM3.5 15 16.5 3"/></symbol>
+<symbol id="i-clear" viewBox="0 0 20 20"><path d="M5 5l10 10M15 5 5 15"/></symbol>
+<symbol id="i-auto" viewBox="0 0 20 20"><path d="M4 16l8.5-8.5M12 2.5v3.5M10.2 4.2h3.6M16 8v3.5M14.2 9.8h3.6"/></symbol>
+<symbol id="i-derive" viewBox="0 0 20 20"><path d="M7.5 5v10M12.5 5v10M7.5 10h5M5 10H1.5M3.2 8 1.5 10l1.7 2M15 10h3.5M16.8 8l1.7 2-1.7 2"/></symbol>
+<symbol id="i-snap" viewBox="0 0 20 20"><path d="M5 3v7a5 5 0 0 0 10 0V3h-3v7a2 2 0 0 1-4 0V3ZM5 6h3M12 6h3"/></symbol>
+<symbol id="i-tap" viewBox="0 0 20 20"><circle cx="10" cy="10" r="2.2"/><circle cx="10" cy="10" r="6.5"/></symbol>
+<symbol id="i-sens" viewBox="0 0 20 20"><path d="M2.5 16 6 8l3 5 3.5-10 3 13M2 11.5h16" /></symbol>
+<symbol id="i-odf" viewBox="0 0 20 20"><path d="M2 16c1.5 0 2-7 3.5-7S7 12 8 12s1.2-9 2.5-9 1.5 12 3 12 1.5-5 4.5-5"/></symbol>
+<symbol id="i-gap" viewBox="0 0 20 20"><path d="M5 4v12M15 4v12M7.5 10h5M9 8.5 7.5 10 9 11.5M11 8.5l1.5 1.5-1.5 1.5"/></symbol>
+<symbol id="i-stay" viewBox="0 0 20 20"><path d="M10 8v9"/><path class="f" d="M5.5 3h9v2.5L10 9 5.5 5.5Z"/></symbol>
+<symbol id="i-save" viewBox="0 0 20 20"><path d="M4 3.5h9.5L16.5 6.5v10h-12.5ZM7 3.5v4h5.5v-4M7 16.5v-5h6v5"/></symbol>
+<symbol id="i-import" viewBox="0 0 20 20"><path d="M10 13V4M6.5 7.5 10 4l3.5 3.5M4 16h12"/></symbol>
+<symbol id="i-tol" viewBox="0 0 20 20"><path d="M10 4v12M6 7l-3 3 3 3M14 7l3 3-3 3"/></symbol>
+<symbol id="i-slice" viewBox="0 0 20 20"><path d="M1.5 13h2.2l1.4-3.5L7 16l2-13 2 10.5 1.4-2.5h4.1"/><path d="M6.2 2v16M13.8 2v16" stroke-dasharray="2 2.4"/></symbol>
+</defs></svg>
+<div id="app">
+  <header class="top">
+    <div class="grp">
+      <label class="btn" id="openBtn" for="fileIn" tabindex="0" role="button" title="Open audio (Ctrl/Cmd+O)" aria-label="Open audio"><svg class="ic"><use href="#i-open"/></svg></label>
+      <input type="file" id="fileIn" class="vh" tabindex="-1" aria-hidden="true">
+      <span id="fileInfo"></span>
+    </div>
+    <nav class="steps" role="tablist" aria-label="Workflow">
+      <button role="tab" id="t1" aria-selected="true" title="Transients (1)" aria-label="Transients"><svg class="ic"><use href="#i-wave"/></svg></button>
+      <button role="tab" id="t2" aria-selected="false" title="Beats (2)" aria-label="Beats"><svg class="ic"><use href="#i-beats"/></svg></button>
+      <button role="tab" id="t3" aria-selected="false" title="Export (3)" aria-label="Export"><svg class="ic"><use href="#i-export"/></svg></button>
+      <button role="tab" id="t4" aria-selected="false" title="Slice samples (4)" aria-label="Slice samples"><svg class="ic"><use href="#i-slice"/></svg></button>
+    </nav>
+    <div class="grp tools">
+      <button class="btn" id="zOut" title="Zoom out (−)" aria-label="Zoom out"><svg class="ic"><use href="#i-zout"/></svg></button>
+      <button class="btn" id="zFit" title="Fit whole file (Z)" aria-label="Fit"><svg class="ic"><use href="#i-fit"/></svg></button>
+      <button class="btn" id="zIn" title="Zoom in (+)" aria-label="Zoom in"><svg class="ic"><use href="#i-zin"/></svg></button>
+      <button class="btn" id="undoBtn" title="Undo (Ctrl/Cmd+Z)" aria-label="Undo"><svg class="ic"><use href="#i-undo"/></svg></button>
+      <button class="btn" id="helpBtn" title="Help and shortcuts (?)" aria-label="Help">?</button>
+    </div>
+    <div class="grp transport">
+      <button class="btn" id="playBtn" title="Play / stop (Space)" aria-label="Play or stop"><svg class="ic"><use href="#i-play"/></svg></button>
+      <button class="btn" id="fromStart" title="Play from the first transient, or the loop start (Enter)" aria-label="Play from start"><svg class="ic"><use href="#i-tostart"/></svg></button>
+      <button class="btn" id="stayBtn" title="Stop leaves the playhead where it stopped; with the magnet on it sticks to the closest transient (H)" aria-label="Playhead stays on stop" aria-pressed="false"><svg class="ic"><use href="#i-stay"/></svg></button>
+      <button class="btn" id="loopBtn" title="Loop (L)" aria-label="Loop" aria-pressed="false"><svg class="ic"><use href="#i-loop"/></svg></button>
+      <button class="btn" id="scrubBtn" title="Scrub: drag the waveform to listen (R)" aria-label="Scrub" aria-pressed="false"><svg class="ic"><use href="#i-scrub"/></svg></button>
+      <button class="btn" id="clickBtn" title="Click on markers / beats (K)" aria-label="Click" aria-pressed="false"><svg class="ic"><use href="#i-click"/></svg></button>
+      <div class="read"><b id="rTime" title="Time">0:00.000</b><b id="rPos" title="Bar.beat">–</b><b id="rBpm" title="BPM">–</b></div>
+    </div>
+  </header>
+
+  <main>
+    <div id="stage">
+      <canvas id="ov" aria-label="Overview of the whole file"></canvas>
+      <canvas id="cv" tabindex="0" aria-label="Waveform editor. Press ? for help."></canvas>
+      <div class="overlay" id="empty">
+        <div class="drop" id="drop">
+          <h1>Drop an audio file</h1>
+          <div class="row">
+            <label class="btn primary" id="chooseBtn" for="fileIn" tabindex="0" role="button"><svg class="ic"><use href="#i-open"/></svg>Open</label>
+            <button class="btn" id="demoBtn">Demo loop</button>
+          </div>
+        </div>
+      </div>
+      <div class="overlay" id="busy" hidden>
+        <div class="prog"><span id="busyText">Reading audio</span><div><i id="busyBar"></i></div></div>
+      </div>
+    </div>
+
+    <section id="panel" aria-label="Controls">
+      <div class="pane" id="p1">
+        <div class="bar">
+          <label class="sl" title="Sensitivity ([ ])"><svg class="ic"><use href="#i-sens"/></svg><input type="range" id="sens" min="0" max="100" value="55" aria-label="Sensitivity"><output id="sensO">55%</output></label>
+          <label class="sl" title="Minimum gap between markers"><svg class="ic"><use href="#i-gap"/></svg><input type="range" id="gap" min="10" max="300" step="5" value="60" aria-label="Minimum gap"><output id="gapO">60 ms</output></label>
+          <select id="algo" title="Detection algorithm" aria-label="Detection algorithm"><option value="flux">Spectral flux</option><option value="complex">Complex domain</option><option value="gdelay">Group delay</option><option value="energy">Energy rise</option></select>
+          <select id="band" title="Frequency band to detect on" aria-label="Band"><option value="full">All</option><option value="low">Lows</option><option value="high">Highs</option></select>
+          <button class="btn on" id="odfBtn" title="Show the transientness curve on the waveform (V)" aria-label="Show transientness" aria-pressed="true"><svg class="ic"><use href="#i-odf"/></svg></button>
+          <span class="sep"></span>
+          <button class="btn" id="prevM" title="Previous transient (Shift+Tab)" aria-label="Previous transient"><svg class="ic"><use href="#i-prev"/></svg></button>
+          <button class="btn" id="nextM" title="Next transient (Tab)" aria-label="Next transient"><svg class="ic"><use href="#i-next"/></svg></button>
+          <button class="btn" id="addM" title="Add marker at playhead (A)" aria-label="Add marker"><svg class="ic"><use href="#i-add"/></svg></button>
+          <button class="btn" id="delM" title="Delete selected marker (Del)" aria-label="Delete marker"><svg class="ic"><use href="#i-del"/></svg></button>
+          <button class="btn" id="resetM" title="Discard manual edits" aria-label="Discard manual edits"><svg class="ic"><use href="#i-reset"/></svg></button>
+          <span class="num" id="mCount" title="Markers"></span>
+        </div>
+      </div>
+
+      <div class="pane" id="p2" hidden>
+        <div class="bar" style="flex:2 1 420px">
+          <input type="number" id="num" min="1" max="32" value="4" title="Beats per bar" aria-label="Beats per bar"><span class="num" style="padding:0">/</span>
+          <select id="den" title="Beat unit" aria-label="Beat unit"><option>2</option><option selected>4</option><option>8</option><option>16</option></select>
+          <select id="grid" title="Grid (G)" aria-label="Grid"><option value="bar">Bar</option><option value="2">1/2</option><option value="4">1/4</option><option value="8">1/8</option><option value="16" selected>1/16</option><option value="32">1/32</option><option value="4t">1/4T</option><option value="8t">1/8T</option><option value="16t">1/16T</option></select>
+          <input type="number" id="bpm" min="20" max="400" step="0.01" value="120" title="Starting tempo (BPM)" aria-label="Starting tempo">
+          <button class="btn" id="half" title="Half time">÷2</button><button class="btn" id="dbl" title="Double time">×2</button>
+          <button class="btn" id="tap" title="Tap tempo (T)" aria-label="Tap tempo"><svg class="ic"><use href="#i-tap"/></svg></button>
+          <span class="sep"></span>
+          <button class="btn" id="prevM2" title="Previous transient (Shift+Tab)" aria-label="Previous transient"><svg class="ic"><use href="#i-prev"/></svg></button>
+          <button class="btn" id="nextM2" title="Next transient (Tab)" aria-label="Next transient"><svg class="ic"><use href="#i-next"/></svg></button>
+          <button class="btn" id="setDown" title="Bar 1 starts at playhead (D)" aria-label="Set bar 1"><svg class="ic"><use href="#i-down"/></svg></button>
+          <button class="btn" id="pinHere" title="Pin nearest grid line to playhead (B)" aria-label="Pin here"><svg class="ic"><use href="#i-pin"/></svg></button>
+          <button class="btn" id="unpin" title="Unpin selected (Del)" aria-label="Unpin"><svg class="ic"><use href="#i-unpin"/></svg></button>
+          <button class="btn" id="clearPins" title="Clear all pins except bar 1" aria-label="Clear pins"><svg class="ic"><use href="#i-clear"/></svg></button>
+          <span class="sl" title="Magnet: what the playhead and dragging land on (S cycles)"><svg class="ic"><use href="#i-snap"/></svg><select id="snapTo" aria-label="Snap to"><option value="markers">transients</option><option value="grid">grid</option><option value="off">nothing</option></select></span>
+          <span class="sep"></span>
+          <button class="btn primary" id="derive" title="Derive from loop: keep the loop, rebuild the rest (F)" aria-label="Derive from loop"><svg class="ic"><use href="#i-derive"/></svg></button>
+          <input type="number" id="loopBars" min="1" max="64" placeholder="bars" title="Bars in the loop (blank = auto)" aria-label="Bars in the loop">
+          <button class="btn" id="autoMap" title="Auto-map from bar 1 (M)" aria-label="Auto-map"><svg class="ic"><use href="#i-auto"/></svg></button>
+          <select id="mapEvery" title="Pin every" aria-label="Pin every"><option value="beat">beat</option><option value="bar">bar</option></select>
+          <label class="sl" title="Search window around each beat"><svg class="ic"><use href="#i-tol"/></svg><input type="range" id="tol" min="5" max="45" value="20" aria-label="Search window"><output id="tolO">±20%</output></label>
+          <span class="num" id="aCount" title="Pins"></span>
+        </div>
+        <div class="bars">
+          <p id="sum"></p>
+          <div class="wrap"><table><thead><tr><th>Bar</th><th>Start</th><th>BPM</th><th>±</th></tr></thead><tbody id="barRows"></tbody></table></div>
+        </div>
+      </div>
+
+      <div class="pane" id="p3" hidden>
+        <div class="bar">
+          <select id="lead" title="Where the audio sits in the project" aria-label="Audio placement"><option value="full">Whole file + lead-in</option><option value="trim">Trim to bar 1</option></select>
+          <select id="res" title="Tempo change at" aria-label="Tempo change at"><option value="pins">every pin</option><option value="bar">every bar</option><option value="beat">every beat</option></select>
+          <label class="chk" title="Include a click track of MIDI notes"><input type="checkbox" id="clicks" checked><svg class="ic"><use href="#i-click"/></svg></label>
+          <span class="sep"></span>
+          <button class="btn primary" id="saveBtn" title="Save MIDI tempo map (Ctrl/Cmd+E)"><svg class="ic"><use href="#i-export"/></svg>MIDI</button>
+          <button class="btn" id="saveRpp" title="Save REAPER project"><svg class="ic"><use href="#i-export"/></svg>REAPER</button>
+          <label class="chk" title="Put the audio file in the REAPER zip"><input type="checkbox" id="rppAudio" checked>audio</label>
+          <span class="sep"></span>
+          <button class="btn" id="sessSave" title="Save session file (.json): markers, pins and settings, no audio" aria-label="Save session"><svg class="ic"><use href="#i-save"/></svg></button>
+          <label class="btn" id="sessOpen" for="sessIn" tabindex="0" role="button" title="Open a session file, then the same audio" aria-label="Open session"><svg class="ic"><use href="#i-import"/></svg></label>
+          <input type="file" id="sessIn" class="vh" tabindex="-1" aria-hidden="true">
+          <p id="expInfo"></p>
+        </div>
+      </div>
+
+      <div class="pane" id="p4" hidden>
+        <div class="col">
+          <div class="bar">
+            <span class="sect" title="Where the cuts go: every transient starts a slice"><svg class="ic"><use href="#i-slice"/></svg></span>
+            <select id="slMode" title="Where each slice ends" aria-label="Where each slice ends"><option value="gap">to next transient</option><option value="fixed">fixed length</option></select>
+            <span class="sl" title="Fixed slice length (ms)">len<input type="number" id="slLen" min="5" max="60000" step="5" value="500" aria-label="Fixed slice length in ms"></span>
+            <span class="sl" title="Audio kept past the next transient (ms)">tail<input type="number" id="slTail" min="0" max="5000" step="5" value="0" aria-label="Tail past the next transient in ms"></span>
+            <span class="sl" title="Skip transients closer together than this (ms)"><svg class="ic"><use href="#i-gap"/></svg><input type="number" id="slMin" min="0" max="5000" step="5" value="40" aria-label="Minimum slice length in ms"></span>
+            <span class="num" id="slCount" title="Kept / found"></span>
+          </div>
+          <div class="bar">
+            <span class="sect" title="What every .wav gets"><svg class="ic"><use href="#i-wave"/></svg></span>
+            <span class="sl" title="Fade in / fade out of every slice (ms)">fade<input type="number" id="slFadeIn" min="0" max="500" step="1" value="1" aria-label="Fade in, ms"><input type="number" id="slFadeOut" min="0" max="2000" step="1" value="8" aria-label="Fade out, ms"></span>
+            <label class="chk" title="Normalize each slice to the target level"><input type="checkbox" id="slNorm">norm</label>
+            <input type="number" id="slTarget" min="-24" max="0" step="0.5" value="-1" title="Normalize target (dBFS)" aria-label="Normalize target in dBFS">
+            <select id="slMono" title="Channels" aria-label="Channels"><option value="src">as source</option><option value="mono">mono</option></select>
+            <select id="slBits" title="Bit depth" aria-label="Bit depth"><option value="16">16-bit</option><option value="24">24-bit</option></select>
+            <select id="slName" title="File names: name_01.wav, or with the slice's start time in it" aria-label="File names"><option value="num">01</option><option value="time">01 + time</option></select>
+          </div>
+          <div class="bar">
+            <button class="btn" id="slPrev" title="Previous slice, and hear it (Shift+Tab)" aria-label="Previous slice"><svg class="ic"><use href="#i-prev"/></svg></button>
+            <button class="btn" id="slNext" title="Next slice, and hear it (Tab)" aria-label="Next slice"><svg class="ic"><use href="#i-next"/></svg></button>
+            <button class="btn" id="slPlay" title="Play the selected slice on its own (E)" aria-label="Play slice"><svg class="ic"><use href="#i-play"/></svg></button>
+            <button class="btn" id="slOff" title="Keep or drop the selected slice (X)" aria-label="Keep or drop slice"><svg class="ic"><use href="#i-clear"/></svg></button>
+            <button class="btn" id="slAll" title="Keep every slice again" aria-label="Keep every slice">all</button>
+            <span class="sep"></span>
+            <button class="btn" id="slWav" title="Save the selected slice as one .wav"><svg class="ic"><use href="#i-export"/></svg>WAV</button>
+            <button class="btn" id="slLoop" title="Save the whole loop as one .wav, named with its bars and BPM. No fades, so it loops seamlessly"><svg class="ic"><use href="#i-loop"/></svg>LOOP</button>
+            <button class="btn primary" id="slZip" title="Save every kept slice as .wav files in a .zip"><svg class="ic"><use href="#i-export"/></svg>ZIP</button>
+            <button class="btn" id="slRpp" title="Save a REAPER project with every kept slice in place, and the .wav files beside it"><svg class="ic"><use href="#i-export"/></svg>REAPER</button>
+            <label class="chk" title="Add a .csv list of the slices to the zip"><input type="checkbox" id="slCsv" checked>csv</label>
+          </div>
+        </div>
+        <div class="bars">
+          <p id="slSum"></p>
+          <div class="wrap"><table><thead><tr><th title="Keep"></th><th>#</th><th>Start</th><th>ms</th><th>dB</th><th></th></tr></thead><tbody id="sliceRows"></tbody></table></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<dialog id="help">
+  <h2>Buttons</h2>
+  <div class="legend">
+    <h3>Top bar</h3>
+    <div><svg class="ic"><use href="#i-open"/></svg><span>Open audio</span><span><kbd>Ctrl/⌘</kbd><kbd>O</kbd></span></div>
+    <div><svg class="ic"><use href="#i-wave"/></svg><span>Step 1 · Transients</span><span><kbd>1</kbd></span></div>
+    <div><svg class="ic"><use href="#i-beats"/></svg><span>Step 2 · Beats</span><span><kbd>2</kbd></span></div>
+    <div><svg class="ic"><use href="#i-export"/></svg><span>Step 3 · Export</span><span><kbd>3</kbd></span></div>
+    <div><svg class="ic"><use href="#i-slice"/></svg><span>Step 4 · Slice samples</span><span><kbd>4</kbd></span></div>
+    <div><svg class="ic"><use href="#i-play"/></svg><span>Play from playhead / stop</span><span><kbd>Space</kbd></span></div>
+    <div><svg class="ic"><use href="#i-tostart"/></svg><span>Play from first transient, or loop start</span><span><kbd>Enter</kbd></span></div>
+    <div><svg class="ic"><use href="#i-stay"/></svg><span>Stop leaves the playhead in place (on the closest transient or grid line, whichever the magnet is set to)</span><span><kbd>H</kbd></span></div>
+    <div><svg class="ic"><use href="#i-loop"/></svg><span>Loop on/off</span><span><kbd>L</kbd></span></div>
+    <div><svg class="ic"><use href="#i-scrub"/></svg><span>Scrub: drag the waveform to listen</span><span><kbd>R</kbd></span></div>
+    <div><svg class="ic"><use href="#i-click"/></svg><span>Click on markers / beats</span><span><kbd>K</kbd></span></div>
+    <div><svg class="ic"><use href="#i-zout"/></svg><span>Zoom out</span><span><kbd>−</kbd></span></div>
+    <div><svg class="ic"><use href="#i-fit"/></svg><span>Fit whole file</span><span><kbd>Z</kbd></span></div>
+    <div><svg class="ic"><use href="#i-zin"/></svg><span>Zoom in</span><span><kbd>+</kbd></span></div>
+    <div><svg class="ic"><use href="#i-undo"/></svg><span>Undo</span><span><kbd>Ctrl/⌘</kbd><kbd>Z</kbd></span></div>
+    <h3>Transients</h3>
+    <div><svg class="ic"><use href="#i-sens"/></svg><span>Sensitivity</span><span><kbd>[</kbd><kbd>]</kbd></span></div>
+    <div><svg class="ic"><use href="#i-gap"/></svg><span>Minimum gap between markers</span><span></span></div>
+    <div><span>Algorithm</span><span>What counts as a hit: spectral flux (new energy in any bin), complex domain (also phase jumps, for soft pitched notes), group delay (each bin points at the instant its energy sits), energy rise (loudness only)</span></div>
+    <div><svg class="ic"><use href="#i-odf"/></svg><span>Show the transientness curve the markers come from</span><span><kbd>V</kbd></span></div>
+    <div><svg class="ic"><use href="#i-prev"/></svg><span>Previous transient</span><span><kbd>⇧</kbd><kbd>Tab</kbd></span></div>
+    <div><svg class="ic"><use href="#i-next"/></svg><span>Next transient</span><span><kbd>Tab</kbd></span></div>
+    <div><svg class="ic"><use href="#i-add"/></svg><span>Add marker at playhead</span><span><kbd>A</kbd></span></div>
+    <div><svg class="ic"><use href="#i-del"/></svg><span>Delete selected marker</span><span><kbd>Del</kbd></span></div>
+    <div><svg class="ic"><use href="#i-reset"/></svg><span>Discard manual edits</span><span></span></div>
+    <h3>Beats</h3>
+    <div><svg class="ic"><use href="#i-tap"/></svg><span>Tap tempo</span><span><kbd>T</kbd></span></div>
+    <div><svg class="ic"><use href="#i-down"/></svg><span>Bar 1 starts at playhead</span><span><kbd>D</kbd></span></div>
+    <div><svg class="ic"><use href="#i-pin"/></svg><span>Pin nearest grid line to playhead</span><span><kbd>B</kbd></span></div>
+    <div><svg class="ic"><use href="#i-unpin"/></svg><span>Unpin selected</span><span><kbd>Del</kbd></span></div>
+    <div><svg class="ic"><use href="#i-clear"/></svg><span>Clear all pins except bar 1</span><span></span></div>
+    <div><svg class="ic"><use href="#i-snap"/></svg><span>What the playhead and the loop land on: transients, or the grid at the resolution set here. Pins snap to transients but never to the grid – they are what makes it. Alt flips the magnet while you drag</span><span><kbd>S</kbd></span></div>
+    <div><svg class="ic"><use href="#i-derive"/></svg><span>Derive from loop: keep the loop, rebuild the rest</span><span><kbd>F</kbd></span></div>
+    <div><svg class="ic"><use href="#i-auto"/></svg><span>Auto-map from bar 1</span><span><kbd>M</kbd></span></div>
+    <div><svg class="ic"><use href="#i-tol"/></svg><span>Search window around each beat</span><span></span></div>
+    <h3>Export</h3>
+    <div><svg class="ic"><use href="#i-click"/></svg><span>Include a MIDI click track</span><span></span></div>
+    <div><svg class="ic"><use href="#i-save"/></svg><span>Save session file (no audio)</span><span></span></div>
+    <div><svg class="ic"><use href="#i-import"/></svg><span>Open session file, then the same audio</span><span></span></div>
+    <div><svg class="ic"><use href="#i-export"/></svg><span>Save MIDI / REAPER project</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
+    <h3>Slice samples</h3>
+    <div><svg class="ic"><use href="#i-slice"/></svg><span>Every transient from step 1 starts a slice, running to the next transient (plus a tail) or for a fixed length. Switch the loop on and only what is inside it is sliced</span><span></span></div>
+    <div><svg class="ic"><use href="#i-gap"/></svg><span>Transients closer together than this are skipped, so the slice before them keeps running</span><span></span></div>
+    <div><svg class="ic"><use href="#i-wave"/></svg><span>What each .wav gets: click-free fades, per-slice normalizing to the target dBFS, source channels or a mono mix, 16 or 24-bit at the file's sample rate</span><span></span></div>
+    <div><svg class="ic"><use href="#i-play"/></svg><span>Play the selected slice on its own, exactly as it will be written · a slice you click or step onto plays too</span><span><kbd>E</kbd></span></div>
+    <div><svg class="ic"><use href="#i-clear"/></svg><span>Keep or drop the selected slice</span><span><kbd>X</kbd></span></div>
+    <div><svg class="ic"><use href="#i-loop"/></svg><span>Save the whole loop as one .wav, named with the bars and BPM it works out at – written without fades so it loops seamlessly</span><span></span></div>
+    <div><svg class="ic"><use href="#i-export"/></svg><span>Save the selected slice, every kept slice as a .zip of .wav files, or a REAPER project with the slices in place</span><span></span></div>
+  </div>
+  <h2 style="margin-top:18px">Keyboard shortcuts</h2>
+  <div class="keys">
+    <h3>Anywhere</h3>
+    <div><span><kbd>Space</kbd></span><span>Play from playhead / stop and return to start point</span></div>
+    <div><span><kbd>Enter</kbd></span><span>Play from the first transient, or the loop start when Loop is on</span></div>
+    <div><span><kbd>⇧</kbd><kbd>Enter</kbd></span><span>Play from the start point (blue flag)</span></div>
+    <div><span><kbd>P</kbd></span><span>Move the start point to the playhead, also while playing</span></div>
+    <div><span><kbd>,</kbd> <kbd>.</kbd></span><span>Step the playhead and hear it (⇧ one pixel)</span></div>
+    <div><span><kbd>R</kbd></span><span>Scrub mode: drag the waveform to listen</span></div>
+    <div><span><kbd>L</kbd> <kbd>I</kbd> <kbd>O</kbd></span><span>Loop on/off, loop start / end at playhead</span></div>
+    <div><span><kbd>⇧</kbd><kbd>Space</kbd></span><span>Stop the other way (stay / return)</span></div>
+    <div><span><kbd>H</kbd></span><span>Stop leaves the playhead in place; with the magnet on it sticks to the closest transient or grid line</span></div>
+    <div><span><kbd>Tab</kbd> <kbd>⇧</kbd><kbd>Tab</kbd></span><span>Next / previous transient</span></div>
+    <div><span><kbd>←</kbd> <kbd>→</kbd></span><span>Nudge selection 1 ms (⇧ 10 ms, Alt 0.1 ms)</span></div>
+    <div><span><kbd>↑</kbd> <kbd>↓</kbd></span><span>Waveform height</span></div>
+    <div><span><kbd>+</kbd> <kbd>−</kbd> <kbd>Z</kbd></span><span>Zoom in, out, fit whole file</span></div>
+    <div><span><kbd>Home</kbd> <kbd>End</kbd></span><span>Go to start / end</span></div>
+    <div><span><kbd>K</kbd></span><span>Click on markers or beats</span></div>
+    <div><span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></span><span>Transients, Beats, Export, Slice</span></div>
+    <div><span><kbd>Ctrl/⌘</kbd><kbd>Z</kbd></span><span>Undo (add ⇧ to redo)</span></div>
+    <div><span><kbd>Esc</kbd></span><span>Deselect</span></div>
+    <h3>Step 1 – Transients</h3>
+    <div><span><kbd>A</kbd></span><span>Add marker at playhead</span></div>
+    <div><span><kbd>Del</kbd></span><span>Delete selected marker</span></div>
+    <div><span><kbd>[</kbd> <kbd>]</kbd></span><span>Sensitivity down / up</span></div>
+    <div><span><kbd>V</kbd></span><span>Transientness curve on/off</span></div>
+    <h3>Step 2 – Beats</h3>
+    <div><span><kbd>D</kbd></span><span>Bar 1 starts at playhead</span></div>
+    <div><span><kbd>B</kbd></span><span>Pin nearest grid line to playhead</span></div>
+    <div><span><kbd>M</kbd></span><span>Auto-map beats to transients</span></div>
+    <div><span><kbd>F</kbd></span><span>Derive the map from the loop (keep the loop, rebuild the rest)</span></div>
+    <div><span><kbd>G</kbd> <kbd>⇧</kbd><kbd>G</kbd></span><span>Finer / coarser grid</span></div>
+    <div><span><kbd>T</kbd></span><span>Tap tempo</span></div>
+    <div><span><kbd>S</kbd></span><span>Magnet: transients, grid, or nothing (⇧ the other way)</span></div>
+    <div><span><kbd>Del</kbd></span><span>Unpin selected</span></div>
+    <h3>Step 4 – Slice samples</h3>
+    <div><span><kbd>Tab</kbd> <kbd>⇧</kbd><kbd>Tab</kbd></span><span>Next / previous slice, and hear it</span></div>
+    <div><span><kbd>E</kbd></span><span>Play the selected slice on its own</span></div>
+    <div><span><kbd>X</kbd></span><span>Keep or drop the selected slice</span></div>
+    <div><span>Tap the waveform</span><span>Plays the slice under the pointer · double-tap keeps or drops it</span></div>
+    <div><span>Loop</span><span>With the loop on, only what is inside it is sliced and exported, and every file saved is named with the loop's bars and BPM</span></div>
+    <h3>Where you touch decides what happens</h3>
+    <div><span>Top strip</span><span>Loop: drag to draw, drag edges or middle to adjust, tap it to switch on/off, double-tap to loop a bar</span></div>
+    <div><span>Bar ruler</span><span>Drag pins and bar lines (step 2)</span></div>
+    <div><span>Upper half of waveform</span><span>Edit: drag markers, pins, grid lines · double-tap adds or removes</span></div>
+    <div><span>Lower half of waveform</span><span>Move only: drag to scroll, tap to place the playhead where the magnet says</span></div>
+    <div><span>Bottom time ruler</span><span>Scrub with sound · the blue flag is the start point</span></div>
+    <div><span>Anywhere</span><span>Pinch or scroll wheel zooms · ⇧-drag draws a loop</span></div>
+    <h3>Export</h3>
+    <div><span>MIDI</span><span>Saved inside a .zip here. Logic, Pro Tools, Cubase, Studio One and Reaper import its tempo map; Ableton Live ignores it</span></div>
+    <div><span>Session</span><span>Your work is kept in this browser per audio file and comes back when you open the same file. The session file carries it to another device; it holds no audio</span></div>
+    <div><span>REAPER</span><span>.rpp with the tempo map in place. Keep it in the same folder as the audio</span></div>
+    <div><span>Slices</span><span>One .wav per slice in a .zip, at the file's own sample rate, plus a .csv listing where each one came from. The REAPER zip adds a .rpp holding every slice at the time it was cut from, with the tempo map when there is one</span></div>
+    <div><span>Loop</span><span>name_8bars_96.31bpm.wav – the bar count the loop comes closest to, and the tempo that bar count implies for its exact length</span></div>
+  </div>
+  <div style="margin-top:14px;text-align:right"><button class="btn" id="helpClose">Close</button></div>
+</dialog>
+<div id="toast" role="status"></div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
