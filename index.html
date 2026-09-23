@@ -68,6 +68,7 @@
       <button class="btn" id="zFit" title="Fit whole file (Z)" aria-label="Fit"><svg class="ic"><use href="#i-fit"/></svg></button>
       <button class="btn" id="zIn" title="Zoom in (+)" aria-label="Zoom in"><svg class="ic"><use href="#i-zin"/></svg></button>
       <button class="btn" id="undoBtn" title="Undo (Ctrl/Cmd+Z)" aria-label="Undo"><svg class="ic"><use href="#i-undo"/></svg></button>
+      <button class="btn" id="mixBtn" title="Mixer: audio, click and drums" aria-label="Mixer" aria-expanded="false" aria-controls="mixer"><svg class="ic"><use href="#i-mix"/></svg></button>
       <button class="btn" id="helpBtn" title="Help and shortcuts (?)" aria-label="Help">?</button>
     </div>
     <div class="grp transport">
@@ -76,7 +77,7 @@
       <button class="btn" id="stayBtn" title="Stop leaves the playhead where it stopped; with the magnet on it sticks to the closest transient (H)" aria-label="Playhead stays on stop" aria-pressed="false"><svg class="ic"><use href="#i-stay"/></svg></button>
       <button class="btn" id="loopBtn" title="Loop (L)" aria-label="Loop" aria-pressed="false"><svg class="ic"><use href="#i-loop"/></svg></button>
       <button class="btn" id="scrubBtn" title="Scrub: drag the waveform to listen (R)" aria-label="Scrub" aria-pressed="false"><svg class="ic"><use href="#i-scrub"/></svg></button>
-      <button class="btn" id="mixBtn" title="Mixer: audio, click and drums" aria-label="Mixer" aria-expanded="false" aria-controls="mixer"><svg class="ic"><use href="#i-mix"/></svg></button>
+      <button class="btn" id="clickBtn" title="Click on markers / beats (K)" aria-label="Click" aria-pressed="false"><svg class="ic"><use href="#i-click"/></svg></button>
       <div class="read"><b id="rTime" title="Time">0:00.000</b><b id="rPos" title="Bar.beat">–</b><b id="rBpm" title="BPM">–</b></div>
     </div>
     <div class="pop" id="mixer" role="group" aria-label="Mixer" hidden>
@@ -85,7 +86,7 @@
         <input type="range" id="mix-audio" min="0" max="150" step="5" value="100" aria-label="Audio level"><output id="mixO-audio">100%</output>
       </div>
       <div class="ch">
-        <button class="btn chn" id="clickBtn" title="Click on markers / beats (K)" aria-label="Click" aria-pressed="false"><svg class="ic"><use href="#i-click"/></svg>Click</button>
+        <span class="chn"><svg class="ic"><use href="#i-click"/></svg>Click</span>
         <input type="range" id="mix-click" min="0" max="150" step="5" value="100" aria-label="Click level"><output id="mixO-click">100%</output>
       </div>
       <div class="ch" id="mixDrums">
@@ -261,8 +262,8 @@
     <div><svg class="ic"><use href="#i-stay"/></svg><span>Stop leaves the playhead in place (on the closest transient or grid line, whichever the magnet is set to)</span><span><kbd>H</kbd></span></div>
     <div><svg class="ic"><use href="#i-loop"/></svg><span>Loop on/off</span><span><kbd>L</kbd></span></div>
     <div><svg class="ic"><use href="#i-scrub"/></svg><span>Scrub: drag the waveform to listen</span><span><kbd>R</kbd></span></div>
+    <div><svg class="ic"><use href="#i-click"/></svg><span>Click on markers / beats</span><span><kbd>K</kbd></span></div>
     <div><svg class="ic"><use href="#i-mix"/></svg><span>Mixer: audio, click and drums levels</span><span></span></div>
-    <div><svg class="ic"><use href="#i-click"/></svg><span>In the mixer: click on markers / beats</span><span><kbd>K</kbd></span></div>
     <div><svg class="ic"><use href="#i-zout"/></svg><span>Zoom out</span><span><kbd>−</kbd></span></div>
     <div><svg class="ic"><use href="#i-fit"/></svg><span>Fit whole file</span><span><kbd>Z</kbd></span></div>
     <div><svg class="ic"><use href="#i-zin"/></svg><span>Zoom in</span><span><kbd>+</kbd></span></div>

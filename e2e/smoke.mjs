@@ -71,11 +71,11 @@ try {
     await page.selectOption('#gListen', 'midi');
     await page.fill('#mix-drums', '120');
     assert.equal(await text('mixO-drums'), '120%');
+    await page.click('#gChartPocket');
+    assert.equal(await page.isVisible('#mixer'), false);
     await page.click('#clickBtn');
     assert.equal(await page.getAttribute('#clickBtn', 'aria-pressed'), 'true');
     await page.click('#clickBtn');
-    await page.click('#gChartPocket');
-    assert.equal(await page.isVisible('#mixer'), false);
     await page.click('#gChartMidi');
     assert.equal(await page.getAttribute('#gChartMidi', 'aria-pressed'), 'true');
     assert.equal(await page.isDisabled('#gExag'), true);

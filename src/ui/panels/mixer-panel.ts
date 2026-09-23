@@ -1,9 +1,9 @@
-// The mixer: a popover under the transport with a level for the audio, the click and the synth kit,
-// the click's on/off, and what the Groove step plays.
+// The mixer: a popover under the top bar with a level for the audio, the click and the synth kit, and
+// what the Groove step plays. The click's on/off stays in the transport, where it is one tap away.
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { MIX_CHANNELS, type GrooveListen } from '../../state/settings';
-import { $, $in, $sel, setPressed, setText, setValue } from '../dom';
+import { $, $in, $sel, setText, setValue } from '../dom';
 
 export function bindMixerPanel(app: App, f: Features): void {
   const pop = $('mixer'), btn = $('mixBtn');
@@ -21,7 +21,6 @@ export function bindMixerPanel(app: App, f: Features): void {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !pop.hidden) show(false); });
 
   for (const ch of MIX_CHANNELS) $in('mix-' + ch).oninput = (e) => f.mixer.setLevel(ch, +(e.target as HTMLInputElement).value);
-  $('clickBtn').onclick = () => f.playback.toggleClick();
   $sel('gListen').onchange = (e) => f.groove.setListen((e.target as HTMLSelectElement).value as GrooveListen);
 
   const syncLevels = () => {
@@ -37,15 +36,8 @@ export function bindMixerPanel(app: App, f: Features): void {
     $('mixDrums').classList.toggle('idle', !live);
     $('mixHint').hidden = live;
   };
-  // The mixer button lights up while the click is on, since the click's own button is inside.
-  const syncClick = () => {
-    setPressed($('clickBtn'), app.transport.click);
-    btn.classList.toggle('live', app.transport.click);
-  };
   app.bus.on('mix', syncLevels);
   app.bus.on(['groove', 'step', 'drums'], syncDrums);
-  app.bus.on('transport', syncClick);
   syncLevels();
   syncDrums();
-  syncClick();
 }
