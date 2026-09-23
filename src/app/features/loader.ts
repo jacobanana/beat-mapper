@@ -1,6 +1,7 @@
 // Opening audio: decode, analyse (in the worker), pick up any saved session.
 import { estimateTempo } from '../../core/dsp/tempo';
-import { synthDemo } from '../../core/demo';
+import { bpmFromName } from '../../core/format';
+import { synthDemo, synthKit } from '../../core/demo';
 import type { Analyzer } from '../../analysis/analyzer';
 import { audioContext, channelsOf, decodeAudio } from '../../engine/audio-context';
 import { emptyDoc } from '../../state/project';
@@ -50,8 +51,22 @@ export class Loader {
     await this.open(buf, 'drifting-drum-loop', 'drifting-drum-loop.wav', null);
   }
 
-  /** Makes decoded audio the one being worked on: analyses it, resets the work, restores its session. */
-  async open(buf: AudioBuffer, name: string, fileName: string, file: File | null): Promise<void> {
+  /** A funk groove on a synthesised kit with a known pocket, to try the Groove step on. */
+  async loadKitDemo(): Promise<void> {
+    this.playback.stop(true);
+    this.busy('Building the groove', 0.05);
+    await new Promise((r) => setTimeout(r, 20));
+    const sr = 44100, d = synthKit(sr), buf = audioContext().createBuffer(1, d.x.length, sr);
+    buf.getChannelData(0).set(d.x);
+    await this.open(buf, 'pocket-demo', 'pocket-demo.wav', null, 92);
+  }
+
+  /**
+   * Makes decoded audio the one being worked on: analyses it, resets the work, restores its session.
+   * The starting tempo is `bpm` if given, else one written in the file name, else the estimate: a
+   * name that says 92.9bpm is more likely right than an autocorrelation that can land on 4/3 of it.
+   */
+  async open(buf: AudioBuffer, name: string, fileName: string, file: File | null, bpm?: number): Promise<void> {
     const { app } = this;
     const asset = makeAsset(buf, channelsOf(buf), name, fileName, file);
     const analysis = await this.analyzer.analyze(asset.x, asset.sr, (f) => this.busy('Finding transients', 0.1 + 0.88 * f));
@@ -60,7 +75,8 @@ export class Loader {
     app.audio = asset;
     app.analysis = analysis;
     app.cands = cands;
-    app.doc = emptyDoc(+estimateTempo(analysis.odfs.flux.full, analysis.fr).toFixed(2));
+    app.drums = null;
+    app.doc = emptyDoc(bpm ?? bpmFromName(fileName) ?? +estimateTempo(analysis.odfs.flux.full, analysis.fr).toFixed(2));
     app.history.clear();
     app.sel = null;
     app.hover = null;
@@ -71,7 +87,7 @@ export class Loader {
     app.transport = { ...app.transport, playhead: 0, start: 0, loop: null, loopOn: false };
     app.busy = false;
     app.notify.idle();
-    app.bus.emit('audio', 'doc', 'candidates', 'transport', 'view', 'playhead', 'selection', 'slices');
+    app.bus.emit('audio', 'doc', 'candidates', 'drums', 'transport', 'view', 'playhead', 'selection', 'slices');
     this.workflow.goTo(1);
     await this.sessions.restore();
   }

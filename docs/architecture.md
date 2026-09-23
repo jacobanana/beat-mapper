@@ -34,11 +34,15 @@ from bar 1.
 | `beats/track.ts` | Beat tracking outward from a known point, and auto-mapping between pins. |
 | `beats/edit.ts` | Every edit to the pins as a pure function: set bar 1, pin, unpin, drag, auto-map, derive from a loop, half/double time, tap tempo. |
 | `slices/` | Slice planning, rendering (fades, mono, normalize), loop info, file naming. |
+| `dsp/filter.ts` | Zero-phase biquads (forwards then backwards), for timing a voice's attack in its own band. |
+| `drums/` | Kick, snare and hats: a log-frequency spectrogram (optionally percussive-only), NMF with semi-adaptive templates, per-voice hit picking and bleed cancelling, sensitivity. See [groove.md](groove.md). |
+| `groove/pocket.ts` | Every drum hit on its grid step, measured against a reference voice bar by bar; per-voice and per-step statistics, swing. |
 
 ## io/
 
-`formats/` writes MIDI (type 1, tempo track + click), REAPER `.rpp`, PCM WAV and stored ZIP; all
-byte-for-byte what the single-file app wrote. `session.ts` reads and writes the session JSON,
+`formats/` writes MIDI (type 1, tempo track + click, and a drum track when given notes), REAPER
+`.rpp`, PCM WAV and stored ZIP, all byte-for-byte what the single-file app wrote, plus the Pocket
+Science groove file (`groove.ts`). `session.ts` reads and writes the session JSON,
 validating and clamping everything it reads. `download.ts` saves a file (through a host's download
 bridge when the app runs inside one).
 
@@ -53,9 +57,9 @@ bridge when the app runs inside one).
   undone.
 - **`App`** (`app/app.ts`) holds the document, settings, the audio and its analysis, and derives
   everything else on demand, memoised on the identity of its inputs: the visible markers, the tempo
-  map, the grid, the bars, the slices. Nothing derived is stored, so nothing can go stale.
+  map, the grid, the bars, the slices, the drum hits the sensitivities let through, and the pocket. Nothing derived is stored, so nothing can go stale.
 - **Features** (`app/features/`) are the verbs: `Markers`, `Beats`, `Playback`, `Slicer`,
-  `Exports`, `Sessions`, `Loader`, `Workflow`. They change the App and emit topics (`'doc'`,
+  `Exports`, `Groove`, `Sessions`, `Loader`, `Workflow`. They change the App and emit topics (`'doc'`,
   `'transport'`, `'slices'`…). They talk to the user only through the `Notifier` interface.
 
 ## ui/
@@ -75,6 +79,8 @@ bridge when the app runs inside one).
   unit test instead.
 - `test/app.test.ts` drives the App and features without a browser.
 - `test/session.test.ts` checks old session files load and save back unchanged.
+- `test/groove.test.ts` runs the drum detector and the pocket analysis on a synthetic kit whose
+  pocket is known (`synthKit` in `core/demo.ts`), and pins what full-mix mode can and can't do.
 - `e2e/smoke.mjs` walks the built app through every step in Chromium.
 
 ## Adding things

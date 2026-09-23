@@ -56,6 +56,15 @@ try {
     await page.keyboard.press('4');
     assert.equal(await text('slCount'), '128/128');
   });
+  await step('Groove: kick, snare and hats found and measured', async () => {
+    await page.keyboard.press('5');
+    await page.waitForFunction(() => document.getElementById('gN-kick').textContent !== '' && document.getElementById('busy').hidden, null, { timeout: 30000 });
+    assert.equal(await text('gN-kick'), '32');
+    assert.equal(await text('gN-snare'), '32');
+    assert.match(await text('gSum'), /^16 bars · 9\d\.\d BPM · Against the hats/);
+    const [d] = await Promise.all([page.waitForEvent('download'), page.click('#gMidi')]);
+    assert.equal(d.suggestedFilename(), 'drifting-drum-loop-drums.mid');
+  });
   assert.deepEqual(errors, []);
   console.log('e2e smoke passed');
 } finally {

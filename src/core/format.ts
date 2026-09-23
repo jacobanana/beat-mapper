@@ -14,3 +14,13 @@ export const plural = (n: number, word: string): string => `${n} ${word}${n === 
 
 /** A name safe to use in a file name. */
 export const safeName = (name: string): string => name.replace(/[^\w-]+/g, '-').slice(0, 60);
+
+/**
+ * A tempo written in a file name, as sample packs and bounces do: "loop_92.9bpm", "Groove 120 BPM",
+ * "beat-85bpm". Null when there is none or it is outside 40..300.
+ */
+export function bpmFromName(name: string): number | null {
+  const m = /(?:^|[^\d.])(\d{2,3}(?:\.\d{1,2})?)\s*[-_ ]?bpm/i.exec(name);
+  const b = m ? +m[1] : NaN;
+  return b >= 40 && b <= 300 ? b : null;
+}

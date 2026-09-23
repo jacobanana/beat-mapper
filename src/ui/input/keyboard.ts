@@ -62,7 +62,7 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
       case 'h': f.playback.toggleStay(); return;
       case 'v': f.markers.toggleOdf(); return;
       case 'k': f.playback.toggleClick(); return;
-      case '1': case '2': case '3': case '4': f.workflow.goTo(+k as 1 | 2 | 3 | 4); return;
+      case '1': case '2': case '3': case '4': case '5': f.workflow.goTo(+k as 1 | 2 | 3 | 4 | 5); return;
       case '?': hooks.openHelp(); return;
       case 'Escape': app.select(null); if (el === cv) cv.blur(); return;
       case 'Delete': case 'Backspace': {
@@ -86,6 +86,8 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
     } else if (app.step === 4) {
       if (k === 'e') f.slicer.previewSelected();
       else if (k === 'x') f.slicer.toggleSelected();
+    } else if (app.step === 5) {
+      if (k === 'x') f.groove.toggleExaggerate();
     }
   });
 

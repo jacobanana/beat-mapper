@@ -14,6 +14,15 @@ export interface ExportOptions {
   trimmed: boolean;
   /** Add a click track. */
   clicks?: boolean;
+  /** Notes to write on a drum track (GM channel 10), at their own times: micro-timing and all. */
+  notes?: readonly DrumNote[];
+}
+
+export interface DrumNote {
+  /** Seconds in the audio. */
+  t: number;
+  note: number;
+  vel: number;
 }
 
 export interface TempoPoint {
@@ -145,6 +154,20 @@ export function buildMidi(o: ExportOptions): { bytes: Uint8Array; info: ExportIn
     const endQ = o.map.timeToPos(o.dur);
     for (let k = 0; k * beatQ < endQ && k < 200000; k++) add(leadTicks + Math.round(k * beatQ * ppq), k % o.meter.num === 0);
     tracks.push(track(nv));
+  }
+  if (o.notes?.length) {
+    // A hit's tick is its place on the tempo map, so it lands where it was played against the tempo
+    // track written above: exactly with a tempo change at every pin (the map is straight between
+    // pins), to within the rounding of one tick otherwise. In the lead-in the tempo is the lead-in's.
+    const dv: MidiEvent[] = [{ tick: 0, pr: 0, data: metaText(3, 'Drums') }], t0 = plan.info.t0, len = ppq / 8;
+    for (const n of o.notes) {
+      const q = o.map.timeToPos(n.t);
+      const tick = q >= 0 ? leadTicks + Math.round(q * ppq) : !o.trimmed && t0 > 0 ? Math.round((n.t / t0) * leadTicks) : -1;
+      if (tick < 0 || !Number.isFinite(tick)) continue;
+      const v = Math.max(1, Math.min(127, Math.round(n.vel)));
+      dv.push({ tick, pr: 4, data: [0x99, n.note, v] }, { tick: tick + len, pr: 3, data: [0x89, n.note, 0] });
+    }
+    tracks.push(track(dv));
   }
   const head = [0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 1, 0, tracks.length, (ppq >> 8) & 255, ppq & 255];
   const total = head.length + tracks.reduce((s, t) => s + t.length, 0), bytes = new Uint8Array(total);

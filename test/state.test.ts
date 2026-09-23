@@ -92,3 +92,14 @@ describe('project document', () => {
     expect(removeCandidate(d3, 3.3)).toBe(d3);
   });
 });
+
+describe('tempo in a file name', async () => {
+  const { bpmFromName } = await import('../src/core/format');
+  it('reads the usual ways of writing it', () => {
+    expect(bpmFromName('S2S-JAM-DRUMS-_2bars_92.9bpm.wav')).toBe(92.9);
+    expect(bpmFromName('Groove 120 BPM.aif')).toBe(120);
+    expect(bpmFromName('beat-85bpm')).toBe(85);
+    expect(bpmFromName('take_4.wav')).toBeNull();
+    expect(bpmFromName('noise 999bpm')).toBeNull();
+  });
+});

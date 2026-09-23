@@ -1,11 +1,11 @@
-// The top bar: open, the four steps, zoom, undo, help, transport buttons and the time readout.
+// The top bar: open, the five steps, zoom, undo, help, transport buttons and the time readout.
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { fmtTime } from '../../core/format';
 import { $, icon, setPressed } from '../dom';
 
 export function bindHeader(app: App, f: Features, openHelp: () => void): void {
-  for (const n of [1, 2, 3, 4] as const) $('t' + n).onclick = () => f.workflow.goTo(n);
+  for (const n of [1, 2, 3, 4, 5] as const) $('t' + n).onclick = () => f.workflow.goTo(n);
 
   const zoomKey = (k: number) => {
     const v = app.view, tc = v.contains(app.transport.playhead) ? app.transport.playhead : (v.t0 + v.t1) / 2;
@@ -26,7 +26,7 @@ export function bindHeader(app: App, f: Features, openHelp: () => void): void {
   $('clickBtn').onclick = () => f.playback.toggleClick();
 
   const syncSteps = () => {
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 1; i <= 5; i++) {
       $('t' + i).setAttribute('aria-selected', String(i === app.step));
       $('p' + i).hidden = i !== app.step;
     }

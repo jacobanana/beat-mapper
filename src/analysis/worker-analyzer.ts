@@ -1,4 +1,5 @@
 import type { Algo, Analysis, Band } from '../core/dsp/onset';
+import type { DrumAnalysis, DrumSource } from '../core/drums/detect';
 import type { Candidate } from '../core/types';
 import { type Analyzer, InlineAnalyzer } from './analyzer';
 import type { Request, Response } from './protocol';
@@ -68,6 +69,13 @@ export class WorkerAnalyzer implements Analyzer {
     const r = await this.request({ type: 'candidates', band, algo });
     if (r.type !== 'candidates') throw new Error('Unexpected reply ' + r.type);
     return r.candidates;
+  }
+
+  async drums(source: DrumSource, onProgress?: (f: number) => void): Promise<DrumAnalysis> {
+    if (this.inline) return this.inline.drums(source, onProgress);
+    const r = await this.request({ type: 'drums', source }, [], onProgress);
+    if (r.type !== 'drums') throw new Error('Unexpected reply ' + r.type);
+    return r.drums;
   }
 
   dispose(): void {
