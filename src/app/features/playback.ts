@@ -26,12 +26,17 @@ export class Playback {
         for (let i = lowerBound(N, a); i < N.length && N[i].t < b; i++) emit(N[i].t, N[i].voice, N[i].vel);
       },
       hitsOn: () => listen() !== 'audio',
-      audioLevel: () => (listen() === 'midi' ? 0 : 0.9),
+      audioLevel: () => (listen() === 'midi' ? 0 : this.audioLevel),
+      clickLevel: () => app.mix.click / 100,
+      hitLevel: () => app.mix.drums / 100,
     });
     this.player.onEnded = () => { app.setPlayhead(app.dur, false); app.bus.emit('transport'); };
   }
 
   get playing(): boolean { return this.player.playing; }
+
+  /** The audio's gain, from the mixer: scrub grains and slice previews play at it too. */
+  get audioLevel(): number { return 0.9 * this.app.mix.audio / 100; }
 
   /** Where the sound is now: the player's position while playing, else the playhead. */
   now(): number {
@@ -204,7 +209,7 @@ export class Playback {
     app.setPlayhead(t);
     const n = performance.now();
     if (app.audio && n - s.lastG >= 45 && Math.abs(t - s.lastPos) > 1e-5) {
-      grain(app.audio.buffer, t);
+      grain(app.audio.buffer, t, undefined, this.audioLevel);
       s.lastG = n;
       s.lastPos = t;
     }
@@ -220,7 +225,7 @@ export class Playback {
     const px = app.view.span / app.view.width;
     this.seek(app.transport.playhead + dir * px * (fine ? 1 : 12), true);
     app.reveal(app.transport.playhead);
-    grain(app.audio.buffer, app.transport.playhead, 0.13);
+    grain(app.audio.buffer, app.transport.playhead, 0.13, this.audioLevel);
   }
 
   stopPreview(): void {

@@ -1,7 +1,7 @@
 // Step 2 – Beats: meter, tempo, pins, mapping, and the table of bars.
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
-import { fmtTime } from '../../core/format';
+import { fmtTime, plural } from '../../core/format';
 import type { GridDivision } from '../../core/tempo/meter';
 import type { SnapMode } from '../../state/settings';
 import { $, $in, $sel, clampNum, setValue } from '../dom';
@@ -50,7 +50,7 @@ export function bindBeatsPanel(app: App, f: Features, refocus: () => void): void
     setValue($sel('mapEvery'), app.beats.mapEvery);
     setValue($in('tol'), app.beats.tol);
     $('tolO').textContent = '±' + app.beats.tol + '%';
-    $('aCount').textContent = app.doc.tempo.anchors.length ? String(app.doc.tempo.anchors.length) : '';
+    $('aCount').textContent = app.doc.tempo.anchors.length ? plural(app.doc.tempo.anchors.length, 'pin') : '';
   };
 
   // The bar table. Rebuilt when the map settles (not on every frame of a drag).

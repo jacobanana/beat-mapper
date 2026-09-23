@@ -25,14 +25,20 @@ button,input,select{font:inherit;color:inherit}
 .ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;display:block;flex:none}
 .ic .f{fill:currentColor;stroke:none}
 
-.top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:6px 8px;background:var(--panel);border-bottom:1px solid var(--line)}
+.top{position:relative;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:6px 8px;background:var(--panel);border-bottom:1px solid var(--line)}
 .grp{display:flex;align-items:center;gap:4px}
 #fileInfo{color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:18ch;font-size:14px}
 .steps{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--bg)}
 .steps button{border:0;background:none;padding:6px 12px;cursor:pointer;color:var(--dim);border-right:1px solid var(--line)}
 .steps button:last-child{border-right:0}
 .steps button[aria-selected="true"]{background:var(--raise);color:var(--beat)}
-.transport{margin-left:auto;flex-wrap:wrap} .tools{order:3}
+.grp .sep{margin:4px 3px}
+/* Desktop: file and edit at the left, the transport in the middle, view and help at the right. */
+.transport,.view{margin-left:auto}
+.brk{display:none}
+.steps button{display:inline-flex;align-items:center;gap:6px}
+.lbl{display:none}
+@media (min-width:1520px){ .lbl{display:inline} }
 .read{display:flex;gap:10px;padding:0 6px;font-size:16px;font-weight:500}
 .read b{font-weight:500} .read #rPos{color:var(--beat)} .read #rBpm{color:var(--dim)}
 
@@ -46,6 +52,18 @@ label.btn{user-select:none}
 @media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .btn.primary{color:#fff}}
 .btn.on{border-color:var(--beat);color:var(--beat);box-shadow:inset 0 0 0 1px var(--beat)}
 #loopBtn.on,#scrubBtn.on,#stayBtn.on{border-color:var(--start);color:var(--start);box-shadow:inset 0 0 0 1px var(--start)}
+
+/* The mixer: a popover under the top bar, over the waveform. */
+.pop{position:absolute;right:8px;top:calc(100% + 4px);width:min(340px,calc(100vw - 16px));background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;padding:8px 10px;box-shadow:0 8px 24px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:6px}
+.pop[hidden]{display:none}
+.ch{display:grid;grid-template-columns:76px 1fr 42px;align-items:center;gap:4px 8px}
+.chn{display:inline-flex;align-items:center;gap:6px;color:var(--dim)}
+.ch input[type=range]{width:100%;accent-color:var(--beat);margin:0}
+.ch output{color:var(--dim);font-size:14px;text-align:right}
+.ch select{grid-column:2/-1}
+.ch .hint{grid-column:1/-1;margin:0;font-size:13px;color:var(--dim)}
+.ch.idle select{opacity:.6}
 @media (pointer:coarse){ #zIn,#zOut{display:none} .btn{min-height:38px;min-width:38px} .steps button{padding:9px 14px} }
 :focus-visible{outline:2px solid var(--focus);outline-offset:1px}
 canvas:focus-visible{outline-offset:-2px}
@@ -70,6 +88,9 @@ main{flex:1;display:flex;flex-direction:column;min-height:0}
 .pane{display:flex;gap:8px 14px;align-items:flex-start;flex-wrap:wrap}
 .bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 5px}
 .sep{width:1px;align-self:stretch;background:var(--line);margin:2px 5px}
+/* A panel bar is made of clusters that wrap as wholes, spaced apart so each reads as one group. */
+.bar.groups{gap:6px 18px}
+.cluster{display:inline-flex;align-items:center;gap:5px;flex-wrap:nowrap}
 .seg{display:inline-flex}
 .seg .btn{border-radius:0}
 .seg .btn:first-child{border-radius:6px 0 0 6px}
@@ -94,7 +115,7 @@ tbody tr{cursor:pointer}
 tbody tr:hover{background:color-mix(in srgb,var(--beat) 14%,transparent)}
 tbody tr.cur td:first-child{color:var(--beat);font-weight:600}
 td.up{color:var(--mark)} td.dn{color:var(--beat)}
-#sum,#expInfo,#slSum{color:var(--dim);margin:0 0 4px;font-size:14px}
+#sum,#slSum{color:var(--dim);margin:0 0 4px;font-size:14px}
 #sliceRows tr.cur{background:color-mix(in srgb,var(--beat) 16%,transparent)}
 #sliceRows tr.off td{opacity:.45}
 #sliceRows td:first-child,#sliceRows th:first-child{padding-right:2px}
@@ -105,9 +126,10 @@ td.up{color:var(--mark)} td.dn{color:var(--beat)}
 #p4 .sl input[type=number]{width:52px} #slLen{width:68px}
 #p4 .col{flex:2 1 470px;min-width:0;display:flex;flex-direction:column;gap:6px}
 .sect{color:var(--dim);display:inline-flex;align-items:center;flex:none}
-#expInfo{flex-basis:100%;margin:0}
 #p5 .col{flex:1 1 380px;min-width:0;display:flex;flex-direction:column;gap:6px}
-#p5 .sl input{width:84px}
+#p5 .voices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 12px}
+#p5 .voices .sl{min-width:0}
+#p5 .voices input{width:auto;flex:1;min-width:0}
 .vs b{font-weight:600;width:12px;text-align:center}
 .kick{color:var(--kick)} .snare{color:var(--snare)} .hat{color:var(--hat)}
 #gSens-kick{accent-color:var(--kick)} #gSens-snare{accent-color:var(--snare)} #gSens-hat{accent-color:var(--hat)}
@@ -128,13 +150,54 @@ dialog h2{margin:0 0 10px;font-size:20px;font-weight:600}
 .keys div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line);padding:3px 0}
 .keys div span:last-child{color:var(--dim);text-align:right}
 kbd{font:inherit;font-size:13px;color:var(--dim);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;margin-right:2px;background:var(--bg)}
+/* Export: the formats on the left (a row of chips on a phone), the chosen one's options on the right. */
+#exportDlg{width:min(720px,94vw);padding:0;display:flex;flex-direction:column}
+#exportDlg:not([open]){display:none}
+.xhead{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 10px 18px;border-bottom:1px solid var(--line)}
+.xhead h2{margin:0}
+.xbody{display:flex;min-height:0;overflow:auto}
+.fmts{flex:0 0 190px;display:flex;flex-direction:column;gap:2px;padding:8px;border-right:1px solid var(--line);background:var(--bg)}
+.fmts h3{font-size:13px;font-weight:600;color:var(--dim);margin:8px 8px 2px;text-transform:uppercase;letter-spacing:.04em}
+.fmts h3:first-child{margin-top:2px}
+.fmts button{display:flex;justify-content:space-between;align-items:baseline;gap:8px;border:1px solid transparent;background:none;border-radius:6px;padding:6px 8px;cursor:pointer;text-align:left}
+.fmts button small{color:var(--dim);font-size:13px}
+.fmts button:hover{border-color:var(--line)}
+.fmts button[aria-pressed="true"]{background:var(--raise);border-color:var(--beat);color:var(--beat)}
+.xopts{flex:1;min-width:0;padding:14px 18px;display:flex;flex-direction:column;gap:12px}
+#expDesc{margin:0}
+.fields{display:flex;flex-direction:column;gap:8px}
+.fld{display:grid;grid-template-columns:130px 1fr;align-items:center;gap:10px;color:var(--dim)}
+.fld select{justify-self:start;min-width:180px}
+.fld.chk{display:flex;gap:8px;color:var(--ink)}
+.fields .fld[hidden]{display:none}
+.pair{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pair input[type=number]{width:64px}
+#expInfo{color:var(--dim);margin:0;font-size:14px;padding-top:10px;border-top:1px solid var(--line)}
+.xfoot{display:flex;justify-content:flex-end;gap:8px}
+.xfoot .btn{min-width:96px}
+@media (max-width:560px){
+  .xbody{flex-direction:column}
+  .fmts{flex:none;flex-direction:row;flex-wrap:wrap;gap:4px;border-right:0;border-bottom:1px solid var(--line)}
+  .fmts h3{display:none}
+  .fmts button{border-color:var(--line);background:var(--raise);padding:6px 9px}
+  .fld{grid-template-columns:1fr}
+  .xopts{padding:12px 14px}
+  .xfoot .btn{flex:1}
+}
 #toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);
   padding:8px 14px;border-radius:8px;max-width:90vw;opacity:0;pointer-events:none;transition:opacity .18s;z-index:9}
 #toast.show{opacity:1}
 @media (max-width:720px){
   #stage{min-height:180px} #panel{max-height:36%;padding:6px}
   .top{padding:5px 6px;gap:5px 6px} #ov{height:24px} .bars{max-width:none} .bars .wrap{max-height:110px}
-  .transport{margin-left:0} .tools{order:0;margin-left:auto} #fileInfo{display:none} .sl input{width:96px}
+  /* Phone: file, edit, steps and help; then the transport and fit; then the readout. */
+  .file{order:1} .edit{order:2} .steps{order:3} #helpBtn{order:4;margin-left:auto}
+  .brk{display:block;order:5;flex-basis:100%;height:0}
+  .transport{order:6;margin-left:0} .view{order:7} .read{order:8}
+  #fileInfo{display:none} .sl input{width:96px}
   .read{font-size:15px;gap:8px;padding:0 2px}
+  .pop{right:6px}
 }
+/* Narrow phones: slimmer step tabs, so the tools fit on the same row as the steps. */
+@media (max-width:440px){ .steps button{padding:9px 8px} .top{gap:5px 4px} }
 @media (prefers-reduced-motion:reduce){#toast{transition:none}}

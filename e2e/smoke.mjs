@@ -23,7 +23,7 @@ try {
   await step('demo loop is analysed', async () => {
     await page.click('#demoBtn');
     await page.waitForFunction(() => document.getElementById('mCount').textContent !== '' && document.getElementById('busy').hidden, null, { timeout: 30000 });
-    assert.equal(await text('mCount'), '128');
+    assert.equal(await text('mCount'), '128 markers');
   });
   await step('a double-click adds a marker, undo takes it away', async () => {
     const b = await (await page.$('#cv')).boundingBox();
@@ -35,26 +35,40 @@ try {
       if ((await page.$eval('#cv', (e) => e.style.cursor)) === 'default') break;
     }
     await page.mouse.dblclick(b.x + x, b.y + 80);
-    assert.equal(await text('mCount'), '129');
+    assert.equal(await text('mCount'), '129 markers');
     await page.keyboard.press('Control+z');
-    assert.equal(await text('mCount'), '128');
+    assert.equal(await text('mCount'), '128 markers');
   });
   await step('Beats: bar 1, then auto-map', async () => {
     await page.keyboard.press('2');
-    assert.equal(await text('aCount'), '1');
+    assert.equal(await text('aCount'), '1 pin');
     await page.keyboard.press('m');
-    assert.equal(await text('aCount'), '64');
+    assert.equal(await text('aCount'), '64 pins');
     assert.match(await text('sum'), /^17 bars · avg 98\.16/);
   });
   await step('Export: MIDI file downloads', async () => {
     await page.keyboard.press('3');
+    assert.equal(await page.isVisible('#exportDlg'), true);
+    assert.equal(await page.getAttribute('[data-fmt=midi]', 'aria-pressed'), 'true');
     assert.match(await text('expInfo'), /tempo changes/);
-    const [d] = await Promise.all([page.waitForEvent('download'), page.click('#saveBtn')]);
+    assert.equal(await page.isVisible('#lead'), true);
+    assert.equal(await page.isVisible('#slBits'), false);
+    const [d] = await Promise.all([page.waitForEvent('download'), page.click('#expSave')]);
+    assert.equal(await page.isVisible('#exportDlg'), false);
     assert.equal(d.suggestedFilename(), 'drifting-drum-loop-tempo-map.mid');
   });
   await step('Slice: one slice per transient', async () => {
     await page.keyboard.press('4');
-    assert.equal(await text('slCount'), '128/128');
+    assert.equal(await text('slCount'), '128/128 kept');
+    await page.click('#exportBtn');
+    assert.equal(await page.getAttribute('[data-fmt=slices]', 'aria-pressed'), 'true');
+    assert.equal(await page.isVisible('#slBits'), true);
+    assert.equal(await page.isVisible('#lead'), false);
+    assert.equal(await page.isVisible('#clicks'), false);
+    await page.click('[data-fmt=loopWav]');
+    assert.equal(await page.isDisabled('#expSave'), true);
+    await page.keyboard.press('Escape');
+    assert.equal(await page.isVisible('#exportDlg'), false);
   });
   await step('Groove: kick, snare and hats found and measured', async () => {
     await page.keyboard.press('5');
@@ -62,11 +76,22 @@ try {
     assert.equal(await text('gN-kick'), '32');
     assert.equal(await text('gN-snare'), '32');
     assert.match(await text('gSum'), /^16 bars · 9\d\.\d BPM · Against the hats/);
-    const [d] = await Promise.all([page.waitForEvent('download'), page.click('#gMidi')]);
+    await page.keyboard.press('3');
+    assert.equal(await page.getAttribute('[data-fmt=drumsMidi]', 'aria-pressed'), 'true');
+    const [d] = await Promise.all([page.waitForEvent('download'), page.click('#expSave')]);
     assert.equal(d.suggestedFilename(), 'drifting-drum-loop-drums.mid');
   });
   await step('Groove: hear the drums as MIDI, and chart them as a transcript', async () => {
+    await page.click('#mixBtn');
+    assert.equal(await page.isVisible('#mixer'), true);
     await page.selectOption('#gListen', 'midi');
+    await page.fill('#mix-drums', '120');
+    assert.equal(await text('mixO-drums'), '120%');
+    await page.click('#gChartPocket');
+    assert.equal(await page.isVisible('#mixer'), false);
+    await page.click('#clickBtn');
+    assert.equal(await page.getAttribute('#clickBtn', 'aria-pressed'), 'true');
+    await page.click('#clickBtn');
     await page.click('#gChartMidi');
     assert.equal(await page.getAttribute('#gChartMidi', 'aria-pressed'), 'true');
     assert.equal(await page.isDisabled('#gExag'), true);

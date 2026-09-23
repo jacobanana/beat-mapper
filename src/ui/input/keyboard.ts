@@ -6,6 +6,7 @@ import { $ } from '../dom';
 export interface KeyboardHooks {
   openHelp(): void;
   openFile(): void;
+  openExport(): void;
   refocus(): void;
   canvas: HTMLCanvasElement;
 }
@@ -23,14 +24,14 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
   window.addEventListener('keydown', (e) => {
     const el = document.activeElement as HTMLElement | null, tag = el?.tagName;
     const typing = tag === 'TEXTAREA' || tag === 'SELECT' || (tag === 'INPUT' && !['range', 'checkbox', 'radio'].includes((el as HTMLInputElement).type));
-    if (($('help') as HTMLDialogElement).open) return;
+    if (($('help') as HTMLDialogElement).open || ($('exportDlg') as HTMLDialogElement).open) return;
     if (typing) { if (e.key === 'Escape' || e.key === 'Enter') { el!.blur(); hooks.refocus(); } return; }
     const mod = e.metaKey || e.ctrlKey, k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
 
     if (mod) {
       if (k === 'z') { e.preventDefault(); undoRedo(e.shiftKey); }
       else if (k === 'y') { e.preventDefault(); undoRedo(true); }
-      else if (k === 'e') { e.preventDefault(); f.workflow.goTo(3); f.exports.saveMidi(); }
+      else if (k === 'e') { e.preventDefault(); hooks.openExport(); }
       else if (k === 'o') { e.preventDefault(); hooks.openFile(); }
       return;
     }
@@ -62,7 +63,8 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
       case 'h': f.playback.toggleStay(); return;
       case 'v': f.markers.toggleOdf(); return;
       case 'k': f.playback.toggleClick(); return;
-      case '1': case '2': case '3': case '4': case '5': f.workflow.goTo(+k as 1 | 2 | 3 | 4 | 5); return;
+      case '1': case '2': case '4': case '5': f.workflow.goTo(+k as 1 | 2 | 4 | 5); return;
+      case '3': hooks.openExport(); return;
       case '?': hooks.openHelp(); return;
       case 'Escape': app.select(null); if (el === cv) cv.blur(); return;
       case 'Delete': case 'Backspace': {

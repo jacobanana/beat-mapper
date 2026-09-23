@@ -59,7 +59,7 @@ bridge when the app runs inside one).
   everything else on demand, memoised on the identity of its inputs: the visible markers, the tempo
   map, the grid, the bars, the slices, the drum hits the sensitivities let through, the notes they make, and the pocket. Nothing derived is stored, so nothing can go stale.
 - **Features** (`app/features/`) are the verbs: `Markers`, `Beats`, `Playback`, `Slicer`,
-  `Exports`, `Groove`, `Sessions`, `Loader`, `Workflow`. They change the App and emit topics (`'doc'`,
+  `Exports`, `Groove`, `Mixer`, `Sessions`, `Loader`, `Workflow`. They change the App and emit topics (`'doc'`,
   `'transport'`, `'slices'`…). They talk to the user only through the `Notifier` interface.
 
 ## ui/
@@ -69,6 +69,11 @@ bridge when the app runs inside one).
 - `input/pointer.ts` maps where a touch lands (`canvas/layout.ts` zones) to features: loop strip,
   bar ruler, edit half, move half, time ruler. `input/keyboard.ts` is the shortcut table.
 - `panels/` bind each step's controls to features and re-render their text on the topics they show.
+  `export-dialog.ts` is the Export window: every format, each showing only the options that change
+  it; `mixer-panel.ts` is the mixer popover. Step 3 was Export; it is kept as a `Step` value so old
+  sessions load, and `Workflow` sends it to Beats.
+- Where a new button goes (top bar groups, panel clusters, dialogs) is set out in
+  [ui-conventions.md](ui-conventions.md).
 
 ## Tests
 

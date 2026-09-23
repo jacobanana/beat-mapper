@@ -1,4 +1,5 @@
-// Step 4 – Slice samples: the slicing settings, the list of slices, and saving them.
+// Step 4 – Slice samples: where the cuts go and the list of slices. What each .wav gets (fades, level,
+// channels, depth, names) is set in the Export window, but bound here with the rest of the slicer.
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { fmtBpm, fmtTime } from '../../core/format';
@@ -29,7 +30,7 @@ export function bindSlicePanel(app: App, f: Features): void {
     s.update(patch);
     sync();
   };
-  document.querySelectorAll<HTMLInputElement | HTMLSelectElement>('#p4 input, #p4 select').forEach((el) => {
+  document.querySelectorAll<HTMLInputElement | HTMLSelectElement>('#p4 input, #p4 select, [data-slicer], #slCsv').forEach((el) => {
     if (el.id === 'slCsv') el.addEventListener('change', () => s.update({ csv: $in('slCsv').checked }));
     else el.addEventListener('change', read);
   });
@@ -38,10 +39,6 @@ export function bindSlicePanel(app: App, f: Features): void {
   $('slPlay').onclick = () => s.previewSelected();
   $('slOff').onclick = () => s.toggleSelected();
   $('slAll').onclick = () => s.keepAll();
-  $('slWav').onclick = () => void s.saveSelectedWav();
-  $('slLoop').onclick = () => void s.saveLoopWav();
-  $('slZip').onclick = () => void s.exportZip(false);
-  $('slRpp').onclick = () => void s.exportZip(true);
 
   const rows = $('sliceRows') as HTMLTableSectionElement;
   rows.addEventListener('click', (e) => {
@@ -79,7 +76,7 @@ export function bindSlicePanel(app: App, f: Features): void {
   let lastSel: number | null = null;
   const render = () => {
     const S = app.slices, sel = app.sliceIndex;
-    $('slCount').textContent = S.length ? S.filter((x) => !x.off).length + '/' + S.length : '';
+    $('slCount').textContent = S.length ? S.filter((x) => !x.off).length + '/' + S.length + ' kept' : '';
     if ($('p4').hidden) return;
     const n = Math.min(S.length, SL_ROWS);
     while (rows.rows.length > n) rows.deleteRow(rows.rows.length - 1);

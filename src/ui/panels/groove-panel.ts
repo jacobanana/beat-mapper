@@ -1,10 +1,10 @@
-// Step 5 – Groove: the drum voices, what the pocket is measured against, the chart, and the exports.
+// Step 5 – Groove: the drum voices, what the pocket is measured against, and the chart. Its files are
+// saved from the Export window, and what play sounds like here (audio, synth kit, both) is in the mixer.
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import type { DrumSource } from '../../core/drums/detect';
 import { VOICES } from '../../core/drums/voices';
 import type { GrooveGrid, Reference } from '../../core/groove/pocket';
-import type { GrooveListen } from '../../state/settings';
 import { GrooveChart } from '../canvas/groove-chart';
 import { $, $btn, $in, $sel, setPressed, setText, setValue } from '../dom';
 
@@ -15,11 +15,8 @@ export function bindGroovePanel(app: App, f: Features): GrooveChart {
   $sel('gGrid').onchange = (e) => gr.setGrid((e.target as HTMLSelectElement).value as GrooveGrid);
   $sel('gRef').onchange = (e) => gr.setReference((e.target as HTMLSelectElement).value as Reference | 'auto');
   $('gExag').onclick = () => gr.toggleExaggerate();
-  $sel('gListen').onchange = (e) => gr.setListen((e.target as HTMLSelectElement).value as GrooveListen);
   $('gChartPocket').onclick = () => gr.setChart('pocket');
   $('gChartMidi').onclick = () => gr.setChart('midi');
-  $('gMidi').onclick = () => void gr.saveMidi();
-  $('gJson').onclick = () => void gr.saveGroove();
 
   const chart = new GrooveChart($('grooveCv') as HTMLCanvasElement, app);
   const sync = () => {
@@ -30,7 +27,6 @@ export function bindGroovePanel(app: App, f: Features): GrooveChart {
     setValue($sel('gRef'), s.ref);
     setPressed($('gExag'), s.exaggerate);
     $btn('gExag').disabled = s.chart !== 'pocket';
-    setValue($sel('gListen'), s.listen);
     setPressed($('gChartPocket'), s.chart === 'pocket');
     setPressed($('gChartMidi'), s.chart === 'midi');
   };

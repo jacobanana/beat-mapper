@@ -12,9 +12,10 @@ import { PointerInput } from './ui/input/pointer';
 import { DomNotifier } from './ui/notifier';
 import { bindBeatsPanel } from './ui/panels/beats-panel';
 import { bindDetectPanel } from './ui/panels/detect-panel';
-import { bindExportPanel } from './ui/panels/export-panel';
+import { bindExportDialog } from './ui/panels/export-dialog';
 import { bindGroovePanel } from './ui/panels/groove-panel';
 import { bindHeader } from './ui/panels/header';
+import { bindMixerPanel } from './ui/panels/mixer-panel';
 import { bindSlicePanel } from './ui/panels/slice-panel';
 
 const safeStorage = (() => { try { return window.localStorage; } catch { return null; } })();
@@ -68,13 +69,14 @@ window.addEventListener('drop', (e) => {
 });
 
 // ---------- panels and keys ----------
-bindHeader(app, f, openHelp);
+const openExport = bindExportDialog(app, f, onPick);
+bindHeader(app, f, openHelp, () => openExport());
+bindMixerPanel(app, f);
 bindDetectPanel(app, f);
 bindBeatsPanel(app, f, refocus);
-bindExportPanel(app, f, onPick);
 bindSlicePanel(app, f);
 const grooveChart = bindGroovePanel(app, f);
-bindKeyboard(app, f, { openHelp, openFile: () => fileIn.click(), refocus, canvas: cv });
+bindKeyboard(app, f, { openHelp, openFile: () => fileIn.click(), openExport: () => openExport(), refocus, canvas: cv });
 
 app.bus.on('audio', () => cv.focus({ preventScroll: true }));
 // The panel's height changes with the step, and the canvas with it.

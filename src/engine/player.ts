@@ -14,8 +14,12 @@ export interface PlayerSources {
   clicksOn(): boolean;
   hits: HitSource;
   hitsOn(): boolean;
-  /** 0 mutes the audio, leaving only what plays along. */
+  /** Gain of the audio: 0 mutes it, leaving only what plays along. */
   audioLevel(): number;
+  /** Gain of the metronome. */
+  clickLevel(): number;
+  /** Gain of the drum hits. */
+  hitLevel(): number;
 }
 
 /**
@@ -26,12 +30,16 @@ export interface PlayerSources {
 export class Player {
   private src: AudioBufferSourceNode | null = null;
   private gain: GainNode | null = null;
+  private clickBus: GainNode | null = null;
+  private hitBus: GainNode | null = null;
   private ctx0 = 0;
   private pos0 = 0;
   private loop: TimeRange | null = null;
   private schedE = 0;
   private timer: ReturnType<typeof setInterval> | null = null;
   private level = 0.9;
+  private clickLv = 1;
+  private hitLv = 1;
   playing = false;
   /** Called when playback runs off the end of the audio. */
   onEnded: (() => void) | null = null;
@@ -48,6 +56,13 @@ export class Player {
     this.gain = this.gain || c.createGain();
     this.gain.gain.cancelScheduledValues(0);
     this.gain.gain.value = this.level = this.sources.audioLevel();
+    // Clicks and hits go through a bus each, so a fader move reaches the ones already scheduled.
+    this.clickBus = this.clickBus || bus(c);
+    this.clickBus.gain.cancelScheduledValues(0);
+    this.clickBus.gain.value = this.clickLv = this.sources.clickLevel();
+    this.hitBus = this.hitBus || bus(c);
+    this.hitBus.gain.cancelScheduledValues(0);
+    this.hitBus.gain.value = this.hitLv = this.sources.hitLevel();
     src.connect(this.gain).connect(c.destination);
     this.loop = loop && from < loop.b - 0.005 ? { a: loop.a, b: loop.b } : null;
     if (this.loop) { src.loop = true; src.loopStart = this.loop.a; src.loopEnd = this.loop.b; }
@@ -93,12 +108,15 @@ export class Player {
   }
 
   // Clicks and hits are scheduled 160 ms ahead, walking the timeline piecewise so a loop's wrap is
-  // followed. The audio's level is checked here too, so switching what is heard needs no restart.
+  // followed. The levels are checked here too, so switching what is heard, or moving a fader, needs
+  // no restart.
   private schedule(): void {
     if (!this.playing) return;
     const c = audioContext(), eNow = c.currentTime - this.ctx0, S = this.sources;
-    const lv = S.audioLevel();
+    const lv = S.audioLevel(), cl = S.clickLevel(), hl = S.hitLevel();
     if (lv !== this.level && this.gain) { this.gain.gain.setTargetAtTime(lv, c.currentTime, 0.015); this.level = lv; }
+    if (cl !== this.clickLv && this.clickBus) { this.clickBus.gain.setTargetAtTime(cl, c.currentTime, 0.015); this.clickLv = cl; }
+    if (hl !== this.hitLv && this.hitBus) { this.hitBus.gain.setTargetAtTime(hl, c.currentTime, 0.015); this.hitLv = hl; }
     const clicks = S.clicksOn(), hits = S.hitsOn();
     if (!clicks && !hits) { this.schedE = eNow; return; }
     let ea = Math.max(this.schedE, eNow, 0);
@@ -111,35 +129,41 @@ export class Player {
       if (len < 1e-5) { ea += 1e-4; continue; }
       const e0 = ea;
       const at = (t: number) => Math.max(c.currentTime, this.ctx0 + e0 + (t - p0));
-      if (clicks) S.clicks(p0, p0 + len, (t, down) => blip(at(t), down));
-      if (hits) S.hits(p0, p0 + len, (t, voice, vel) => drumHit(voice, at(t), vel));
+      if (clicks) S.clicks(p0, p0 + len, (t, down) => blip(at(t), down, this.clickBus!));
+      if (hits) S.hits(p0, p0 + len, (t, voice, vel) => drumHit(voice, at(t), vel, this.hitBus!));
       ea += len;
     }
     this.schedE = eb;
   }
 }
 
-function blip(when: number, down: boolean): void {
+function bus(c: AudioContext): GainNode {
+  const g = c.createGain();
+  g.connect(c.destination);
+  return g;
+}
+
+function blip(when: number, down: boolean, out: AudioNode): void {
   const c = audioContext(), o = c.createOscillator(), e = c.createGain();
   o.frequency.value = down ? 2100 : 1400;
   o.type = 'square';
   e.gain.setValueAtTime(0, when);
   e.gain.linearRampToValueAtTime(down ? 0.28 : 0.2, when + 0.001);
   e.gain.exponentialRampToValueAtTime(0.0008, when + 0.035);
-  o.connect(e).connect(c.destination);
+  o.connect(e).connect(out);
   o.start(when);
   o.stop(when + 0.05);
 }
 
 /** A short grain of the buffer from t, faded in and out: what scrubbing and stepping sound like. */
-export function grain(buffer: AudioBuffer, t: number, len = 0.09): void {
+export function grain(buffer: AudioBuffer, t: number, len = 0.09, level = 0.9): void {
   const c = audioContext();
   c.resume();
   const n = c.createBufferSource(), e = c.createGain(), now = c.currentTime;
   n.buffer = buffer;
   e.gain.setValueAtTime(0, now);
-  e.gain.linearRampToValueAtTime(0.9, now + 0.005);
-  e.gain.setValueAtTime(0.9, now + len - 0.025);
+  e.gain.linearRampToValueAtTime(level, now + 0.005);
+  e.gain.setValueAtTime(level, now + len - 0.025);
   e.gain.linearRampToValueAtTime(0, now + len);
   n.connect(e).connect(c.destination);
   n.start(now, Math.max(0, Math.min(Math.max(0, buffer.duration - 0.01), t)), len + 0.01);
@@ -151,13 +175,13 @@ export class OneShot {
 
   get active(): boolean { return this.cur != null; }
 
-  play(buffer: AudioBuffer, t0: number, t1: number, onEnded: () => void): void {
+  play(buffer: AudioBuffer, t0: number, t1: number, onEnded: () => void, level = 0.9): void {
     this.stop();
     const c = audioContext();
     c.resume();
     const n = c.createBufferSource(), g = c.createGain();
     n.buffer = buffer;
-    g.gain.value = 0.9;
+    g.gain.value = level;
     n.connect(g).connect(c.destination);
     const at = c.currentTime + 0.02;
     n.start(at);

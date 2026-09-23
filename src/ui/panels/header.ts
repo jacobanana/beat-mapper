@@ -1,11 +1,17 @@
-// The top bar: open, the five steps, zoom, undo, help, transport buttons and the time readout.
+// The top bar, grouped the way DAWs and editors group it: file and edit on the left, then the steps,
+// the transport with its readout, the view, and help at the far right. The
+// mixer and the Export window that open from it are in mixer-panel.ts and export-dialog.ts.
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { fmtTime } from '../../core/format';
-import { $, icon, setPressed } from '../dom';
+import { $, $btn, icon, setPressed } from '../dom';
 
-export function bindHeader(app: App, f: Features, openHelp: () => void): void {
-  for (const n of [1, 2, 3, 4, 5] as const) $('t' + n).onclick = () => f.workflow.goTo(n);
+// Step 3 was Export; it is the Export window now, so the tabs skip it.
+const STEPS = [1, 2, 4, 5] as const;
+
+export function bindHeader(app: App, f: Features, openHelp: () => void, openExport: () => void): void {
+  for (const n of STEPS) $('t' + n).onclick = () => f.workflow.goTo(n);
+  $('exportBtn').onclick = openExport;
 
   const zoomKey = (k: number) => {
     const v = app.view, tc = v.contains(app.transport.playhead) ? app.transport.playhead : (v.t0 + v.t1) / 2;
@@ -16,6 +22,7 @@ export function bindHeader(app: App, f: Features, openHelp: () => void): void {
   $('zOut').onclick = () => zoomKey(2);
   $('zFit').onclick = () => { if (app.audio) app.setView(0, app.dur); };
   $('undoBtn').onclick = () => { if (!app.undo()) app.notify.toast('Nothing to undo'); };
+  $('redoBtn').onclick = () => { if (!app.redo()) app.notify.toast('Nothing to redo'); };
   $('helpBtn').onclick = openHelp;
 
   $('playBtn').onclick = () => f.playback.togglePlay(false);
@@ -26,7 +33,7 @@ export function bindHeader(app: App, f: Features, openHelp: () => void): void {
   $('clickBtn').onclick = () => f.playback.toggleClick();
 
   const syncSteps = () => {
-    for (let i = 1; i <= 5; i++) {
+    for (const i of STEPS) {
       $('t' + i).setAttribute('aria-selected', String(i === app.step));
       $('p' + i).hidden = i !== app.step;
     }
@@ -60,7 +67,14 @@ export function bindHeader(app: App, f: Features, openHelp: () => void): void {
     $('fileInfo').title = `${a.name} · ${fmtTime(a.dur)} · ${(a.sr / 1000).toFixed(1)} kHz`;
   };
 
+  // Undo and redo grey out when there is nothing to take back or bring back, as in any editor.
+  const syncHistory = () => {
+    $btn('undoBtn').disabled = !app.history.canUndo;
+    $btn('redoBtn').disabled = !app.history.canRedo;
+  };
+
   app.bus.on('step', syncSteps);
+  app.bus.on(['doc', 'audio'], syncHistory);
   app.bus.on(['transport', 'playhead'], syncTransport);
   app.bus.on(['playhead', 'doc', 'audio'], syncReadout);
   app.bus.on('audio', syncFile);

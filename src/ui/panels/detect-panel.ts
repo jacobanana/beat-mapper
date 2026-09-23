@@ -2,6 +2,7 @@
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import type { Algo, Band } from '../../core/dsp/onset';
+import { plural } from '../../core/format';
 import { $, $in, $sel, setPressed, setValue } from '../dom';
 
 export function bindDetectPanel(app: App, f: Features): void {
@@ -26,7 +27,8 @@ export function bindDetectPanel(app: App, f: Features): void {
     setValue($sel('algo'), d.algo);
     setPressed($('odfBtn'), d.showOdf);
   };
-  const count = () => { $('mCount').textContent = app.audio ? String(app.markers.length) : ''; };
+  // Counts say what they count, so a bare number never has to be guessed at.
+  const count = () => { $('mCount').textContent = app.audio ? plural(app.markers.length, 'marker') : ''; };
   app.bus.on('detection', sync);
   app.bus.on(['detection', 'doc', 'candidates', 'audio'], count);
   sync();

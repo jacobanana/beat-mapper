@@ -16,8 +16,8 @@ import { History } from '../state/history';
 import { memo } from '../state/memo';
 import { type ProjectDoc, emptyDoc } from '../state/project';
 import {
-  type BeatSettings, type DetectionSettings, type ExportSettings, type GrooveSettings, type SlicerSettings, type TransportState,
-  defaultBeats, defaultDetection, defaultExport, defaultGroove, defaultSlicer, defaultTransport,
+  type BeatSettings, type DetectionSettings, type ExportSettings, type GrooveSettings, type MixSettings, type SlicerSettings, type TransportState,
+  defaultBeats, defaultDetection, defaultExport, defaultGroove, defaultMix, defaultSlicer, defaultTransport,
 } from '../state/settings';
 import { Viewport } from '../state/viewport';
 import type { AudioAsset } from './audio-asset';
@@ -25,7 +25,7 @@ import type { AudioAsset } from './audio-asset';
 /** What changed. Listeners subscribe to the topics they display. */
 export type Topic =
   | 'audio' | 'doc' | 'candidates' | 'detection' | 'beats' | 'export' | 'slicer' | 'slices'
-  | 'transport' | 'playhead' | 'view' | 'step' | 'selection' | 'hover' | 'display' | 'drums' | 'groove';
+  | 'transport' | 'playhead' | 'view' | 'step' | 'selection' | 'hover' | 'display' | 'drums' | 'groove' | 'mix';
 
 export type Selection = { kind: 'marker'; id: string } | { kind: 'anchor'; q: number } | null;
 /** What the pointer is over: a marker, a pin, or a grid line that could become a pin. */
@@ -43,7 +43,7 @@ export interface Notifier {
   idle(): void;
 }
 
-type Settings = { detection: DetectionSettings; beats: BeatSettings; export: ExportSettings; slicer: SlicerSettings; transport: TransportState; groove: GrooveSettings };
+type Settings = { detection: DetectionSettings; beats: BeatSettings; export: ExportSettings; slicer: SlicerSettings; transport: TransportState; groove: GrooveSettings; mix: MixSettings };
 
 export class App {
   readonly bus = new Emitter<Topic>();
@@ -64,6 +64,8 @@ export class App {
   slicer = defaultSlicer();
   transport = defaultTransport();
   groove = defaultGroove();
+  /** The mixer: a preference of this device, kept out of sessions. */
+  mix = defaultMix();
 
   step: Step = 1;
   sel: Selection = null;

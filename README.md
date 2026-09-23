@@ -41,6 +41,6 @@ app state and features sit on top of it (`src/state`, `src/app`), and the UI on 
 One `localStorage` entry per audio file (`beatmapper:s:<file name>|<length in ms>`), holding the
 markers, pins and settings of the last eight files, plus an index of which those are
 (`beatmapper:index`). Never the audio. The Groove step's settings aren't saved yet; the drums are
-found again when the step opens. The **Session** button in step 3 saves the same thing as a
-`.json` file to carry the work to another device. The format is unchanged from the single-file app,
+found again when the step opens. The mixer's levels are kept under `beatmapper:mix`. **Session**
+in the Export window saves the same thing as a `.json` file to carry the work to another device. The format is unchanged from the single-file app,
 and so are the keys, so work saved there comes back here.
