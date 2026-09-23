@@ -53,6 +53,7 @@ label.btn{user-select:none}
 :root[data-theme="light"] .btn.primary{color:#fff}
 @media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .btn.primary{color:#fff}}
 .btn.on{border-color:var(--beat);color:var(--beat);box-shadow:inset 0 0 0 1px var(--beat)}
+#sessBtn.on{border-color:var(--beat);color:var(--beat)}
 #loopBtn.on,#scrubBtn.on,#stayBtn.on{border-color:var(--start);color:var(--start);box-shadow:inset 0 0 0 1px var(--start)}
 
 /* The mixer: a popover under the top bar, over the waveform. */
@@ -63,6 +64,9 @@ label.btn{user-select:none}
 .chn{display:inline-flex;align-items:center;gap:6px;color:var(--dim)}
 .ch input[type=range]{width:100%;accent-color:var(--beat);margin:0}
 .ch output{color:var(--dim);font-size:14px;text-align:right}
+.pop > .hint{margin:0;font-size:13px;color:var(--dim)}
+.pop .acts{display:flex;flex-wrap:wrap;gap:6px}
+#sessPop{width:min(300px,calc(100vw - 16px))}
 .ch .hint{grid-column:1/-1;margin:0;font-size:13px;color:var(--dim)}
 .ch .mute{padding:3px;min-height:28px;min-width:28px;border-color:transparent;background:none;color:var(--dim)}
 .ch .mute.on{box-shadow:none;border-color:transparent;color:var(--beat)}
@@ -165,7 +169,8 @@ kbd{font:inherit;font-size:13px;color:var(--dim);border:1px solid var(--line);bo
 .fmts h3:first-child{margin-top:2px}
 .fmts button{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:0 8px;border:1px solid transparent;background:none;border-radius:6px;padding:6px 8px;cursor:pointer;text-align:left;color:inherit;font:inherit}
 .fmts button small,.fmtPick small{color:var(--dim);font-size:13px}
-.fmts .sub,.fmtPick .sub{grid-column:1/-1;color:var(--dim);font-size:13px;display:none}
+.fmts .sub,.fmtPick .sub{grid-column:1/-1;color:var(--dim);font-size:13px;line-height:1.35;padding-bottom:1px;display:none}
+.fmts [hidden]{display:none}
 .fmtPick{display:none}
 .fmts button:hover{border-color:var(--line)}
 .fmts button[aria-pressed="true"]{background:var(--raise);border-color:var(--beat);color:var(--beat)}
@@ -185,7 +190,7 @@ kbd{font:inherit;font-size:13px;color:var(--dim);border:1px solid var(--line);bo
   /* The formats are a dropdown: the chosen one on a button, and the grouped list with a line on each
      over the options when it is open. */
   .xbody{flex-direction:column;position:relative}
-  .fmtPick{display:grid;grid-template-columns:1fr auto auto;align-items:baseline;gap:2px 8px;margin:10px 14px 0;padding:9px 12px 10px;text-align:left;
+  .fmtPick{flex:none;display:grid;grid-template-columns:1fr auto auto;align-items:baseline;gap:2px 8px;margin:10px 14px 0;padding:9px 12px 10px;text-align:left;
     border:1px solid var(--beat);border-radius:8px;background:var(--raise);color:var(--ink);font:inherit;cursor:pointer;min-height:44px}
   .fmtPick .nm{font-weight:600;color:var(--beat)}
   .fmtPick .sub{display:block;grid-column:1/3}
@@ -206,8 +211,9 @@ kbd{font:inherit;font-size:13px;color:var(--dim);border:1px solid var(--line);bo
 @media (max-width:720px){
   #stage{min-height:180px} #panel{max-height:36%;padding:6px}
   .top{padding:5px 6px;gap:5px 6px} #ov{height:24px} .bars{max-width:none} .bars .wrap{max-height:110px}
-  /* Phone: file, edit, steps and help; then the transport and fit; then the readout. */
-  .file{order:1} .edit{order:2} .steps{order:3} #helpBtn{order:4;margin-left:auto}
+  /* Phone: file, edit and steps; then the transport and fit; then the readout, with help at its far end
+     (the first row is full once the session button sits by Open). */
+  .file{order:1} .edit{order:2} .steps{order:3} #helpBtn{order:9;margin-left:auto}
   .brk{display:block;order:5;flex-basis:100%;height:0}
   .transport{order:6;margin-left:0} .view{order:7} .read{order:8}
   #fileInfo{display:none} .sl input{width:96px}

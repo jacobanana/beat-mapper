@@ -70,8 +70,9 @@ bridge when the app runs inside one).
 - `input/pointer.ts` maps where a touch lands (`canvas/layout.ts` zones) to features: loop strip,
   bar ruler, edit half, move half, time ruler. `input/keyboard.ts` is the shortcut table.
 - `panels/` bind each step's controls to features and re-render their text on the topics they show.
-  `export-dialog.ts` is the Export window: every format, each showing only the options that change
-  it; `mixer-panel.ts` is the mixer popover. Step 3 was Export; it is kept as a `Step` value so old
+  `export-dialog.ts` is the Export window: what the current step makes, each format showing only the
+  options that change it; `session-panel.ts` saves and opens sessions from beside Open;
+  `mixer-panel.ts` is the mixer popover. Step 3 was Export; it is kept as a `Step` value so old
   sessions load, and `Workflow` sends it to Beats.
 - Where a new button goes (top bar groups, panel clusters, dialogs) is set out in
   [ui-conventions.md](ui-conventions.md).

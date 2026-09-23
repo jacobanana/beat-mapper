@@ -39,6 +39,14 @@ try {
     await page.keyboard.press('Control+z');
     assert.equal(await text('mCount'), '128 markers');
   });
+  await step('Transients makes nothing to export; the session is by Open', async () => {
+    assert.equal(await page.isDisabled('#exportBtn'), true);
+    await page.click('#sessBtn');
+    assert.equal(await page.isVisible('#sessPop'), true);
+    const [d] = await Promise.all([page.waitForEvent('download'), page.click('#sessSave')]);
+    assert.equal(d.suggestedFilename(), 'drifting-drum-loop-session.json');
+    assert.equal(await page.isVisible('#sessPop'), false);
+  });
   await step('Beats: bar 1, then auto-map', async () => {
     await page.keyboard.press('2');
     assert.equal(await text('aCount'), '1 pin');
@@ -50,6 +58,10 @@ try {
     await page.keyboard.press('3');
     assert.equal(await page.isVisible('#exportDlg'), true);
     assert.equal(await page.getAttribute('[data-fmt=midi]', 'aria-pressed'), 'true');
+    // Only what Beats makes is listed.
+    assert.equal(await page.isVisible('[data-fmt=warpWav]'), true);
+    assert.equal(await page.isVisible('[data-fmt=slices]'), false);
+    assert.equal(await page.isVisible('[data-fmt=drumsMidi]'), false);
     assert.match(await text('expInfo'), /tempo changes/);
     assert.equal(await page.isVisible('#lead'), true);
     assert.equal(await page.isVisible('#slBits'), false);
@@ -77,6 +89,8 @@ try {
     assert.equal(await page.isVisible('#fmtList'), false);
     // It opens on the format last chosen in this step.
     assert.equal(await text('fmtPickNm'), 'Warped to the grid');
+    // With the long Warp options below, the button keeps its height: nothing of its subtitle is cut.
+    assert.equal(await page.$eval('#fmtPick', (b) => b.scrollHeight - b.clientHeight), 0);
     await page.click('#fmtPick');
     assert.equal(await page.getAttribute('#fmtPick', 'aria-expanded'), 'true');
     await page.click('#fmtList [data-fmt=midi]');
@@ -97,6 +111,7 @@ try {
     assert.equal(await text('slCount'), '128/128 kept');
     await page.click('#exportBtn');
     assert.equal(await page.getAttribute('[data-fmt=slices]', 'aria-pressed'), 'true');
+    assert.equal(await page.isVisible('[data-fmt=midi]'), false);
     assert.equal(await page.isVisible('#slBits'), true);
     assert.equal(await page.isVisible('#lead'), false);
     assert.equal(await page.isVisible('#clicks'), false);

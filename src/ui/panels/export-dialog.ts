@@ -1,5 +1,6 @@
-// The Export window: every file BeatMapper saves, one format at a time, each showing only the options
-// that change it and what the file will hold. It opens on the format that fits the step you are in.
+// The Export window: what the step you are in makes, one format at a time, each showing only the options
+// that change it and what the file will hold. Transients makes nothing of its own, so there it is off;
+// the session, wanted from every step, is beside Open instead (session-panel.ts).
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { fmtBpm, fmtTime, plural } from '../../core/format';
@@ -9,8 +10,17 @@ import type { Step } from '../../io/session';
 import { buildMidi } from '../../io/formats/midi';
 import { $, $btn, $in, $sel, setText, setValue } from '../dom';
 
-export const FORMATS = ['midi', 'rpp', 'warpWav', 'slices', 'slicesRpp', 'sliceWav', 'loopWav', 'drumsMidi', 'groove', 'session'] as const;
+export const FORMATS = ['midi', 'rpp', 'warpWav', 'slices', 'slicesRpp', 'sliceWav', 'loopWav', 'drumsMidi', 'groove'] as const;
 export type ExportFormat = (typeof FORMATS)[number];
+
+/** What each step makes, in the order the window lists it. Step 3 was Export, and Workflow sends it to 2. */
+export const STEP_FORMATS: Record<Step, readonly ExportFormat[]> = {
+  1: [],
+  2: ['midi', 'rpp', 'warpWav'],
+  3: [],
+  4: ['slices', 'slicesRpp', 'sliceWav', 'loopWav'],
+  5: ['drumsMidi', 'groove'],
+};
 
 interface Format {
   desc: string;
@@ -24,7 +34,7 @@ interface Format {
 const OPEN_FIRST = { text: 'Open an audio file first.', ok: false };
 const kb = (b: number) => (b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.round(b / 1024) + ' KB');
 
-export function bindExportDialog(app: App, f: Features, onPick: (e: Event) => void): (fmt?: ExportFormat) => void {
+export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) => void {
   const dlg = $('exportDlg') as HTMLDialogElement;
 
   // How much tempo map there is, and where to put the audio in the DAW.
@@ -131,16 +141,24 @@ export function bindExportDialog(app: App, f: Features, onPick: (e: Event) => vo
       desc: 'The typical bar as a Pocket Science groove file.',
       save: 'Save .json', info: () => drumsInfo(() => f.groove.summary()), run: () => f.groove.saveGroove(),
     },
-    session: {
-      desc: 'Markers, pins and settings, without the audio. Open it, then the same audio, to carry the work to another device.',
-      save: 'Save session',
-      info: () => (app.audio ? { text: 'For ' + app.audio.name, ok: true } : { text: 'Open an audio file to save its session. A session file can be opened any time.', ok: false }),
-      run: () => f.sessions.export(),
-    },
   };
 
-  // The format each step opens on, until you pick another there.
-  const byStep: Partial<Record<Step, ExportFormat>> = { 1: 'midi', 2: 'midi', 4: 'slices', 5: 'drumsMidi' };
+  // The format each step opens on, until you pick another there: its first.
+  const byStep: Partial<Record<Step, ExportFormat>> = {};
+
+  // Only this step's formats are listed, and a heading only when something under it is.
+  const showStep = (step: Step) => {
+    const mine = STEP_FORMATS[step];
+    let heading: HTMLElement | null = null, any = false;
+    const close = () => { if (heading) heading.hidden = !any; };
+    for (const el of Array.from(list.children) as HTMLElement[]) {
+      if (el.tagName === 'H3') { close(); heading = el; any = false; continue; }
+      const on = mine.includes(el.dataset.fmt as ExportFormat);
+      el.hidden = !on;
+      any ||= on;
+    }
+    close();
+  };
   let fmt: ExportFormat = 'midi';
 
   // On a phone the list of formats drops down from a button showing the chosen one.
@@ -230,11 +248,6 @@ export function bindExportDialog(app: App, f: Features, onPick: (e: Event) => vo
     $in('rppAudio').checked = s.rppAudio;
   };
 
-  $in('sessIn').addEventListener('change', (e) => { dlg.close(); onPick(e); });
-  if (matchMedia('(pointer:fine)').matches) $in('sessIn').accept = '.json,application/json';
-  $('sessOpen').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); $in('sessIn').click(); }
-  });
 
   app.bus.on('export', sync);
   app.bus.on(['warp', 'doc', 'transport', 'audio', 'export'], syncWarp);
@@ -243,9 +256,12 @@ export function bindExportDialog(app: App, f: Features, onPick: (e: Event) => vo
   syncWarp();
 
   return (next?: ExportFormat) => {
+    const mine = STEP_FORMATS[app.step];
+    if (!mine.length) return app.notify.toast('Nothing to export from this step. Beats, Slice and Groove each export what they make.');
     // The tempo map needs bar 1, as the Export step did; it starts on the first transient.
     if (app.audio) f.beats.ensureDownbeat();
-    fmt = next ?? byStep[app.step] ?? 'midi';
+    fmt = next && mine.includes(next) ? next : byStep[app.step] ?? mine[0];
+    showStep(app.step);
     if (!dlg.open) dlg.showModal();
     setList(false);
     render();

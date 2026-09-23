@@ -55,7 +55,8 @@
     <div class="grp file">
       <label class="btn" id="openBtn" for="fileIn" tabindex="0" role="button" title="Open audio (Ctrl/Cmd+O)" aria-label="Open audio"><svg class="ic"><use href="#i-open"/></svg></label>
       <input type="file" id="fileIn" class="vh" tabindex="-1" aria-hidden="true">
-      <button class="btn" id="exportBtn" title="Export: tempo map, samples, drums, session (Ctrl/Cmd+E)" aria-label="Export" aria-haspopup="dialog"><svg class="ic"><use href="#i-export"/></svg><span class="lbl">Export</span></button>
+      <button class="btn" id="sessBtn" title="Session: save your work, or open a saved one" aria-label="Session" aria-haspopup="true" aria-expanded="false" aria-controls="sessPop"><svg class="ic"><use href="#i-save"/></svg></button>
+      <button class="btn" id="exportBtn" title="Export what this step makes (Ctrl/Cmd+E)" aria-label="Export" aria-haspopup="dialog"><svg class="ic"><use href="#i-export"/></svg><span class="lbl">Export</span></button>
       <span id="fileInfo"></span>
     </div>
     <div class="grp edit">
@@ -86,6 +87,14 @@
       <button class="btn" id="zFit" title="Fit whole file (Z)" aria-label="Fit"><svg class="ic"><use href="#i-fit"/></svg></button>
     </div>
     <button class="btn" id="helpBtn" title="Help and shortcuts (?)" aria-label="Help">?</button>
+    <div class="pop" id="sessPop" role="group" aria-label="Session" hidden>
+      <p class="hint">Your markers, pins and settings, without the audio. Open the session, then the same audio, to carry the work to another device.</p>
+      <div class="acts">
+        <button class="btn" id="sessSave"><svg class="ic"><use href="#i-save"/></svg>Save session</button>
+        <label class="btn" id="sessOpen" for="sessIn" tabindex="0" role="button"><svg class="ic"><use href="#i-import"/></svg>Open a session</label>
+      </div>
+      <input type="file" id="sessIn" class="vh" tabindex="-1" aria-hidden="true">
+    </div>
     <div class="pop" id="mixer" role="group" aria-label="Mixer" hidden>
       <div class="ch">
         <span class="chn"><button class="btn mute" id="mute-audio" title="Mute or unmute the audio" aria-label="Audio on" aria-pressed="false"><svg class="ic"><use href="#i-wave"/></svg></button>Audio</span>
@@ -264,8 +273,6 @@
       <h3>Drums</h3>
       <button data-fmt="drumsMidi"><span class="nm">Drums MIDI</span><small>.mid</small><span class="sub">Kick, snare and hats as notes</span></button>
       <button data-fmt="groove"><span class="nm">Groove</span><small>.json</small><span class="sub">The typical bar, for Pocket Science</span></button>
-      <h3>Work</h3>
-      <button data-fmt="session"><span class="nm">Session</span><small>.json</small><span class="sub">Your work, without the audio</span></button>
     </nav>
     <div class="xopts">
       <p id="expDesc"></p>
@@ -282,8 +289,6 @@
         <label class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Bit depth</span><select id="slBits" data-slicer aria-label="Bit depth"><option value="16">16-bit</option><option value="24">24-bit</option></select></label>
         <label class="fld" data-for="slices slicesRpp sliceWav"><span>File names</span><select id="slName" data-slicer aria-label="File names"><option value="num">name_01.wav</option><option value="time">name_01 + start time</option></select></label>
         <label class="fld chk" data-for="slices slicesRpp"><input type="checkbox" id="slCsv" checked><span>Add a .csv list of the slices</span></label>
-        <div class="fld" data-for="session"><span>Open</span><span class="pair"><label class="btn" id="sessOpen" for="sessIn" tabindex="0" role="button" title="Open a session file, then the same audio"><svg class="ic"><use href="#i-import"/></svg>Open a session file</label></span></div>
-        <input type="file" id="sessIn" class="vh" tabindex="-1" aria-hidden="true">
       </div>
       <p id="expInfo"></p>
       <div class="xfoot"><button class="btn" id="expCancel">Cancel</button><button class="btn primary" id="expSave"><svg class="ic"><use href="#i-export"/></svg><span id="expSaveL">Save</span></button></div>
@@ -296,7 +301,8 @@
   <div class="legend">
     <h3>Top bar, left to right</h3>
     <div><svg class="ic"><use href="#i-open"/></svg><span>Open audio</span><span><kbd>Ctrl/⌘</kbd><kbd>O</kbd></span></div>
-    <div><svg class="ic"><use href="#i-export"/></svg><span>Export: every format, each with its own options</span><span><kbd>3</kbd> <kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
+    <div><svg class="ic"><use href="#i-save"/></svg><span>Session: save your work, or open a saved one</span><span></span></div>
+    <div><svg class="ic"><use href="#i-export"/></svg><span>Export what this step makes: tempo map and warped audio (Beats), samples (Slice), drums (Groove). Off in Transients</span><span><kbd>3</kbd> <kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
     <div><svg class="ic"><use href="#i-undo"/></svg><span>Undo</span><span><kbd>Ctrl/⌘</kbd><kbd>Z</kbd></span></div>
     <div><svg class="ic"><use href="#i-redo"/></svg><span>Redo</span><span><kbd>Ctrl/⌘</kbd><kbd>⇧</kbd><kbd>Z</kbd></span></div>
     <div><svg class="ic"><use href="#i-wave"/></svg><span>Step 1 · Transients</span><span><kbd>1</kbd></span></div>
