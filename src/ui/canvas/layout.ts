@@ -1,5 +1,5 @@
 // The editor canvas, top to bottom: loop strip, bar ruler, waveform (edit half above, move half
-// below until Export), tempo lane once there is a map, time ruler.
+// below up to Warp), tempo lane once there is a map, time ruler.
 
 export const LOOPH = 20;
 export const RULH = 22;
@@ -37,7 +37,7 @@ export function zoneAt(L: Layout, y: number, step: number): Zone {
   if (y < RUL) return 'bars';
   if (y > L.h - TIME) return 'time';
   if (step === 5) return y < L.ly ? 'edit' : 'nav';
-  return step < 3 && y < RUL + L.wh * EDIT ? 'edit' : 'nav';
+  return step <= 3 && y < RUL + L.wh * EDIT ? 'edit' : 'nav';
 }
 
 /** The Groove step's drum lanes, top to bottom. */

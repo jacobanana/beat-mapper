@@ -3,13 +3,15 @@
 // Beats; here it is only read.
 import { fmtBpm, fmtTime, safeName } from '../../core/format';
 import { renderSlice } from '../../core/slices/slices';
-import { barQ } from '../../core/tempo/meter';
+import { type Meter, barQ, beatQ } from '../../core/tempo/meter';
 import { averageBpm, gridBeats } from '../../core/warp/map';
+import { placeWarpMarker, quantizeTransients, removeWarpMarker, warpMarkerAt } from '../../core/warp/markers';
 import { WARP_MODE_INFO, type WarpMode } from '../../core/warp/modes';
 import type { Analyzer } from '../../analysis/analyzer';
 import { bufferFrom } from '../../engine/audio-context';
 import { saveError, saveFile } from '../../io/download';
 import { wavEncode } from '../../io/formats/wav';
+import type { ProjectDoc } from '../../state/project';
 import { type WarpSettings, defaultWarp } from '../../state/settings';
 import type { App, WarpPlan } from '../app';
 import type { Beats } from './beats';
@@ -86,14 +88,122 @@ export class Warp implements TakeSource {
   /** Something in this step differs from how it starts. */
   get changed(): boolean {
     const w = this.app.warp, w0 = defaultWarp();
-    return !!this.app.audio && (w.mode !== w0.mode || w.bpm !== w0.bpm || w.range !== w0.range);
+    return !!this.app.audio && (w.mode !== w0.mode || w.bpm !== w0.bpm || w.range !== w0.range || this.app.doc.warpMarkers.length > 0);
   }
 
-  /** Back to how the step starts: the averaged tempo, the whole file, the full-mix method, heard warped. */
+  /** Back to how the step starts: the averaged tempo, the whole file, the full-mix method, heard warped, no warp markers. */
   reset(): void {
     if (!this.changed) return;
+    this.app.edit((d) => (d.warpMarkers.length ? { ...d, warpMarkers: [] } : d));
     this.update(defaultWarp());
-    this.app.notify.toast('Warp reset: the whole file at the tempo it averages.');
+    this.app.notify.toast('Warp reset: the whole file at the tempo it averages. Undo brings the warp markers back.');
+  }
+
+  // ---------- warp markers: a transient lined up with the grid ----------
+  private setMarkers(markers: ProjectDoc['warpMarkers']): void {
+    this.app.edit((d) => ({ ...d, warpMarkers: markers }));
+  }
+
+  /** Where the pointer at time `at` would put the transient at t: a grid line, or anywhere when `free`. Null if it would cross another warp marker. */
+  private target(t: number, at: number, free: boolean): number | null {
+    const { app } = this, map = app.warpGrid, pos = map.timeToPos(at);
+    const q = free ? pos : app.grid.nearest(pos);
+    return placeWarpMarker(app.doc.warpMarkers, t, q).ok ? q : null;
+  }
+
+  /** Starts dragging the transient (or warp marker) at t onto the grid. */
+  grab(t: number): void {
+    const { app } = this;
+    app.warpDrag = { t, q: null, at: t };
+    app.select({ kind: 'warp', t });
+  }
+
+  /** The dragged transient is over time `at`: it snaps to the grid line nearest there. */
+  dragTo(at: number, free = false): void {
+    const d = this.app.warpDrag;
+    if (!d) return;
+    this.app.warpDrag = { t: d.t, q: this.target(d.t, at, free), at };
+    this.app.bus.emit('display');
+  }
+
+  /** Lets go: the transient is put on the grid line it was dropped on, as one undo step. */
+  drop(): void {
+    const { app } = this, d = app.warpDrag;
+    if (!d) return;
+    app.warpDrag = null;
+    if (d.q == null) {
+      app.bus.emit('display');
+      return app.notify.toast("Can't put it there – it would cross another warp marker.");
+    }
+    this.put(d.t, d.q);
+  }
+
+  cancelDrag(): void {
+    if (!this.app.warpDrag) return;
+    this.app.warpDrag = null;
+    this.app.bus.emit('display');
+  }
+
+  /** Double tap on a transient: onto the grid line nearest it. */
+  snap(t: number): void {
+    const { app } = this;
+    if (!app.hasMap) return app.notify.toast('Map the beats first (step 2).');
+    const q = this.target(t, t, false);
+    if (q == null) return app.notify.toast("Can't line it up there – it would cross another warp marker.");
+    this.put(t, q);
+  }
+
+  private put(t: number, q: number): void {
+    const { app } = this, r = placeWarpMarker(app.doc.warpMarkers, t, q);
+    if (!r.ok) return;
+    this.setMarkers(r.markers);
+    app.select({ kind: 'warp', t });
+    app.notify.toast('Lined up on ' + posLabel(q, app.doc.meter));
+  }
+
+  /** Lets the transient at t move with the audio again. */
+  remove(t: number): void {
+    const out = removeWarpMarker(this.app.doc.warpMarkers, t);
+    if (!out) return;
+    this.setMarkers(out);
+    this.app.select(null);
+    this.app.notify.toast('Warp marker removed');
+  }
+
+  /** A warp marker holds the transient at t. */
+  isMarker(t: number): boolean { return !!warpMarkerAt(this.app.doc.warpMarkers, t); }
+
+  /** The warp marker selected, if any. */
+  selected(): number | null {
+    const s = this.app.sel;
+    return s?.kind === 'warp' && this.isMarker(s.t) ? s.t : null;
+  }
+
+  removeSelected(): void {
+    const t = this.selected();
+    if (t == null) return this.app.notify.toast('Select a warp marker first.');
+    this.remove(t);
+  }
+
+  /** Q: every transient of what is warped onto the grid line nearest it. */
+  quantize(): void {
+    const { app } = this, p = this.plan();
+    if (!app.hasMap || !p) return app.notify.toast(app.hasMap ? 'Switch the loop on to warp just the loop.' : 'Map the beats first (step 2).');
+    if (!app.markers.length) return app.notify.toast('No transients to line up. Raise the sensitivity in step 1.');
+    const before = app.doc.warpMarkers.length, range = { a: p.map.src[0], b: p.map.src[p.map.src.length - 1] };
+    const out = quantizeTransients(app.warpTempo, app.grid, app.markers.map((m) => m.t), range, app.doc.warpMarkers);
+    if (out.length === before) return app.notify.toast('Every transient is already lined up.');
+    this.setMarkers(out);
+    app.notify.toast(`${out.length - before} transients lined up on the grid · undo takes them back`);
+  }
+
+  /** Every warp marker off: only the pins are warped onto the grid again. */
+  clearMarkers(): void {
+    const { app } = this;
+    if (!app.doc.warpMarkers.length) return;
+    this.setMarkers([]);
+    app.select(null);
+    app.notify.toast('Warp markers cleared · undo brings them back');
   }
 
   /** One line for the panel: what is warped, to what, and how far it is stretched. */
@@ -105,7 +215,8 @@ export class Warp implements TakeSource {
     const pct = (r: number) => Math.round(r * 100) + ' %', [lo, hi] = p.ratios;
     const what = p.loop ? 'The loop' : 'The file';
     const stretch = Math.abs(hi - lo) < 0.005 ? `stretched to ${pct(lo)}` : `stretched ${pct(lo)}–${pct(hi)}`;
-    return `${what} averages ${fmtBpm(+p.avgBpm.toFixed(2))} BPM · warped to ${fmtBpm(p.bpm)} BPM, ${stretch} · ${fmtTime(p.srcDur)} → ${fmtTime(p.outDur)}`;
+    const n = app.doc.warpMarkers.length, lined = n ? ` · ${n} transient${n === 1 ? '' : 's'} lined up` : '';
+    return `${what} averages ${fmtBpm(+p.avgBpm.toFixed(2))} BPM · warped to ${fmtBpm(p.bpm)} BPM, ${stretch} · ${fmtTime(p.srcDur)} → ${fmtTime(p.outDur)}${lined}`;
   }
 
   // ---------- the take heard in the Warp step ----------
@@ -254,6 +365,12 @@ export class Warp implements TakeSource {
       app.notify.toast("Couldn't warp the audio – loop a shorter part and try again.");
     }
   }
+}
+
+/** Position q as bar and beat, counting from 1: `bar 3, beat 2.5`. */
+function posLabel(q: number, meter: Meter): string {
+  const bq = barQ(meter), btq = beatQ(meter), bar = Math.floor(q / bq + 1e-9), beat = (q - bar * bq) / btq + 1;
+  return `bar ${bar + 1}, beat ${+beat.toFixed(3)}`;
 }
 
 const same = (a: readonly unknown[], b: readonly unknown[]) => a.length === b.length && a.every((v, i) => v === b[i]);

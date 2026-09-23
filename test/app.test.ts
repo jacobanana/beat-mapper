@@ -203,6 +203,54 @@ describe('export', () => {
 });
 
 describe('the Warp step', () => {
+  it('lines a transient up with the grid by dragging it, as one undo step', () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.workflow.goTo(3);
+    f.beats.setGrid('8');
+    // An off-beat hat, a little loose: dragged onto the eighth nearest where it is let go.
+    const hat = app.markers.find((m) => { const q = app.tempoMap.timeToPos(m.t); return Math.abs(q - Math.round(q) - 0.5) < 0.2; })!;
+    const q = Math.round(app.tempoMap.timeToPos(hat.t) * 2) / 2, undos = app.history.canUndo;
+    f.warp.grab(hat.t);
+    f.warp.dragTo(app.tempoMap.posToTime(q) + 0.01);
+    expect(app.warpDrag?.q).toBe(q);
+    expect(app.doc.warpMarkers).toEqual([]);
+    f.warp.drop();
+    expect(app.warpDrag).toBeNull();
+    expect(app.doc.warpMarkers).toEqual([{ t: hat.t, q }]);
+    // Where the warp puts it: exactly on its eighth of the straight grid.
+    const p = app.warpPlan!;
+    expect(p.map.dstAt(hat.t)).toBeCloseTo(((q - p.q0) * 60) / p.bpm, 9);
+    expect(f.warp.summary()).toContain('1 transient lined up');
+    expect(f.warp.changed).toBe(true);
+    // The tempo map of the Beats step is left as it was.
+    expect(app.tempoMap.anchors.some((a) => a.t === hat.t)).toBe(false);
+    app.undo();
+    expect(app.doc.warpMarkers).toEqual([]);
+    expect(app.history.canUndo).toBe(undos);
+  });
+
+  it('quantizes, removes and resets warp markers', () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.workflow.goTo(3);
+    f.beats.setGrid('8');
+    f.warp.quantize();
+    const n = app.doc.warpMarkers.length;
+    expect(n).toBeGreaterThan(100);
+    f.warp.remove(app.doc.warpMarkers[3].t);
+    expect(app.doc.warpMarkers.length).toBe(n - 1);
+    f.warp.snap(app.markers[3].t);
+    expect(app.doc.warpMarkers.length).toBe(n);
+    f.warp.reset();
+    expect(app.doc.warpMarkers).toEqual([]);
+    expect(f.warp.changed).toBe(false);
+    app.undo();
+    expect(app.doc.warpMarkers.length).toBe(n);
+  });
+
   it('plays it warped by default, and renders once until the warp changes', async () => {
     const { app, f } = t;
     f.workflow.goTo(2);

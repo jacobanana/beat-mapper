@@ -115,6 +115,8 @@ export class Sessions {
       markers: { manual, removed: matchRemoved(app.cands, s.markers.removed).map((i) => app.cands[i].t), nextId: manual.length + 1 },
       // Hit edits aren't in the session file yet: a session starts from the hits as detected.
       drums: noHitEdits(),
+      // Nor are warp markers, like the rest of the Warp step.
+      warpMarkers: [],
     };
     app.edit(() => doc, false);
     app.set('beats', s.beats);

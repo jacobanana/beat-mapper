@@ -15,7 +15,7 @@ export interface Frame {
   xOf: (t: number) => number;
   /** Beats and later: markers recede. */
   beatsMode: boolean;
-  /** Steps 1 and 2 have an edit half. */
+  /** Steps 1 to 3 have an edit half. */
   editable: boolean;
 }
 
@@ -32,9 +32,13 @@ export function background({ g, L, C, editable }: Frame): void {
   g.strokeStyle = C.line; g.beginPath(); g.moveTo(0, LOOPH + 0.5); g.lineTo(w, LOOPH + 0.5); g.stroke();
 }
 
-/** Bar, beat and subdivision lines with their numbers, and the lead-in before bar 1. Returns the finest level shown. */
+/**
+ * Bar, beat and subdivision lines with their numbers, and the lead-in before bar 1. In the Warp step
+ * the grid bends to the warp markers, so a transient lined up sits on its line. Returns the finest
+ * level shown.
+ */
 export function grid({ g, app, L, C, xOf }: Frame): 0 | 1 | 2 {
-  const { w, wy, wh, ly, ty } = L, v = app.view, map = app.tempoMap, grid = app.grid;
+  const { w, wy, wh, ly, ty } = L, v = app.view, map = app.step === 3 ? app.warpGrid : app.tempoMap, grid = app.grid;
   const q0 = map.timeToPos(v.t0), q1 = map.timeToPos(v.t1), pxQ = w / (q1 - q0), bq = grid.barQ, gq = grid.stepQ, btq = grid.beatQ;
   const gridHasBeats = gq <= btq + 1e-9;
   const showSub = gq * pxQ >= 7, showBeat = (gridHasBeats ? btq : gq) * pxQ >= 7, visLevel = showSub ? 2 : showBeat ? 1 : 0;
@@ -42,7 +46,7 @@ export function grid({ g, app, L, C, xOf }: Frame): 0 | 1 | 2 {
   while (bq * stride * pxQ < 5) stride *= 2;
   let labStride = stride;
   while (bq * labStride * pxQ < 34) labStride *= 2;
-  const a = app.step === 2 ? 1 : 0.45;
+  const a = app.step === 2 || app.step === 3 ? 1 : 0.45;
   g.font = '500 12px ' + FONT;
   g.textBaseline = 'middle';
   for (let b = Math.floor(q0 / bq) - 1; b <= Math.floor(q1 / bq) + 1; b++) {
@@ -53,9 +57,10 @@ export function grid({ g, app, L, C, xOf }: Frame): 0 | 1 | 2 {
       if (!gridHasBeats && j > 0 && !showBeat) continue;
       const q = b * bq + j * gq, x = Math.round(xOf(map.posToTime(q))) + 0.5;
       if (x < -2 || x > w + 2) continue;
-      g.strokeStyle = rgba(C.beat, (lv === 0 ? 0.75 : lv === 1 ? 0.4 : 0.18) * a * (q < 0 ? 0.5 : 1));
+      // In Warp the subdivisions are what transients are dropped on, so they show more.
+      g.strokeStyle = rgba(C.beat, (lv === 0 ? 0.75 : lv === 1 ? 0.4 : app.step === 3 ? 0.32 : 0.18) * a * (q < 0 ? 0.5 : 1));
       g.beginPath(); g.moveTo(x, lv === 0 ? LOOPH + 3 : wy); g.lineTo(x, lv === 0 ? ty : ly); g.stroke();
-      if (lv === 0 && b >= 0 && !(b % labStride)) { g.fillStyle = rgba(C.ink, app.step === 2 ? 0.95 : 0.55); g.fillText(String(b + 1), x + 9, LOOPH + RULH / 2 + 1); }
+      if (lv === 0 && b >= 0 && !(b % labStride)) { g.fillStyle = rgba(C.ink, a === 1 ? 0.95 : 0.55); g.fillText(String(b + 1), x + 9, LOOPH + RULH / 2 + 1); }
       else if (lv === 1 && btq * pxQ >= 44 && q >= 0) { g.fillStyle = rgba(C.dim, 0.9); g.fillText(b + 1 + '.' + (Math.round((j * gq) / btq) + 1), x + 9, LOOPH + RULH / 2 + 1); }
     }
   }
@@ -118,13 +123,18 @@ export function slices({ g, app, L, C, xOf }: Frame): void {
   g.lineWidth = 1;
 }
 
-/** Transient markers: a line with a flag, filled for manual ones. The Groove step shows drum lanes instead. */
+/**
+ * Transient markers: a line with a flag, filled for manual ones. The Groove step shows drum lanes
+ * instead. In Warp they are what is dragged onto the grid, so they stay bright.
+ */
 export function markers({ g, app, L, C, xOf, beatsMode }: Frame): void {
   if (app.step === 5) return;
-  const { w, wy, ly, ey } = L, v = app.view, M = app.markers, i0 = lowerBound(M, v.t0), dense = lowerBound(M, v.t1) - i0 > w / 4, ma = beatsMode ? 0.5 : 1;
+  const { w, wy, ly, ey } = L, v = app.view, M = app.markers, i0 = lowerBound(M, v.t0), dense = lowerBound(M, v.t1) - i0 > w / 4;
+  const warping = app.step === 3, ma = beatsMode && !warping ? 0.5 : 1;
   const sel = app.sel?.kind === 'marker' ? app.sel.id : null, hov = app.hover?.kind === 'marker' ? app.hover.id : null;
+  const wSel = app.sel?.kind === 'warp' ? app.sel.t : null, wHov = app.hover?.kind === 'warp' ? app.hover.t : null;
   for (let i = i0; i < M.length && M[i].t <= v.t1; i++) {
-    const m = M[i], x = Math.round(xOf(m.t)) + 0.5, isSel = m.id === sel, isHov = m.id === hov;
+    const m = M[i], x = Math.round(xOf(m.t)) + 0.5, isSel = m.id === sel || m.t === wSel, isHov = m.id === hov || m.t === wHov;
     g.strokeStyle = rgba(C.mark, (isSel || isHov ? 1 : dense ? 0.45 : 0.8) * ma); g.lineWidth = isSel ? 2 : 1;
     g.beginPath(); g.moveTo(x, wy + 1); g.lineTo(x, ey); g.stroke();
     if (!beatsMode || isSel) { g.globalAlpha = isSel ? 1 : 0.4; g.beginPath(); g.moveTo(x, ey); g.lineTo(x, ly); g.stroke(); g.globalAlpha = 1; }
@@ -203,11 +213,43 @@ export function pins({ g, app, L, C, xOf }: Frame): void {
 }
 
 /**
+ * Warp markers, in the Warp step: a transient held on its grid line, drawn as a thicker line with a
+ * tab in the bar ruler. While a transient is dragged, a ghost at the grid line it would land on, and
+ * an arrow from where it is.
+ */
+export function warpMarkers({ g, app, L, C, xOf }: Frame): void {
+  if (app.step !== 3) return;
+  const { w, wy, ly } = L, v = app.view, sel = app.sel?.kind === 'warp' ? app.sel.t : null, drag = app.warpDrag;
+  const tab = (x: number, fill: boolean) => {
+    g.beginPath(); g.moveTo(x - 6, RUL - 14); g.lineTo(x + 6, RUL - 14); g.lineTo(x + 6, RUL - 7); g.lineTo(x, RUL - 2); g.lineTo(x - 6, RUL - 7); g.closePath();
+    if (fill) g.fill(); else { g.fillStyle = C.panel; g.fill(); g.stroke(); }
+  };
+  for (const m of app.doc.warpMarkers) {
+    if (m.t < v.t0 - 0.05 || m.t > v.t1 + 0.05 || m.t === drag?.t) continue;
+    const x = Math.round(xOf(m.t)) + 0.5, isSel = m.t === sel;
+    g.strokeStyle = C.mark; g.fillStyle = C.mark; g.lineWidth = isSel ? 3 : 2;
+    g.beginPath(); g.moveTo(x, RUL - 2); g.lineTo(x, ly); g.stroke();
+    g.lineWidth = 1; tab(x, true);
+    if (isSel) { g.strokeStyle = C.ink; g.strokeRect(x - 8.5, RUL - 16.5, 17, 16); }
+  }
+  if (!drag) return;
+  const xs = xOf(drag.t), on = drag.q != null, xt = on ? xOf(app.warpGrid.posToTime(drag.q!)) : xOf(drag.at), y = wy + (ly - wy) * 0.25;
+  if (xt < -20 || xt > w + 20) { g.lineWidth = 1; return; }
+  g.strokeStyle = rgba(C.mark, on ? 1 : 0.45); g.fillStyle = g.strokeStyle; g.lineWidth = 2;
+  g.setLineDash([4, 3]); g.beginPath(); g.moveTo(xs, y); g.lineTo(xt, y); g.stroke(); g.setLineDash([]);
+  const dir = xt >= xs ? 1 : -1;
+  if (Math.abs(xt - xs) > 10) { g.beginPath(); g.moveTo(xt, y); g.lineTo(xt - dir * 8, y - 5); g.lineTo(xt - dir * 8, y + 5); g.closePath(); g.fill(); }
+  const x = Math.round(xt) + 0.5;
+  g.beginPath(); g.moveTo(x, RUL - 2); g.lineTo(x, ly); g.stroke();
+  g.lineWidth = 1; if (on) tab(x, true); else { g.strokeStyle = rgba(C.mark, 0.45); tab(x, false); }
+}
+
+/**
  * The tempo lane: each bar's BPM as a step line. In the Warp step, the grid's tempo too, as a dashed
  * line, and the gap each bar is moved across to reach it.
  */
 export function tempoLane({ g, app, L, C, xOf }: Frame): void {
-  const bars = app.bars;
+  const bars = app.step === 3 ? app.warpBars : app.bars;
   if (!bars.length) return;
   const { w, ly, laneH } = L, v = app.view, warp = app.step === 3 ? app.warpPlan : null;
   let lo = Infinity, hi = -Infinity;

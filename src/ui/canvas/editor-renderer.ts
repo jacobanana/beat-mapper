@@ -66,7 +66,7 @@ export class EditorRenderer {
     const a = app.audio;
     if (!a) return;
     app.view.width = L.w || 1;
-    const f: layers.Frame = { g, app, L, C, xOf: (t) => app.view.xOf(t), beatsMode: app.step >= 2, editable: app.step < 3 };
+    const f: layers.Frame = { g, app, L, C, xOf: (t) => app.view.xOf(t), beatsMode: app.step >= 2, editable: app.step <= 3 };
 
     layers.background(f);
     if (app.hasMap) this.visLevel = layers.grid(f);
@@ -85,6 +85,7 @@ export class EditorRenderer {
     layers.markers(f);
     layers.drums(f);
     if (app.hasMap) layers.pins(f);
+    if (app.hasMap) layers.warpMarkers(f);
     layers.tempoLane(f);
     layers.timeRuler(f);
     layers.loopStrip(f);

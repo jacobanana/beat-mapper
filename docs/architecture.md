@@ -36,7 +36,7 @@ from bar 1.
 | `slices/` | Slice planning, rendering (fades, mono, normalize), loop info, file naming. |
 | `dsp/filter.ts` | Zero-phase biquads (forwards then backwards), for timing a voice's attack in its own band. |
 | `drums/` | Kick, snare and hats: a log-frequency spectrogram (optionally percussive-only), NMF with semi-adaptive templates, per-voice hit picking and bleed cancelling, sensitivity. See [groove.md](groove.md). |
-| `warp/` | Warping onto a straight grid: the warp map from the tempo map (`map.ts`), and one algorithm per kind of material (drum slicing, WSOLA, phase-locked phase vocoder, harmonic-percussive split, re-pitch). See [warp.md](warp.md). |
+| `warp/` | Warping onto a straight grid: the warp map from the tempo map (`map.ts`), warp markers that put single transients on the grid (`markers.ts`), and one algorithm per kind of material (drum slicing, WSOLA, phase-locked phase vocoder, harmonic-percussive split, re-pitch). See [warp.md](warp.md). |
 | `groove/pocket.ts` | Every drum hit on its grid step, measured against a reference voice bar by bar; per-voice and per-step statistics, swing. `transcribe` turns the hits into notes for the synth kit and the MIDI transcript. |
 
 ## io/

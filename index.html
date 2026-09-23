@@ -219,6 +219,13 @@
             </span>
           </div>
           <div class="row2">
+            <span class="cap" title="Drag a transient onto a grid line to line it up there">Align</span><span class="items">
+              <label class="sl" title="Grid (G): the lines a transient is lined up on">grid<select id="warpGrid" aria-label="Grid"><option value="bar">Bar</option><option value="2">1/2</option><option value="4">1/4</option><option value="8">1/8</option><option value="16" selected>1/16</option><option value="32">1/32</option><option value="4t">1/4T</option><option value="8t">1/8T</option><option value="16t">1/16T</option></select></label>
+              <button class="btn" id="wQuantize" title="Quantize: every transient onto the grid line nearest it (Q)" aria-label="Quantize every transient to the grid">Quantize</button>
+              <button class="btn" id="wClearMarkers" title="Clear the warp markers: only the pins are lined up" aria-label="Clear the warp markers">Clear</button>
+            </span>
+          </div>
+          <div class="row2">
             <span class="cap" title="What is warped, and how it is stretched">Warp</span><span class="items">
               <select id="warpRange" title="What is warped, heard and saved" aria-label="What is warped"><option value="file">whole file</option><option value="loop">just the loop</option></select>
               <select id="warpModeB" title="Material: sets how the audio is stretched" aria-label="Material, which sets the warp algorithm"><option value="beats">Drums</option><option value="mono">Mono</option><option value="vocal">Vocal</option><option value="poly">Poly</option><option value="music">Full mix</option><option value="repitch">Re-pitch</option></select>
@@ -227,7 +234,7 @@
           <div class="row2">
             <span class="cap" title="What plays">Listen</span><span class="items">
               <span class="seg" role="group" aria-label="What plays"><button class="btn" id="wOrig" title="Play the original (W)" aria-pressed="false">Original</button><button class="btn on" id="wWarped" title="Play it warped onto the grid, with the click on the grid (W)" aria-pressed="true">Warped</button></span>
-              <button class="btn end" id="resetW" title="Reset Warp: the whole file at the tempo it averages, Full mix" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
+              <button class="btn end" id="resetW" title="Reset Warp: the whole file at the tempo it averages, Full mix, no warp markers" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
             </span>
           </div>
           <p id="wSum"></p>
@@ -401,6 +408,8 @@
     <div><svg class="ic"><use href="#i-warp"/></svg><span>The audio re-timed so every beat of the map lands on a straight grid at one tempo. The tempo map is made in Beats; here it is only read. The tempo lane shows the grid's tempo dashed, and how far each bar moves to reach it</span><span></span></div>
     <div><span>Original · Warped</span><span>What plays. Warped plays it with the click on the grid; the playhead follows the original, so it sits on the hit you hear</span><span><kbd>W</kbd></span></div>
     <div><svg class="ic"><use href="#i-loop"/></svg><span>From loop: loop a section that is played right, and the grid takes the tempo it averages, to the nearest BPM. Or type a tempo; empty takes the average of what is warped</span><span><kbd>F</kbd></span></div>
+    <div><span>Align: drag a transient in the upper half onto a grid line, and the warp puts that hit exactly on it, stretching the audio either side to fit. Double-tap a transient to put it on the nearest line, or a warp marker to let it go. Alt drops it off the grid</span><span></span></div>
+    <div><span>Quantize: every transient of what is warped onto the grid line nearest it. Clear takes the warp markers off; undo brings them back</span><span><kbd>Q</kbd></span></div>
     <div><span>whole file · just the loop</span><span>What is warped, heard and saved. Drawing a loop to take its tempo doesn't make it the loop alone</span><span></span></div>
     <div><span>Material</span><span>How it is stretched: Drums cut at the transients, Mono and Vocal overlap-add, Poly a phase vocoder, Full mix both, Re-pitch like a turntable</span><span></span></div>
     <div><svg class="ic"><use href="#i-reset"/></svg><span>Reset: the whole file at the tempo it averages, Full mix</span><span></span></div>
@@ -465,6 +474,9 @@
     <div><span><kbd>Del</kbd></span><span>Unpin selected</span></div>
     <h3>Step 3 – Warp</h3>
     <div><span><kbd>W</kbd></span><span>Warped or the original</span></div>
+    <div><span><kbd>Q</kbd></span><span>Quantize every transient to the grid</span></div>
+    <div><span><kbd>G</kbd></span><span>Finer grid (<kbd>Shift</kbd> coarser)</span></div>
+    <div><span><kbd>Del</kbd></span><span>Remove the selected warp marker</span></div>
     <div><span><kbd>F</kbd></span><span>Grid tempo from the loop</span></div>
     <h3>Step 4 – Slice samples</h3>
     <div><span><kbd>Tab</kbd> <kbd>⇧</kbd><kbd>Tab</kbd></span><span>Next / previous slice, and hear it</span></div>
