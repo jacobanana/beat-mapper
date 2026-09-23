@@ -70,6 +70,10 @@ main{flex:1;display:flex;flex-direction:column;min-height:0}
 .pane{display:flex;gap:8px 14px;align-items:flex-start;flex-wrap:wrap}
 .bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 5px}
 .sep{width:1px;align-self:stretch;background:var(--line);margin:2px 5px}
+.seg{display:inline-flex}
+.seg .btn{border-radius:0}
+.seg .btn:first-child{border-radius:6px 0 0 6px}
+.seg .btn:last-child{border-radius:0 6px 6px 0;margin-left:-1px}
 .sl{display:inline-flex;align-items:center;gap:5px;color:var(--dim)}
 .sl input{width:110px}
 .sl output{min-width:44px;color:var(--dim);font-size:14px}

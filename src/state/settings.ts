@@ -82,7 +82,15 @@ export interface GrooveSettings {
   ref: Reference | 'auto';
   /** Draw offsets three times their size, as Pocket Science's pocket-emphasis mode does. */
   exaggerate: boolean;
+  /** What play sounds like in this step: the audio, the drums found in it played by a synth kit, or both. */
+  listen: GrooveListen;
+  /** The chart under the controls: the pocket, or the hits as a MIDI transcript. */
+  chart: GrooveChartMode;
 }
+
+export const GROOVE_LISTENS = ['audio', 'midi', 'both'] as const;
+export type GrooveListen = (typeof GROOVE_LISTENS)[number];
+export type GrooveChartMode = 'pocket' | 'midi';
 
 export const defaultDetection = (): DetectionSettings => ({ sens: 55, gap: 60, band: 'full', algo: 'flux', showOdf: true });
 export const defaultBeats = (): BeatSettings => ({ grid: '16', mapEvery: 'beat', tol: 20, snapTo: 'markers', loopBars: null });
@@ -91,4 +99,4 @@ export const defaultSlicer = (): SlicerSettings => ({
   mode: 'gap', len: 500, tail: 0, fadeIn: 1, fadeOut: 8, min: 40, mono: false, bits: 16, norm: false, target: -1, naming: 'num', csv: true,
 });
 export const defaultTransport = (): TransportState => ({ loop: null, loopOn: false, start: 0, playhead: 0, stay: false, click: false, scrubMode: false });
-export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', ref: 'auto', exaggerate: true });
+export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', ref: 'auto', exaggerate: true, listen: 'audio', chart: 'pocket' });

@@ -249,4 +249,24 @@ describe('groove', () => {
     f.playback.setLoop({ a: app.tempoMap.posToTime(8), b: app.tempoMap.posToTime(16) }, true);
     expect(app.pocket!.bars).toBe(2);
   });
+
+  it('turns the hits into notes to hear, and switches what is heard and charted', async () => {
+    const { app, f } = t;
+    f.workflow.goTo(5);
+    await f.groove.ensureDrums();
+    const h = app.drumHits!, notes = app.drumNotes;
+    expect(notes.length).toBe(h.kick.length + h.snare.length + h.hat.length);
+    for (let i = 1; i < notes.length; i++) expect(notes[i].t).toBeGreaterThanOrEqual(notes[i - 1].t);
+    // Same velocities as the pocket gives each hit.
+    const g = app.pocket!;
+    for (const p of g.hits.slice(0, 20)) expect(notes.find((n) => n.voice === p.voice && n.t === p.t)?.vel).toBe(p.vel);
+    expect(app.groove.listen).toBe('audio');
+    f.groove.cycleListen();
+    expect(app.groove.listen).toBe('midi');
+    f.groove.cycleListen();
+    f.groove.cycleListen();
+    expect(app.groove.listen).toBe('audio');
+    f.groove.toggleChart();
+    expect(app.groove.chart).toBe('midi');
+  });
 });

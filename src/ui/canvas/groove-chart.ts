@@ -1,9 +1,12 @@
 // The Groove step's chart, in the language of Pocket Science: on the left, where each voice sits
 // against the beat (every hit, its middle half and its median); on the right, the typical bar, one
-// dot per step with its size for velocity and a tail for its lean.
+// dot per step with its size for velocity and a tail for its lean. Or, switched over, the hits as a
+// MIDI transcript: one lane per voice, every note where it was played, under a moving playhead.
 import type { App } from '../../app/app';
-import { VOICES, VOICE_LABEL, type Voice } from '../../core/drums/voices';
-import type { Groove } from '../../core/groove/pocket';
+import { GM_NOTE, VOICES, VOICE_LABEL, type Voice } from '../../core/drums/voices';
+import { GROOVE_GRID_Q, type Groove } from '../../core/groove/pocket';
+import { lowerBound } from '../../core/search';
+import { barQ, beatQ } from '../../core/tempo/meter';
 import { type Colors, FONT, readColors, rgba } from './theme';
 
 // Hats on top, kick at the bottom: high to low, as a kit is scored.
@@ -20,6 +23,8 @@ export class GrooveChart {
   constructor(private readonly cv: HTMLCanvasElement, private readonly app: App) {
     this.g = cv.getContext('2d')!;
     app.bus.on(['drums', 'groove', 'doc', 'transport', 'step', 'audio', 'beats'], () => this.invalidate());
+    // The transcript follows the playhead and the editor's view; the pocket doesn't move with them.
+    app.bus.on(['playhead', 'view'], () => { if (app.groove.chart === 'midi') this.invalidate(); });
   }
 
   /** Redraws on the next frame, once however many changes come in before it. */
@@ -40,6 +45,7 @@ export class GrooveChart {
     g.clearRect(0, 0, w, h);
     g.font = '12px ' + FONT;
     g.textBaseline = 'middle';
+    if (app.groove.chart === 'midi') return this.transcript(w, h);
     const p = app.pocket, C = this.C;
     if (!p || !p.hits.length) {
       g.fillStyle = C.dim;
@@ -113,6 +119,66 @@ export class GrooveChart {
       g.fillText(fmtMs(st.median), R + 6, y);
       g.font = '12px ' + FONT;
     });
+  }
+
+  /**
+   * The hits as MIDI notes over time: the loop when it is on, else what the editor shows, so the
+   * transcript scrolls with playback. Bar and beat lines come from the tempo map when there is one.
+   */
+  private transcript(w: number, h: number): void {
+    const { g, C, app } = this, notes = app.drumNotes;
+    if (!notes.length) {
+      g.fillStyle = C.dim; g.textAlign = 'center';
+      g.fillText(app.drums ? 'No hits at these sensitivities' : app.audio ? 'Finding the drums…' : '', w / 2, h / 2);
+      g.textAlign = 'left';
+      return;
+    }
+    const range = app.activeLoop ?? { a: app.view.t0, b: app.view.t1 };
+    const L = LABEL_W + 4, R = w - 8, t0 = range.a, span = Math.max(1e-3, range.b - range.a);
+    const xOf = (t: number) => L + ((t - t0) / span) * (R - L), axisY = h - BOTTOM + 4;
+    const rh = (h - TOP - BOTTOM) / ROWS.length;
+    g.save();
+    g.beginPath(); g.rect(L, 0, R - L, h); g.clip();
+    ROWS.forEach((_, i) => { if (i % 2) { g.fillStyle = rgba(C.ink, 0.035); g.fillRect(L, TOP + rh * i, R - L, rh); } });
+    // Grid: steps faint, beats stronger, bars strongest with their numbers.
+    const map = app.tempoMap, meter = app.doc.meter;
+    let noteLen = 0.06;
+    if (app.hasMap && !map.isEmpty) {
+      const bq = barQ(meter), btq = beatQ(meter), sq = GROOVE_GRID_Q[app.groove.grid];
+      const q0 = map.timeToPos(t0), q1 = map.timeToPos(t0 + span);
+      const pxQ = (R - L) / Math.max(1e-6, q1 - q0), unit = pxQ * sq >= 6 ? sq : pxQ * btq >= 6 ? btq : bq;
+      g.font = '11px ' + FONT; g.textAlign = 'left';
+      for (let k = Math.max(0, Math.floor(q0 / unit)); k * unit <= q1 + 1e-9 && k < 1e5; k++) {
+        const q = k * unit, bar = Math.abs(q / bq - Math.round(q / bq)) < 1e-6, beat = Math.abs(q / btq - Math.round(q / btq)) < 1e-6;
+        const x = Math.round(xOf(map.posToTime(q))) + 0.5;
+        g.strokeStyle = bar ? rgba(C.ink, 0.4) : beat ? rgba(C.ink, 0.18) : rgba(C.ink, 0.07);
+        g.beginPath(); g.moveTo(x, TOP - 6); g.lineTo(x, axisY); g.stroke();
+        if (bar) { g.fillStyle = C.ink; g.fillText(String(Math.round(q / bq) + 1), x + 3, axisY + 12); }
+      }
+      noteLen = map.posToTime(q0 + sq) - map.posToTime(q0);
+    }
+    // Notes: a step long, darker and taller the harder they were hit, lit while they sound.
+    const ph = app.transport.playhead, nw = Math.max(3, Math.min(18, (noteLen / span) * (R - L) * 0.9));
+    for (let i = lowerBound(notes, t0 - noteLen); i < notes.length && notes[i].t < t0 + span; i++) {
+      const n = notes[i], y = this.rowY(ROWS.indexOf(n.voice)), v = n.vel / 127, nh = Math.max(4, rh * (0.3 + 0.4 * v)), x = xOf(n.t);
+      g.fillStyle = rgba(C[n.voice], 0.3 + 0.7 * v);
+      g.beginPath(); if (g.roundRect) g.roundRect(x, y - nh / 2, nw, nh, 2); else g.rect(x, y - nh / 2, nw, nh); g.fill();
+      if (ph >= n.t && ph < n.t + Math.max(0.08, noteLen)) { g.strokeStyle = C.ink; g.lineWidth = 1.5; g.stroke(); g.lineWidth = 1; }
+    }
+    if (ph >= t0 && ph <= t0 + span) {
+      const x = Math.round(xOf(ph)) + 0.5;
+      g.strokeStyle = C.play; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x, TOP - 8); g.lineTo(x, axisY); g.stroke(); g.lineWidth = 1;
+    }
+    g.restore();
+    ROWS.forEach((v, i) => {
+      const y = this.rowY(i);
+      g.fillStyle = C[v]; g.font = '600 12px ' + FONT; g.fillText(VOICE_LABEL[v].toUpperCase(), 4, y - 5);
+      g.fillStyle = C.dim; g.font = '11px ' + FONT; g.fillText('note ' + GM_NOTE[v], 4, y + 8);
+    });
+    g.fillStyle = C.dim; g.font = '11px ' + FONT; g.textAlign = 'center';
+    const shown = notes.length ? lowerBound(notes, t0 + span) - lowerBound(notes, t0) : 0;
+    g.fillText(`MIDI transcript · ${shown} note${shown === 1 ? '' : 's'} ${app.activeLoop ? 'in the loop' : 'in view'}`, (L + R) / 2, 9);
+    g.textAlign = 'left'; g.font = '12px ' + FONT;
   }
 
   /** The typical bar: one dot per step a voice plays, faint when it plays it in only some bars. */

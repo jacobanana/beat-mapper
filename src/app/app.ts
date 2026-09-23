@@ -4,7 +4,7 @@ import type { Analysis } from '../core/dsp/onset';
 import type { DrumAnalysis } from '../core/drums/detect';
 import { selectHits } from '../core/drums/select';
 import type { DrumHit, PerVoice } from '../core/drums/voices';
-import { type Groove, analyseGroove } from '../core/groove/pocket';
+import { type Groove, type VoiceNote, analyseGroove, transcribe } from '../core/groove/pocket';
 import { detectMarkers, filterMarkers, sensToThr } from '../core/markers/detect';
 import { type Slice, isExcluded, loopInfo, planSlices, sliceKey } from '../core/slices/slices';
 import { Grid, barQ } from '../core/tempo/meter';
@@ -125,6 +125,10 @@ export class App {
   private readonly _drumHits = memo((d: DrumAnalysis | null, sens: GrooveSettings['sens']) => (d ? selectHits(d.hits, sens) : null));
   /** The drum hits the sensitivities let through. */
   get drumHits(): PerVoice<DrumHit[]> | null { return this._drumHits(this.drums, this.groove.sens); }
+
+  private readonly _drumNotes = memo((hits: PerVoice<DrumHit[]> | null) => (hits ? transcribe(hits) : []));
+  /** The drum hits as notes over the whole take, sorted by time: what the synth kit plays. */
+  get drumNotes(): readonly VoiceNote[] { return this._drumNotes(this.drumHits); }
 
   private readonly _groove = memo((hits: PerVoice<DrumHit[]> | null, map: TempoMap, meter: ProjectDoc['meter'], grid: GrooveSettings['grid'], ref: GrooveSettings['ref'], range: TimeRange) =>
     hits && !map.isEmpty ? analyseGroove(hits, { map, meter, grid, ref, range }) : null);

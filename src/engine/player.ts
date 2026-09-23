@@ -1,13 +1,27 @@
+import type { Voice } from '../core/drums/voices';
 import type { TimeRange } from '../core/types';
 import { audioContext } from './audio-context';
+import { drumHit } from './drum-kit';
 
 /** Calls `emit(time, downbeat)` for every click due in [a, b) of the audio's timeline. */
 export type ClickSource = (a: number, b: number, emit: (t: number, down: boolean) => void) => void;
+/** Calls `emit(time, voice, velocity)` for every drum hit due in [a, b) of the audio's timeline. */
+export type HitSource = (a: number, b: number, emit: (t: number, voice: Voice, vel: number) => void) => void;
+
+/** What plays along with the audio, and how loud the audio itself is, asked for as it plays. */
+export interface PlayerSources {
+  clicks: ClickSource;
+  clicksOn(): boolean;
+  hits: HitSource;
+  hitsOn(): boolean;
+  /** 0 mutes the audio, leaving only what plays along. */
+  audioLevel(): number;
+}
 
 /**
  * Plays an AudioBuffer from a position, optionally looping a range, with a metronome scheduled a
- * little ahead of time on the audio clock. Knows nothing about markers or beats: the click times
- * come from a ClickSource.
+ * little ahead of time on the audio clock, and drum hits the same way. Knows nothing about markers,
+ * beats or drums: the times come from its sources.
  */
 export class Player {
   private src: AudioBufferSourceNode | null = null;
@@ -17,11 +31,12 @@ export class Player {
   private loop: TimeRange | null = null;
   private schedE = 0;
   private timer: ReturnType<typeof setInterval> | null = null;
+  private level = 0.9;
   playing = false;
   /** Called when playback runs off the end of the audio. */
   onEnded: (() => void) | null = null;
 
-  constructor(private readonly clicks: ClickSource, private readonly clicksOn: () => boolean) {}
+  constructor(private readonly sources: PlayerSources) {}
 
   /** Starts playing buffer from `from` seconds; loops `loop` if given and `from` is before its end. */
   play(buffer: AudioBuffer, from: number, loop: TimeRange | null): void {
@@ -31,7 +46,8 @@ export class Player {
     const src = c.createBufferSource();
     src.buffer = buffer;
     this.gain = this.gain || c.createGain();
-    this.gain.gain.value = 0.9;
+    this.gain.gain.cancelScheduledValues(0);
+    this.gain.gain.value = this.level = this.sources.audioLevel();
     src.connect(this.gain).connect(c.destination);
     this.loop = loop && from < loop.b - 0.005 ? { a: loop.a, b: loop.b } : null;
     if (this.loop) { src.loop = true; src.loopStart = this.loop.a; src.loopEnd = this.loop.b; }
@@ -76,11 +92,15 @@ export class Player {
     return this.posAt(Math.max(0, audioContext().currentTime - this.ctx0));
   }
 
-  // Clicks are scheduled 160 ms ahead, walking the timeline piecewise so a loop's wrap is followed.
+  // Clicks and hits are scheduled 160 ms ahead, walking the timeline piecewise so a loop's wrap is
+  // followed. The audio's level is checked here too, so switching what is heard needs no restart.
   private schedule(): void {
     if (!this.playing) return;
-    const c = audioContext(), eNow = c.currentTime - this.ctx0;
-    if (!this.clicksOn()) { this.schedE = eNow; return; }
+    const c = audioContext(), eNow = c.currentTime - this.ctx0, S = this.sources;
+    const lv = S.audioLevel();
+    if (lv !== this.level && this.gain) { this.gain.gain.setTargetAtTime(lv, c.currentTime, 0.015); this.level = lv; }
+    const clicks = S.clicksOn(), hits = S.hitsOn();
+    if (!clicks && !hits) { this.schedE = eNow; return; }
     let ea = Math.max(this.schedE, eNow, 0);
     const eb = eNow + 0.16;
     let guard = 0;
@@ -90,7 +110,9 @@ export class Player {
       if (this.loop && p0 < this.loop.b) len = Math.min(len, this.loop.b - p0);
       if (len < 1e-5) { ea += 1e-4; continue; }
       const e0 = ea;
-      this.clicks(p0, p0 + len, (t, down) => blip(this.ctx0 + e0 + (t - p0), down));
+      const at = (t: number) => Math.max(c.currentTime, this.ctx0 + e0 + (t - p0));
+      if (clicks) S.clicks(p0, p0 + len, (t, down) => blip(at(t), down));
+      if (hits) S.hits(p0, p0 + len, (t, voice, vel) => drumHit(voice, at(t), vel));
       ea += len;
     }
     this.schedE = eb;

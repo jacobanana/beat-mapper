@@ -10,7 +10,7 @@ ui/        DOM panels, canvas rendering, pointer and keyboard input
 app/       App (state + derived data + undo) and features (markers, beats, playback, slicer…)
   │
 state/     the undoable ProjectDoc, settings, History, Viewport, Emitter, memo
-engine/    Web Audio: Player (transport + metronome), grains, one-shot previews
+engine/    Web Audio: Player (transport + metronome + drum hits), synth kit, grains, one-shot previews
 analysis/  Analyzer interface; runs core/dsp in a Web Worker
   │
 io/        file formats (MIDI, REAPER, WAV, ZIP), the session format, downloads
@@ -36,7 +36,7 @@ from bar 1.
 | `slices/` | Slice planning, rendering (fades, mono, normalize), loop info, file naming. |
 | `dsp/filter.ts` | Zero-phase biquads (forwards then backwards), for timing a voice's attack in its own band. |
 | `drums/` | Kick, snare and hats: a log-frequency spectrogram (optionally percussive-only), NMF with semi-adaptive templates, per-voice hit picking and bleed cancelling, sensitivity. See [groove.md](groove.md). |
-| `groove/pocket.ts` | Every drum hit on its grid step, measured against a reference voice bar by bar; per-voice and per-step statistics, swing. |
+| `groove/pocket.ts` | Every drum hit on its grid step, measured against a reference voice bar by bar; per-voice and per-step statistics, swing. `transcribe` turns the hits into notes for the synth kit and the MIDI transcript. |
 
 ## io/
 
@@ -57,7 +57,7 @@ bridge when the app runs inside one).
   undone.
 - **`App`** (`app/app.ts`) holds the document, settings, the audio and its analysis, and derives
   everything else on demand, memoised on the identity of its inputs: the visible markers, the tempo
-  map, the grid, the bars, the slices, the drum hits the sensitivities let through, and the pocket. Nothing derived is stored, so nothing can go stale.
+  map, the grid, the bars, the slices, the drum hits the sensitivities let through, the notes they make, and the pocket. Nothing derived is stored, so nothing can go stale.
 - **Features** (`app/features/`) are the verbs: `Markers`, `Beats`, `Playback`, `Slicer`,
   `Exports`, `Groove`, `Sessions`, `Loader`, `Workflow`. They change the App and emit topics (`'doc'`,
   `'transport'`, `'slices'`…). They talk to the user only through the `Notifier` interface.

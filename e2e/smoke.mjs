@@ -65,6 +65,18 @@ try {
     const [d] = await Promise.all([page.waitForEvent('download'), page.click('#gMidi')]);
     assert.equal(d.suggestedFilename(), 'drifting-drum-loop-drums.mid');
   });
+  await step('Groove: hear the drums as MIDI, and chart them as a transcript', async () => {
+    await page.selectOption('#gListen', 'midi');
+    await page.click('#gChartMidi');
+    assert.equal(await page.getAttribute('#gChartMidi', 'aria-pressed'), 'true');
+    assert.equal(await page.isDisabled('#gExag'), true);
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(600);
+    await page.keyboard.press(' ');
+    await page.keyboard.press('c');
+    assert.equal(await page.getAttribute('#gChartPocket', 'aria-pressed'), 'true');
+  });
   assert.deepEqual(errors, []);
   console.log('e2e smoke passed');
 } finally {
