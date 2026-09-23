@@ -15,7 +15,6 @@ export function bindDetectPanel(app: App, f: Features): void {
   $('nextM').onclick = () => f.markers.tab(1);
   $('addM').onclick = () => f.markers.add(app.transport.playhead);
   $('delM').onclick = () => f.markers.removeSelected();
-  $('resetM').onclick = () => f.markers.reset();
 
   const sync = () => {
     const d = app.detection;

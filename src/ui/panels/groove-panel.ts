@@ -18,7 +18,6 @@ export function bindGroovePanel(app: App, f: Features): GrooveChart {
   $('gChartPocket').onclick = () => gr.setChart('pocket');
   $('gChartMidi').onclick = () => gr.setChart('midi');
   $('gDel').onclick = () => gr.removeSelected();
-  $('gReset').onclick = () => gr.resetHits();
 
   const chart = new GrooveChart($('grooveCv') as HTMLCanvasElement, app);
   const sync = () => {
@@ -33,9 +32,7 @@ export function bindGroovePanel(app: App, f: Features): GrooveChart {
     setPressed($('gChartMidi'), s.chart === 'midi');
   };
   const edits = () => {
-    const e = app.doc.drums;
     $btn('gDel').disabled = !app.selectedHit();
-    $btn('gReset').disabled = !e.manual.length && !e.removed.length;
   };
   const counts = () => {
     const h = app.drumHits;

@@ -5,10 +5,19 @@ import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { fmtTime } from '../../core/format';
 import { $, $btn, icon, setPressed } from '../dom';
+import { confirmAction } from './confirm';
 import { STEP_FORMATS } from './export-dialog';
 
-// Step 3 was Export; it is the Export window now, so the tabs skip it.
-const STEPS = [1, 2, 4, 5] as const;
+const STEPS = [1, 2, 3, 4, 5] as const;
+
+/** What each step's Reset asks: what goes, and whether undo brings it back. */
+const RESET_ASK: Record<(typeof STEPS)[number], [string, string]> = {
+  1: ['Reset Transients?', 'Detection goes back to how it starts, and the markers to how they were found. Undo brings back your marker edits.'],
+  2: ['Reset Beats?', 'Only bar 1 stays, on the first transient, in 4/4 at the starting tempo. Undo brings back your map.'],
+  3: ['Reset Warp?', 'The whole file is warped at the tempo it averages, as a full mix. Your grid tempo and material are cleared.'],
+  4: ['Reset Slice?', 'Every transient starts a slice again, and every slice is kept. Dropped slices can\'t be brought back with undo.'],
+  5: ['Reset Groove?', 'The hits go back to how they were found, at the starting sensitivities. Undo brings back your hit edits.'],
+};
 
 export function bindHeader(app: App, f: Features, openHelp: () => void, openExport: () => void): void {
   for (const n of STEPS) $('t' + n).onclick = () => f.workflow.goTo(n);
@@ -32,6 +41,14 @@ export function bindHeader(app: App, f: Features, openHelp: () => void, openExpo
   $('loopBtn').onclick = () => f.playback.toggleLoop();
   $('scrubBtn').onclick = () => f.playback.toggleScrub();
   $('clickBtn').onclick = () => f.playback.toggleClick();
+  // Each step's Reset, last in its panel: it starts that step again, once confirmed.
+  const RESETS = ['resetM', 'resetB', 'resetW', 'resetS', 'gReset'];
+  for (const id of RESETS) {
+    $(id).onclick = async () => {
+      const [title, text] = RESET_ASK[app.step];
+      if (await confirmAction(title, text)) f.workflow.resetStep();
+    };
+  }
 
   const syncSteps = () => {
     for (const i of STEPS) {
@@ -78,11 +95,15 @@ export function bindHeader(app: App, f: Features, openHelp: () => void, openExpo
     $btn('redoBtn').disabled = !app.history.canRedo;
   };
 
+  const syncReset = () => { for (const id of RESETS) $btn(id).disabled = !f.workflow.canReset; };
+
   app.bus.on('step', syncSteps);
+  app.bus.on(['step', 'doc', 'detection', 'candidates', 'beats', 'warp', 'slicer', 'slices', 'groove', 'drums', 'audio'], syncReset);
   app.bus.on(['doc', 'audio'], syncHistory);
   app.bus.on(['transport', 'playhead'], syncTransport);
   app.bus.on(['playhead', 'doc', 'audio'], syncReadout);
   app.bus.on('audio', syncFile);
   syncSteps();
   syncTransport();
+  syncReset();
 }

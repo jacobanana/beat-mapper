@@ -111,17 +111,6 @@ describe('beats', () => {
     expect(app.doc.tempo.anchors[0].q).toBe(0);
   });
 
-  it('halves and doubles the tempo', () => {
-    const { app, f } = t;
-    f.workflow.goTo(2);
-    f.beats.autoMap();
-    f.beats.scaleTempo(0.5);
-    expect(app.doc.tempo.baseBpm).toBe(48.25);
-    expect(app.bars.length).toBe(9);
-    f.beats.scaleTempo(2);
-    expect(app.bars.length).toBe(17);
-  });
-
   it('changes the meter as an undoable edit', () => {
     const { app, f } = t;
     f.beats.setMeter({ num: 3 });
@@ -203,10 +192,124 @@ describe('export', () => {
     const b1 = app.tempoMap.posToTime(4), b3 = app.tempoMap.posToTime(12);
     f.playback.setLoop({ a: b1, b: b3 }, false);
     f.playback.toggleLoop();
+    // A loop that is on is still not warped on its own until the Warp step says so.
+    expect(f.warp.plan()!.loop).toBe(false);
+    f.warp.setRange('loop');
     const l = f.warp.plan()!;
     expect(l.loop).toBe(true);
     expect(l.outDur).toBeCloseTo((8 * 60) / 100, 6);
     expect(f.warp.fileName(l)).toBe('drifting-drum-loop_2bars_100bpm_warped.wav');
+  });
+});
+
+describe('the Warp step', () => {
+  it('plays it warped by default, and renders once until the warp changes', async () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.warp.update({ mode: 'repitch' });
+    expect(f.warp.wanted()).toBe(false);
+    f.workflow.goTo(3);
+    expect(app.warp.listen).toBe(true);
+    expect(f.warp.wanted()).toBe(true);
+    f.warp.toggleListen();
+    expect(f.warp.wanted()).toBe(false);
+    f.warp.toggleListen();
+    const r = (await f.warp.render())!;
+    expect(r.chans[0].length).toBe(Math.round(r.plan.outDur * 44100));
+    // Nothing changed: the same render, for listening and for saving.
+    expect(await f.warp.render()).toBe(r);
+    // A pin moved (in Beats): rendered again.
+    f.beats.nudge(app.doc.tempo.anchors[5], 0.01);
+    const r2 = (await f.warp.render())!;
+    expect(r2).not.toBe(r);
+    expect(r2.plan).toBe(app.warpPlan);
+    f.workflow.goTo(4);
+    expect(f.warp.wanted()).toBe(false);
+  });
+
+  it('takes the grid tempo from a looped section and warps the whole file to it', () => {
+    const { app, f, toasts } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.workflow.goTo(3);
+    f.warp.fromLoop();
+    expect(toasts.at(-1)).toMatch(/^Loop the section/);
+    // Bars 13 to 17 are the demo's fastest.
+    const map = app.tempoMap;
+    f.playback.setLoop({ a: map.posToTime(48), b: map.posToTime(64) }, true);
+    f.warp.fromLoop();
+    const p = f.warp.plan()!;
+    expect(p.bpm).toBe(Math.round((16 * 60) / (map.posToTime(64) - map.posToTime(48))));
+    expect(p.bpm).toBeGreaterThan(Math.round(p.avgBpm));
+    expect(p.loop).toBe(false);
+    expect(p.srcDur).toBeCloseTo(app.dur, 6);
+    expect(f.warp.summary()).toMatch(new RegExp(`^The file averages .* warped to ${p.bpm} BPM`));
+    expect(f.workflow.canReset).toBe(true);
+    f.workflow.resetStep();
+    expect(app.warp).toEqual({ mode: 'music', bpm: null, range: 'file', listen: true });
+  });
+});
+
+describe('resetting a step', () => {
+  it('starts Transients again, and undo brings the marker edits back', async () => {
+    const { app, f } = t, n = app.markers.length;
+    expect(f.workflow.canReset).toBe(false);
+    f.markers.add(30.5);
+    f.markers.setSensitivity(80);
+    await f.markers.setAlgo('complex');
+    expect(f.workflow.canReset).toBe(true);
+    f.workflow.resetStep();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(app.detection).toMatchObject({ sens: 55, gap: 60, band: 'full', algo: 'flux' });
+    expect(app.markers.length).toBe(n);
+    expect(f.workflow.canReset).toBe(false);
+    app.undo();
+    expect(app.markers.some((m) => m.manual)).toBe(true);
+  });
+
+  it('starts Beats again from bar 1 on the first transient', () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    expect(f.workflow.canReset).toBe(false);
+    const bar1 = app.doc.tempo.anchors;
+    f.beats.autoMap();
+    f.beats.setMeter({ num: 3 });
+    f.beats.setBaseBpm(120);
+    expect(f.workflow.canReset).toBe(true);
+    f.workflow.resetStep();
+    expect(app.doc.tempo).toEqual({ anchors: bar1, baseBpm: 96.5 });
+    expect(app.doc.meter).toEqual({ num: 4, den: 4 });
+    expect(f.workflow.canReset).toBe(false);
+    app.undo();
+    expect(app.doc.meter.num).toBe(3);
+    expect(app.doc.tempo.anchors.length).toBeGreaterThan(1);
+  });
+
+  it('starts Slice again with every slice kept', () => {
+    const { app, f } = t;
+    f.workflow.goTo(4);
+    f.slicer.toggle(3);
+    f.slicer.update({ mode: 'fixed', len: 250 });
+    expect(f.workflow.canReset).toBe(true);
+    f.workflow.resetStep();
+    expect(app.excluded).toEqual([]);
+    expect(app.slicer).toMatchObject({ mode: 'gap', len: 500 });
+    expect(f.workflow.canReset).toBe(false);
+  });
+
+  it('starts Groove again with the hits as found', async () => {
+    const { app, f } = t;
+    f.workflow.goTo(5);
+    await f.groove.ensureDrums();
+    const kicks = app.drumHits!.kick.length;
+    f.groove.removeHit('kick', app.drumHits!.kick[0].t);
+    f.groove.setSensitivity('snare', 90);
+    expect(f.workflow.canReset).toBe(true);
+    f.workflow.resetStep();
+    expect(app.drumHits!.kick.length).toBe(kicks);
+    expect(app.groove.sens.snare).toBe(55);
+    expect(f.workflow.canReset).toBe(false);
   });
 });
 
@@ -253,9 +356,9 @@ describe('sessions', () => {
 });
 
 describe('workflow', () => {
-  it('sends a session saved in the old Export step to Beats', () => {
+  it('opens a session saved in the old Export step in Warp, which came to have its number', () => {
     t.f.workflow.goTo(3);
-    expect(t.app.step).toBe(2);
+    expect(t.app.step).toBe(3);
     expect(t.app.hasMap).toBe(true);
   });
 });

@@ -11,7 +11,7 @@ import { grooveJson } from '../../io/formats/groove';
 import { type DrumNote, buildMidi } from '../../io/formats/midi';
 import { zipFiles } from '../../io/formats/zip';
 import type { App } from '../app';
-import type { GrooveChartMode } from '../../state/settings';
+import { type GrooveChartMode, defaultGroove } from '../../state/settings';
 import { withHits } from '../../state/project';
 import type { Exports } from './exports';
 import type { Playback } from './playback';
@@ -119,6 +119,26 @@ export class Groove {
     if (!e.manual.length && !e.removed.length) return;
     this.app.edit((d) => withHits(d, { manual: [], removed: [] }));
     this.app.select(null);
+  }
+
+  /** Something in this step differs from how it starts: a hit edited, or a sensitivity or measure changed. */
+  get changed(): boolean {
+    const { app } = this, g = app.groove, g0 = defaultGroove(), e = app.doc.drums;
+    return !!app.audio && (e.manual.length > 0 || e.removed.length > 0 || g.grid !== g0.grid || g.ref !== g0.ref || VOICES.some((v) => g.sens[v] !== g0.sens[v]));
+  }
+
+  /**
+   * Starts the step again: the hits as found at the starting sensitivities, measured as they start.
+   * The source stays, since changing it means finding the drums again. One undo step brings the edits back.
+   */
+  reset(): void {
+    const { app } = this;
+    if (!this.changed) return;
+    this.resetHits();
+    const { sens, grid, ref } = defaultGroove();
+    app.set('groove', { sens, grid, ref });
+    app.select(null);
+    app.notify.toast('Groove reset: the hits as found. Undo brings your hit edits back.');
   }
 
   /**

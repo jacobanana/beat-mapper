@@ -24,7 +24,7 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
   window.addEventListener('keydown', (e) => {
     const el = document.activeElement as HTMLElement | null, tag = el?.tagName;
     const typing = tag === 'TEXTAREA' || tag === 'SELECT' || (tag === 'INPUT' && !['range', 'checkbox', 'radio'].includes((el as HTMLInputElement).type));
-    if (($('help') as HTMLDialogElement).open || ($('exportDlg') as HTMLDialogElement).open) return;
+    if (['help', 'exportDlg', 'confirmDlg'].some((id) => ($(id) as HTMLDialogElement).open)) return;
     if (typing) { if (e.key === 'Escape' || e.key === 'Enter') { el!.blur(); hooks.refocus(); } return; }
     const mod = e.metaKey || e.ctrlKey, k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
 
@@ -63,8 +63,7 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
       case 'h': f.playback.toggleStay(); return;
       case 'v': f.markers.toggleOdf(); return;
       case 'k': f.playback.toggleClick(); return;
-      case '1': case '2': case '4': case '5': f.workflow.goTo(+k as 1 | 2 | 4 | 5); return;
-      case '3': hooks.openExport(); return;
+      case '1': case '2': case '3': case '4': case '5': f.workflow.goTo(+k as 1 | 2 | 3 | 4 | 5); return;
       case '?': hooks.openHelp(); return;
       case 'Escape': app.select(null); if (el === cv) cv.blur(); return;
       case 'Delete': case 'Backspace': {
@@ -86,6 +85,9 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
       else if (k === 'g') f.beats.cycleGrid(e.shiftKey ? -1 : 1);
       else if (k === 't') f.beats.tap();
       else if (k === 's') f.beats.cycleSnap(e.shiftKey ? -1 : 1);
+    } else if (app.step === 3) {
+      if (k === 'w') f.warp.toggleListen();
+      else if (k === 'f') f.warp.fromLoop();
     } else if (app.step === 4) {
       if (k === 'e') f.slicer.previewSelected();
       else if (k === 'x') f.slicer.toggleSelected();

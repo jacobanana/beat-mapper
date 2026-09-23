@@ -11,6 +11,7 @@ import { type Slice, isExcluded, loopInfo, planSlices, sliceKey } from '../core/
 import { Grid, barQ } from '../core/tempo/meter';
 import { type Bar, TempoMap } from '../core/tempo/tempo-map';
 import type { Anchor, Candidate, Marker, TimeRange } from '../core/types';
+import { type WarpMap, averageBpm, planWarp, warpRange } from '../core/warp/map';
 import type { Step } from '../io/session';
 import { Emitter } from '../state/emitter';
 import { History } from '../state/history';
@@ -31,6 +32,22 @@ export type Topic =
 export type Selection = { kind: 'marker'; id: string } | { kind: 'anchor'; q: number } | { kind: 'hit'; voice: Voice; t: number } | null;
 /** What the pointer is over: a marker, a pin, or a grid line that could become a pin. */
 export type Hover = Selection | { kind: 'grid'; q: number };
+
+/** What would be warped onto a straight grid, and how. */
+export interface WarpPlan {
+  map: WarpMap;
+  bpm: number;
+  /** The tempo the part being warped averages. */
+  avgBpm: number;
+  /** Quarter notes from bar 1 at the start of the warped audio. */
+  q0: number;
+  /** Source seconds warped, and output seconds. */
+  srcDur: number;
+  outDur: number;
+  /** The least and most anything is stretched: above 1 is slowed down. */
+  ratios: [number, number];
+  loop: boolean;
+}
 
 export interface SliceView extends Slice {
   /** Dropped from the export. */
@@ -58,6 +75,8 @@ export class App {
   /** Kick, snare and hat hits, found the first time the Groove step opens. */
   drums: DrumAnalysis | null = null;
   doc: ProjectDoc = emptyDoc();
+  /** The tempo the audio was opened at, before any tapping or typing: where resetting Beats goes back to. */
+  startBpm = 120;
 
   detection = defaultDetection();
   beats = defaultBeats();
@@ -145,6 +164,26 @@ export class App {
   /** Where each voice sits against the beat, inside the loop when it is on. */
   get pocket(): Groove | null {
     return this._groove(this.drumHits, this.tempoMap, this.doc.meter, this.groove.grid, this.groove.ref, this.sliceRange);
+  }
+
+  private readonly _warp = memo((map: TempoMap, meter: ProjectDoc['meter'], dur: number, lead: ExportSettings['lead'], loop: TimeRange | null, gridBpm: number | null): WarpPlan | null => {
+    if (map.isEmpty) return null;
+    const r = warpRange(map, meter, dur, { lead, loop });
+    if (!(r.b - r.a > 0.01)) return null;
+    const avgBpm = averageBpm(map, r), bpm = gridBpm ?? Math.round(avgBpm);
+    if (!(bpm > 0)) return null;
+    const w = planWarp(map, r, bpm);
+    return { map: w, bpm, avgBpm, q0: r.q0, srcDur: r.b - r.a, outDur: w.outDur, ratios: w.ratioRange(), loop: !!loop };
+  });
+  /**
+   * The warp onto a straight grid: the whole file, or the loop alone when the Warp step says so. Null
+   * without a tempo map, or when it is the loop and there is none.
+   */
+  get warpPlan(): WarpPlan | null {
+    if (!this.audio || !this.hasMap) return null;
+    const loop = this.warp.range === 'loop' ? this.activeLoop : null;
+    if (this.warp.range === 'loop' && !loop) return null;
+    return this._warp(this.tempoMap, this.doc.meter, this.dur, this.exportSettings.lead, loop, this.warp.bpm);
   }
 
   get dur(): number { return this.audio?.dur ?? 0; }

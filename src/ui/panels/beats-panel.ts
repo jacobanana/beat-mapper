@@ -1,4 +1,5 @@
-// Step 2 – Beats: meter, tempo, pins, mapping, and the table of bars.
+// Step 2 – Beats: the tempo to start from, mapping the beats, fixing single beats, and the table of
+// bars. What changes mapping and snapping is folded away under Options.
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { fmtTime, plural } from '../../core/format';
@@ -12,15 +13,10 @@ export function bindBeatsPanel(app: App, f: Features, refocus: () => void): void
   $sel('den').onchange = (e) => b.setMeter({ den: +(e.target as HTMLSelectElement).value });
   $sel('grid').onchange = (e) => b.setGrid((e.target as HTMLSelectElement).value as GridDivision);
   $in('bpm').onchange = (e) => { b.setBaseBpm(clampNum((e.target as HTMLInputElement).value, 120, 20, 400)); refocus(); };
-  $('half').onclick = () => b.scaleTempo(0.5);
-  $('dbl').onclick = () => b.scaleTempo(2);
   $('tap').onclick = () => b.tap();
-  $('prevM2').onclick = () => f.markers.tab(-1);
-  $('nextM2').onclick = () => f.markers.tab(1);
   $('setDown').onclick = () => b.setDownbeat(app.transport.playhead);
   $('pinHere').onclick = () => b.pinAt(app.transport.playhead);
   $('unpin').onclick = () => b.unpinSelected();
-  $('clearPins').onclick = () => b.clearPins();
   $sel('snapTo').onchange = (e) => b.setSnap((e.target as HTMLSelectElement).value as SnapMode, true);
   $('derive').onclick = () => b.deriveFromLoop();
   $in('loopBars').onchange = (e) => { const n = Math.round(+(e.target as HTMLInputElement).value); app.set('beats', { loopBars: n >= 1 ? n : null }); };

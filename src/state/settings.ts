@@ -47,6 +47,10 @@ export interface WarpSettings {
   mode: WarpMode;
   /** The grid's tempo; null takes the tempo the audio averages, to the nearest whole BPM. */
   bpm: number | null;
+  /** What is warped: the whole file, or only the loop. */
+  range: 'file' | 'loop';
+  /** In the Warp step, play the warped audio rather than the original. */
+  listen: boolean;
 }
 
 export interface SlicerSettings {
@@ -123,7 +127,7 @@ export type GrooveChartMode = 'pocket' | 'midi';
 export const defaultDetection = (): DetectionSettings => ({ sens: 55, gap: 60, band: 'full', algo: 'flux', showOdf: true });
 export const defaultBeats = (): BeatSettings => ({ grid: '16', mapEvery: 'beat', tol: 20, snapTo: 'markers', loopBars: null });
 export const defaultExport = (): ExportSettings => ({ lead: 'full', res: 'pins', clicks: true, rppAudio: true });
-export const defaultWarp = (): WarpSettings => ({ mode: 'music', bpm: null });
+export const defaultWarp = (): WarpSettings => ({ mode: 'music', bpm: null, range: 'file', listen: true });
 export const defaultSlicer = (): SlicerSettings => ({
   mode: 'gap', len: 500, tail: 0, fadeIn: 1, fadeOut: 8, min: 40, mono: false, bits: 16, norm: false, target: -1, naming: 'num', csv: true,
 });

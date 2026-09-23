@@ -13,7 +13,7 @@ adding a control.
 | --- | --- | --- |
 | File | Open, Session, Export, file name | File actions come first in every editor and DAW. Session (save the work, or open a saved one) sits by Open since it is opened like a file and wanted from every step. |
 | Edit | Undo, Redo | Undo and redo are a pair next to the file actions, and grey out when there is nothing to undo or redo. |
-| Steps | Transients, Beats, Slice, Groove | Main navigation, as tabs; icon only, with a text label from 1520 px wide. |
+| Steps | Transients, Beats, Warp, Slice, Groove | Main navigation, as tabs; icon only, with a text label from 1520 px wide. |
 | Transport (middle) | Go to start ⏮, Play/Stop ▶ · Loop, Scrub, Stay-on-stop · Click, Mixer | DAWs put "go to start" left of play, then loop. The click sits by the mixer, since both are about what you hear. Toggles show their state with `aria-pressed`. |
 | Readout | time · bar.beat · BPM | Next to the transport, as a DAW's position display is. |
 | View (right) | Zoom out, Zoom in, Fit | Zoom out and zoom in sit together, with fit after them. Zoom out/in are hidden on touch, where you pinch instead. |
@@ -31,6 +31,15 @@ moved down when Session joined the file group: ten 38 px buttons don't fit one r
   line.
 - Order within a bar: what is being measured, then navigation (previous and next), then edits (add,
   delete, pin), then anything destructive (reset, clear) last and on its own.
+- Every step's panel is laid out in the order the work goes, one captioned row per stage, with what
+  changes how a stage behaves folded under **Options** below them:
+  Transients **Find · Fix**, Beats **Tempo · Map · Fix**, Warp **Tempo · Warp · Listen**, Slice
+  **Cut · Pick**, Groove **Find · Grid · Chart · Fix**. Buttons in these rows carry a text label where
+  there is room, since the caption and the label together say what a button does and what it changes.
+- Every step has a **Reset** with a text label, last in its bar: it starts that step again, as it was
+  on arriving, greys out while there is nothing to reset, and asks first in a small dialog (not the
+  browser's confirm(), which a host page can block) that says what goes and whether undo brings it back. What it discards from the document comes
+  back with undo; the settings it puts back do not.
 - Tempo comes before the time signature (`92 BPM · 4/4`), as in every DAW's control bar. The grid
   sits next to the magnet (snap), since the two go together.
 - A count says what it counts: `128 markers`, `1 pin`, `128/128 kept`.
@@ -42,7 +51,7 @@ moved down when Session joined the file group: ten 38 px buttons don't fit one r
 - A dialog has its title at the top left, a close button at the top right, and Cancel then the
   default action at the bottom right. Escape and a click on the backdrop close it.
 - Every file a step makes goes out through the one Export window, never through a button in a panel.
-  The window lists only what the current step makes (Beats: tempo map and warped audio; Slice:
+  The window lists only what the current step makes (Beats: tempo map; Warp: warped audio; Slice:
   samples; Groove: drums), and the Export button is off in Transients, which makes nothing of its
   own. The session is the exception: it is the work itself, so it has its own popover by Open.
 - On a phone the Export window's formats are a dropdown: a button showing the chosen format and a

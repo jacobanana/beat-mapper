@@ -61,8 +61,9 @@ export function bindSlicePanel(app: App, f: Features): void {
     setValue($in('slFadeIn'), o.fadeIn); setValue($in('slFadeOut'), o.fadeOut); setValue($in('slMin'), o.min);
     setValue($sel('slMono'), o.mono ? 'mono' : 'src'); setValue($sel('slBits'), o.bits); $in('slNorm').checked = o.norm;
     setValue($in('slTarget'), o.target); setValue($sel('slName'), o.naming); $in('slCsv').checked = o.csv;
-    $in('slLen').disabled = o.mode !== 'fixed';
-    $in('slTail').disabled = o.mode === 'fixed';
+    // Only the length that applies: a fixed length, or the tail past the next transient.
+    $('slLenL').hidden = o.mode !== 'fixed';
+    $('slTailL').hidden = o.mode === 'fixed';
     $in('slTarget').disabled = !o.norm;
   };
 
@@ -76,6 +77,9 @@ export function bindSlicePanel(app: App, f: Features): void {
   let lastSel: number | null = null;
   const render = () => {
     const S = app.slices, sel = app.sliceIndex;
+    // The button says what it will do to the selected slice.
+    const keep = sel != null && !!S[sel]?.off, off = $('slOff');
+    if (off.dataset.keep !== String(keep)) { off.dataset.keep = String(keep); off.innerHTML = icon(keep ? 'add' : 'clear') + (keep ? 'Keep' : 'Drop'); }
     $('slCount').textContent = S.length ? S.filter((x) => !x.off).length + '/' + S.length + ' kept' : '';
     if ($('p4').hidden) return;
     const n = Math.min(S.length, SL_ROWS);

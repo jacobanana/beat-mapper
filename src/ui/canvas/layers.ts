@@ -1,6 +1,7 @@
 // The editor canvas, one function per layer, drawn back to front. Each reads the app state and
 // draws; none of them changes anything.
 import type { App } from '../../app/app';
+import { fmtBpm } from '../../core/format';
 import { lowerBound } from '../../core/search';
 import { odfOf, odfRef } from '../../core/dsp/onset';
 import { LANES, type Layout, LOOPH, RUL, RULH, TIME } from './layout';
@@ -201,13 +202,17 @@ export function pins({ g, app, L, C, xOf }: Frame): void {
   }
 }
 
-/** The tempo lane: each bar's BPM as a step line. */
+/**
+ * The tempo lane: each bar's BPM as a step line. In the Warp step, the grid's tempo too, as a dashed
+ * line, and the gap each bar is moved across to reach it.
+ */
 export function tempoLane({ g, app, L, C, xOf }: Frame): void {
   const bars = app.bars;
   if (!bars.length) return;
-  const { ly, laneH } = L, v = app.view;
+  const { w, ly, laneH } = L, v = app.view, warp = app.step === 3 ? app.warpPlan : null;
   let lo = Infinity, hi = -Infinity;
   for (const b of bars) { if (b.bpm < lo) lo = b.bpm; if (b.bpm > hi) hi = b.bpm; }
+  if (warp) { lo = Math.min(lo, warp.bpm); hi = Math.max(hi, warp.bpm); }
   const padv = Math.max(1.5, (hi - lo) * 0.15);
   lo -= padv; hi += padv;
   const yOf = (b: number) => ly + laneH - 6 - ((b - lo) / (hi - lo)) * (laneH - 24);
@@ -221,11 +226,23 @@ export function tempoLane({ g, app, L, C, xOf }: Frame): void {
     g.lineTo(x1, y);
   }
   g.strokeStyle = C.beat; g.lineWidth = 1.6; g.stroke(); g.lineWidth = 1;
+  const yw = warp ? yOf(warp.bpm) : 0;
   for (const b of bars) {
     if (b.te < v.t0 || b.ts > v.t1) continue;
     const x0 = xOf(b.ts), x1 = xOf(b.te), y = yOf(b.bpm);
-    g.fillStyle = rgba(C.beat, 0.13); g.fillRect(x0, y, x1 - x0, ly + laneH - y);
+    if (warp) {
+      // What the warp does to the bar: the gap between its tempo and the grid's.
+      g.fillStyle = rgba(b.bpm > warp.bpm ? C.start : C.down, 0.22); g.fillRect(x0, Math.min(y, yw), x1 - x0, Math.abs(y - yw));
+    } else { g.fillStyle = rgba(C.beat, 0.13); g.fillRect(x0, y, x1 - x0, ly + laneH - y); }
     if (x0 - lastLab > 46) { g.fillStyle = C.ink; g.fillText(b.bpm.toFixed(x1 - x0 > 62 ? 2 : 1), Math.max(3, x0 + 4), y - 4); lastLab = Math.max(3, x0); }
+  }
+  if (warp) {
+    const range = warp.map.src, xa = Math.max(0, xOf(range[0])), xb = Math.min(w, xOf(range[range.length - 1]));
+    g.strokeStyle = C.ink; g.setLineDash([4, 3]); g.beginPath(); g.moveTo(xa, yw + 0.5); g.lineTo(xb, yw + 0.5); g.stroke(); g.setLineDash([]);
+    // On a backing, since it sits among the bars' own tempo labels.
+    const lab = 'grid ' + fmtBpm(warp.bpm), tw = g.measureText(lab).width, xr = Math.max(xa + tw + 8, xb - 4), yt = yw > ly + 16 ? yw - 3 : yw + 13;
+    g.fillStyle = C.panel; g.fillRect(xr - tw - 4, yt - 11, tw + 8, 14);
+    g.fillStyle = C.ink; g.textAlign = 'right'; g.fillText(lab, xr, yt); g.textAlign = 'left';
   }
 }
 

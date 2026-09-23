@@ -13,11 +13,11 @@ import { $, $btn, $in, $sel, setText, setValue } from '../dom';
 export const FORMATS = ['midi', 'rpp', 'warpWav', 'slices', 'slicesRpp', 'sliceWav', 'loopWav', 'drumsMidi', 'groove'] as const;
 export type ExportFormat = (typeof FORMATS)[number];
 
-/** What each step makes, in the order the window lists it. Step 3 was Export, and Workflow sends it to 2. */
+/** What each step makes, in the order the window lists it. */
 export const STEP_FORMATS: Record<Step, readonly ExportFormat[]> = {
   1: [],
-  2: ['midi', 'rpp', 'warpWav'],
-  3: [],
+  2: ['midi', 'rpp'],
+  3: ['warpWav'],
   4: ['slices', 'slicesRpp', 'sliceWav', 'loopWav'],
   5: ['drumsMidi', 'groove'],
 };
@@ -69,12 +69,12 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
   const warpInfo = () => {
     if (!app.audio) return OPEN_FIRST;
     const p = f.warp.plan();
-    if (!p) return { text: 'Set bar 1 and at least a tempo in step 2 first.', ok: false };
+    if (!p) return { text: app.hasMap ? 'Switch the loop on to warp just the loop.' : 'Set bar 1 and at least a tempo in step 2 first.', ok: false };
     const pct = (r: number) => Math.round(r * 100) + ' %', [lo, hi] = p.ratios;
     let s = WARP_MODE_INFO[app.warp.mode].desc + ' ';
     s += `${p.loop ? 'The loop' : 'The file'}, ${fmtTime(p.srcDur)} → ${fmtTime(p.outDur)} at ${fmtBpm(p.bpm)} BPM, `;
     s += Math.abs(hi - lo) < 0.005 ? `stretched to ${pct(lo)}.` : `stretched ${pct(lo)}–${pct(hi)}.`;
-    if (lo < 0.75 || hi > 1.33) s += ' That is a lot of stretch: check the grid tempo, or halve or double the map in step 2.';
+    if (lo < 0.75 || hi > 1.33) s += ' That is a lot of stretch: check the grid tempo, or the map in step 2.';
     return { text: s, ok: true };
   };
   const drumsInfo = (what: () => string) => {
@@ -95,7 +95,7 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
       save: 'Save REAPER project', info: mapInfo, run: () => f.exports.saveRpp(),
     },
     warpWav: {
-      desc: 'The audio warped so the tempo map becomes a straight grid: every bar the same length, ready for a DAW at one tempo. With the loop on, only the loop.',
+      desc: 'The audio warped so the tempo map becomes a straight grid: every bar the same length, ready for a DAW at one tempo. The whole file, or just the loop, as the Warp step says.',
       save: 'Save .wav', info: warpInfo, run: () => f.warp.save(),
     },
     slices: {

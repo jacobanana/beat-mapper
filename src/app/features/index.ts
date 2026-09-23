@@ -34,9 +34,9 @@ export function createFeatures(app: App, analyzer: Analyzer, store: KeyValueStor
   const beats = new Beats(app, playback);
   const exports = new Exports(app, beats);
   const groove = new Groove(app, analyzer, exports, playback);
-  const workflow = new Workflow(app, beats, groove);
   const slicer = new Slicer(app, playback, exports);
-  const warp = new Warp(app, analyzer, beats, slicer);
+  const warp = new Warp(app, analyzer, beats, slicer, playback);
+  const workflow = new Workflow(app, markers, beats, slicer, warp, groove);
   const sessions = new Sessions(app, markers, playback, workflow, store);
   const loader = new Loader(app, analyzer, playback, sessions, workflow);
   return { playback, mixer, markers, beats, workflow, exports, slicer, warp, groove, sessions, loader };

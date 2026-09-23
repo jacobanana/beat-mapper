@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { synthDemo } from '../src/core/demo';
 import { TempoMap } from '../src/core/tempo/tempo-map';
-import { WarpMap, averageBpm, planWarp, warpRange } from '../src/core/warp/map';
+import { WarpMap, averageBpm, gridBeats, planWarp, warpRange } from '../src/core/warp/map';
 import { WARP_MODES, type WarpMode, renderWarp } from '../src/core/warp/modes';
 
 const sr = 22050;
@@ -53,6 +53,20 @@ describe('the warp map', () => {
     const w = planWarp(demoMap, r, 96);
     expect(w.outDur).toBeCloseTo((8 * 60) / 96, 9);
     expect(averageBpm(demoMap, loop)).toBeCloseTo((8 * 60) / (loop.b - loop.a), 9);
+  });
+
+  it('clicks the straight grid over the warped audio, bar 1 where the pins put it', () => {
+    const r = warpRange(demoMap, meter, demo.dur, { lead: 'full', loop: null });
+    const w = planWarp(demoMap, r, 120), out: [number, boolean][] = [];
+    gridBeats(r.q0, 120, meter, 0, 4.01, (t, down) => out.push([t, down]));
+    // The lead-in bar, then bar 1 two seconds in, where its pin went: a beat every half second.
+    expect(out.map(([t]) => t)).toEqual([0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4]);
+    expect(out.filter(([, d]) => d).map(([t]) => t)).toEqual([0, 2, 4]);
+    expect(w.dstAt(demo.beats[0])).toBeCloseTo(out[4][0], 9);
+    // In 6/8 a beat is an eighth note and a bar six of them.
+    const eighths: number[] = [];
+    gridBeats(0, 60, { num: 6, den: 8 }, 0, 3.01, (t, d) => { if (d) eighths.push(t); });
+    expect(eighths).toEqual([0, 3]);
   });
 });
 
