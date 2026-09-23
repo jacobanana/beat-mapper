@@ -1,12 +1,16 @@
-// The top bar: open, the five steps, zoom, undo, help, transport buttons and the time readout. The
-// mixer that opens from it is in mixer-panel.ts.
+// The top bar: open, the steps, export, zoom, undo, help, transport buttons and the time readout. The
+// mixer and the Export window that open from it are in mixer-panel.ts and export-dialog.ts.
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { fmtTime } from '../../core/format';
 import { $, icon, setPressed } from '../dom';
 
-export function bindHeader(app: App, f: Features, openHelp: () => void): void {
-  for (const n of [1, 2, 3, 4, 5] as const) $('t' + n).onclick = () => f.workflow.goTo(n);
+// Step 3 was Export; it is the Export window now, so the tabs skip it.
+const STEPS = [1, 2, 4, 5] as const;
+
+export function bindHeader(app: App, f: Features, openHelp: () => void, openExport: () => void): void {
+  for (const n of STEPS) $('t' + n).onclick = () => f.workflow.goTo(n);
+  $('exportBtn').onclick = openExport;
 
   const zoomKey = (k: number) => {
     const v = app.view, tc = v.contains(app.transport.playhead) ? app.transport.playhead : (v.t0 + v.t1) / 2;
@@ -27,7 +31,7 @@ export function bindHeader(app: App, f: Features, openHelp: () => void): void {
   $('clickBtn').onclick = () => f.playback.toggleClick();
 
   const syncSteps = () => {
-    for (let i = 1; i <= 5; i++) {
+    for (const i of STEPS) {
       $('t' + i).setAttribute('aria-selected', String(i === app.step));
       $('p' + i).hidden = i !== app.step;
     }

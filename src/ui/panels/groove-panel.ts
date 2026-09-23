@@ -1,5 +1,5 @@
-// Step 5 – Groove: the drum voices, what the pocket is measured against, the chart, and the exports.
-// What play sounds like here (audio, the synth kit, or both) is in the mixer.
+// Step 5 – Groove: the drum voices, what the pocket is measured against, and the chart. Its files are
+// saved from the Export window, and what play sounds like here (audio, synth kit, both) is in the mixer.
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import type { DrumSource } from '../../core/drums/detect';
@@ -17,8 +17,6 @@ export function bindGroovePanel(app: App, f: Features): GrooveChart {
   $('gExag').onclick = () => gr.toggleExaggerate();
   $('gChartPocket').onclick = () => gr.setChart('pocket');
   $('gChartMidi').onclick = () => gr.setChart('midi');
-  $('gMidi').onclick = () => void gr.saveMidi();
-  $('gJson').onclick = () => void gr.saveGroove();
 
   const chart = new GrooveChart($('grooveCv') as HTMLCanvasElement, app);
   const sync = () => {

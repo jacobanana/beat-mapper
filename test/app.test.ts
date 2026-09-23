@@ -213,6 +213,14 @@ describe('sessions', () => {
   });
 });
 
+describe('workflow', () => {
+  it('sends a session saved in the old Export step to Beats', () => {
+    t.f.workflow.goTo(3);
+    expect(t.app.step).toBe(2);
+    expect(t.app.hasMap).toBe(true);
+  });
+});
+
 describe('mixer', () => {
   it('keeps its levels in range, on this device and out of sessions', () => {
     const store = new MemoryStore();

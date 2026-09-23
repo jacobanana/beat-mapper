@@ -1,4 +1,4 @@
-// Step 3: the tempo map out to a DAW, as a MIDI file or a REAPER project.
+// The tempo map out to a DAW, as a MIDI file or a REAPER project.
 import { safeName } from '../../core/format';
 import { hasBridge, saveError, saveFile } from '../../io/download';
 import { type ExportOptions, buildMidi } from '../../io/formats/midi';
