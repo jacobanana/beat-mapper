@@ -1,6 +1,7 @@
 // Pointer input on the editor canvas. Where a touch lands decides what it does (see layout.ts):
 // the loop strip draws loops, the bar ruler drags pins, the upper half of the waveform edits, the
-// lower half scrolls, and the time ruler scrubs. In the Groove step the whole waveform is the drum
+// lower half scrolls, and the time ruler scrubs. In the Warp step the upper half drags transients
+// onto the grid. In the Groove step the whole waveform is the drum
 // lanes, where hits are dragged, added and deleted.
 import type { App, Hover } from '../../app/app';
 import type { Features } from '../../app/features';
@@ -85,6 +86,14 @@ export class PointerInput {
       }
       return best ? { kind: 'marker', id: best.id } : null;
     }
+    if (app.step === 3 && app.hasMap) {
+      // A transient, or a warp marker that no longer has one under it (the sensitivity changed).
+      let best: number | null = null, bd = r + 1;
+      const M = app.markers, near = (t: number) => { const d = Math.abs(this.xOf(t) - x); if (d < bd) { bd = d; best = t; } };
+      for (let i = lowerBound(M, this.tOf(x - r - 1)); i < M.length && this.xOf(M[i].t) <= x + r; i++) near(M[i].t);
+      for (const w of app.doc.warpMarkers) near(w.t);
+      return best == null ? null : { kind: 'warp', t: best };
+    }
     if (app.step === 2 && app.hasMap) {
       const map = app.tempoMap;
       let best = null, bd = r + 1;
@@ -99,7 +108,7 @@ export class PointerInput {
   private zoneHit(x: number, y: number, zone: Zone, touch: boolean): Hit | null {
     if (this.app.transport.scrubMode || (zone !== 'edit' && zone !== 'bars')) return null;
     const h = this.hitTest(x, y, touch);
-    return h && zone === 'bars' && h.kind !== 'anchor' && h.kind !== 'grid' ? null : h;
+    return h && zone === 'bars' && h.kind !== 'anchor' && h.kind !== 'grid' && h.kind !== 'warp' ? null : h;
   }
 
   private loopHit(x: number, r: number): 'a' | 'b' | 'move' | null {
@@ -154,6 +163,7 @@ export class PointerInput {
     if (this.ptrs.size === 2) {
       const p = [...this.ptrs.values()];
       this.pinch = { d: Math.abs(p[0].x - p[1].x) || 1, mid: (p[0].x + p[1].x) / 2, t0: app.view.t0, t1: app.view.t1 };
+      this.f.warp.cancelDrag();
       this.endDrag();
       return;
     }
@@ -204,6 +214,7 @@ export class PointerInput {
     } else if (h.kind === 'marker') this.f.markers.moveTo(h.id, this.tOf(x));
     else if (h.kind === 'hit') { if (d.hitId != null) d.hit = { ...h, t: this.f.groove.moveHitTo(d.hitId, this.hitT(x, d.touch, e.altKey, false)) }; }
     else if (h.kind === 'anchor') this.f.beats.dragTo(h.q, this.snapT(x, d.touch, e.altKey, true));
+    else if (h.kind === 'warp') this.f.warp.dragTo(this.tOf(x), e.altKey);
   }
 
   /** The first move of a drag on something: it becomes an edit, checkpointed once for undo. */
@@ -219,6 +230,9 @@ export class PointerInput {
       app.checkpoint();
       d.hitId = f.groove.toManual(h.voice, h.t);
       app.select(h);
+    } else if (h.kind === 'warp') {
+      f.warp.grab(h.t);
+      app.hover = null;
     } else if (h.kind === 'grid' || h.kind === 'anchor') {
       d.hit = { kind: 'anchor', q: f.beats.beginDrag(h.q, h.kind === 'grid') };
       app.hover = null;
@@ -272,6 +286,7 @@ export class PointerInput {
         const a = app.doc.tempo.anchors.find((k) => k.q === h.q);
         if (a) f.playback.seek(a.t, true);
       } else if (h?.kind === 'hit') f.playback.seek(h.t, true);
+      else if (h?.kind === 'warp') f.warp.drop();
       app.bus.emit('doc');
       return;
     }
@@ -299,6 +314,8 @@ export class PointerInput {
         const voice = laneAt(this.renderer.layout(), y);
         if (h?.kind === 'hit') f.groove.removeHit(h.voice, h.t);
         else if (voice) f.groove.addHit(voice, this.hitT(x, d.touch, e.altKey, true));
+      } else if (app.step === 3) {
+        if (h?.kind === 'warp') { if (f.warp.isMarker(h.t)) f.warp.remove(h.t); else f.warp.snap(h.t); }
       } else if (app.step === 2) {
         if (h?.kind === 'anchor') { const a = app.doc.tempo.anchors.find((k) => k.q === h.q); if (a) f.beats.unpin(a); }
         else if (h?.kind === 'grid') f.beats.pinAt(app.tempoMap.posToTime(h.q), h.q);
@@ -316,7 +333,7 @@ export class PointerInput {
       }
     }
     const h = d.hit;
-    const target = h?.kind === 'marker' ? app.markers.find((k) => k.id === h.id) : h?.kind === 'anchor' ? app.doc.tempo.anchors.find((k) => k.q === h.q) : h?.kind === 'hit' ? h : undefined;
+    const target = h?.kind === 'marker' ? app.markers.find((k) => k.id === h.id) : h?.kind === 'anchor' ? app.doc.tempo.anchors.find((k) => k.q === h.q) : h?.kind === 'hit' || h?.kind === 'warp' ? h : undefined;
     if (h && target && h.kind !== 'grid') { app.select(h); f.playback.seek(target.t); }
     else { app.select(null); f.playback.seek(this.tapT(x, d, e)); }
   }

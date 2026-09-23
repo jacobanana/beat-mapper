@@ -4,6 +4,7 @@ import { type HitEdits, noHitEdits } from '../core/drums/edit';
 import type { ManualMarker } from '../core/markers/detect';
 import type { Meter } from '../core/tempo/meter';
 import type { Anchor } from '../core/types';
+import type { WarpMarker } from '../core/warp/markers';
 
 export interface MarkerEdits {
   /** Markers placed or moved by hand. */
@@ -27,6 +28,8 @@ export interface ProjectDoc {
   readonly markers: MarkerEdits;
   /** Drum hits added, moved and deleted by hand in the Groove step. */
   readonly drums: HitEdits;
+  /** Transients put on a grid line by hand in the Warp step, sorted by time. */
+  readonly warpMarkers: readonly WarpMarker[];
 }
 
 export const emptyDoc = (baseBpm = 120): ProjectDoc => ({
@@ -34,6 +37,7 @@ export const emptyDoc = (baseBpm = 120): ProjectDoc => ({
   tempo: { anchors: [], baseBpm },
   markers: { manual: [], removed: [], nextId: 1 },
   drums: noHitEdits(),
+  warpMarkers: [],
 });
 
 export const withAnchors = (d: ProjectDoc, anchors: readonly Anchor[], baseBpm = d.tempo.baseBpm): ProjectDoc => ({

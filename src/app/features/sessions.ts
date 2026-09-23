@@ -59,6 +59,7 @@ export class Sessions {
       export: app.exportSettings,
       slicer: app.slicer,
       excluded: app.excluded,
+      warpMarkers: [...app.doc.warpMarkers],
     };
   }
 
@@ -115,6 +116,7 @@ export class Sessions {
       markers: { manual, removed: matchRemoved(app.cands, s.markers.removed).map((i) => app.cands[i].t), nextId: manual.length + 1 },
       // Hit edits aren't in the session file yet: a session starts from the hits as detected.
       drums: noHitEdits(),
+      warpMarkers: s.warpMarkers,
     };
     app.edit(() => doc, false);
     app.set('beats', s.beats);

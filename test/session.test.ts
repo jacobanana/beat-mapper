@@ -13,6 +13,15 @@ describe('session files', () => {
     expect(JSON.stringify(toSessionJson(s))).toBe(JSON.stringify(legacy));
   });
 
+  it('carries warp markers, and leaves them out when there are none', () => {
+    const s = parseSession(legacy, legacy.audio.duration, fb);
+    expect(s.warpMarkers).toEqual([]);
+    expect('warp' in toSessionJson(s)).toBe(false);
+    const withMarkers = { ...s, warpMarkers: [{ t: 1.25, q: 2.5 }, { t: 2, q: 4 }] };
+    const back = parseSession(JSON.parse(JSON.stringify(toSessionJson(withMarkers))), legacy.audio.duration, fb);
+    expect(back.warpMarkers).toEqual(withMarkers.warpMarkers);
+  });
+
   it('recognises only BeatMapper sessions', () => {
     expect(isSessionJson(legacy)).toBe(true);
     expect(isSessionJson({ format: 'other' })).toBe(false);
@@ -29,6 +38,7 @@ describe('session files', () => {
       view: { t0: 2, t1: 1 },
       step: 7,
       slicer: { bits: 32, len: 1e9, excluded: [1, 20, 1e6] },
+      warp: { markers: [{ t: 2, q: 1 }, { t: 3, q: 0.5 }, { t: 40, q: 9 }, { t: 4, q: 'x' }, null, { t: 5, q: 3 }] },
     }, 10, fb);
     expect(s.detection).toMatchObject({ sens: 100, gap: 10, band: 'full', algo: 'flux' });
     expect(s.markers).toEqual({ manual: [1, 3], removed: [2] });
@@ -44,5 +54,7 @@ describe('session files', () => {
     expect(s.slicer.bits).toBe(16);
     expect(s.slicer.len).toBe(60000);
     expect(s.excluded).toEqual([1]);
+    // one that crosses an earlier one, one past the end and a bad one are dropped
+    expect(s.warpMarkers).toEqual([{ t: 2, q: 1 }, { t: 5, q: 3 }]);
   });
 });

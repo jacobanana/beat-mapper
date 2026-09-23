@@ -71,6 +71,7 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
         if (m && app.step === 1) f.markers.remove(m);
         else if (a && app.step === 2) f.beats.unpin(a);
         else if (h && app.step === 5) f.groove.removeHit(h.voice, h.t);
+        else if (app.step === 3 && f.warp.selected() != null) f.warp.removeSelected();
         return done();
       }
     }
@@ -88,6 +89,8 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
     } else if (app.step === 3) {
       if (k === 'w') f.warp.toggleListen();
       else if (k === 'f') f.warp.fromLoop();
+      else if (k === 'q') f.warp.quantize();
+      else if (k === 'g') f.beats.cycleGrid(e.shiftKey ? -1 : 1);
     } else if (app.step === 4) {
       if (k === 'e') f.slicer.previewSelected();
       else if (k === 'x') f.slicer.toggleSelected();

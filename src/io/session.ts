@@ -4,6 +4,7 @@
 import { ALGOS, type Algo, BANDS, type Band } from '../core/dsp/onset';
 import { DENOMINATORS, GRID_DIVISIONS, type GridDivision, type Meter } from '../core/tempo/meter';
 import type { Anchor, TimeRange } from '../core/types';
+import { type WarpMarker, placeWarpMarker } from '../core/warp/markers';
 import {
   type BeatSettings, type DetectionSettings, type ExportSettings, SNAP_MODES, type SlicerSettings, type SnapMode, type TransportState,
 } from '../state/settings';
@@ -28,6 +29,8 @@ export interface SessionContent {
   slicer: SlicerSettings;
   /** Start times of the slices the user dropped. */
   excluded: number[];
+  /** Transients put on a grid line in the Warp step, sorted by time. */
+  warpMarkers: WarpMarker[];
 }
 
 /** The JSON written to disk (format version 1). */
@@ -47,6 +50,9 @@ export function toSessionJson(s: SessionContent): object {
     step: s.step,
     export: s.export,
     slicer: slicerJson(s),
+    // Added to version 1 without a bump, like step 5: only written when there are some, so a session
+    // without them saves byte-identical, and a reader that predates them ignores the field.
+    ...(s.warpMarkers.length ? { warp: { markers: s.warpMarkers.map((w) => ({ t: w.t, q: w.q })) } } : {}),
   };
 }
 
@@ -84,6 +90,13 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
   const snapTo: SnapMode = SNAP_MODES.includes(bt.snapTo) ? bt.snapTo : bt.snap === false ? 'off' : 'markers';
   const view = d.view && T(d.view.t0) && T(d.view.t1) && d.view.t1 > d.view.t0 ? { a: d.view.t0, b: d.view.t1 } : null;
   const au = d.audio || {};
+  // Placed one by one as the app places them, so a hand-edited file can't hold two that cross.
+  let warpMarkers: WarpMarker[] = [];
+  for (const w of (Array.isArray(d.warp?.markers) ? d.warp.markers : []).slice(0, 20000)) {
+    if (!w || !T(w.t) || !Number.isFinite(w.q)) continue;
+    const r = placeWarpMarker(warpMarkers, w.t, w.q);
+    if (r.ok) warpMarkers = r.markers;
+  }
 
   return {
     audio: { name: String(au.name ?? ''), fileName: String(au.fileName ?? ''), duration: fin(au.duration, dur), sampleRate: fin(au.sampleRate, 0) },
@@ -131,5 +144,6 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
       csv: 'csv' in sl ? !!sl.csv : true,
     },
     excluded: Array.isArray(sl.excluded) ? sl.excluded.filter(T).slice(0, 5000) : [],
+    warpMarkers,
   };
 }

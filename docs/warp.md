@@ -13,11 +13,21 @@ with no tempo map at all.
 - **Grid tempo**: empty takes the tempo of what is warped, to the nearest whole BPM. **From loop**
   (<kbd>F</kbd>) takes it from a section instead: loop the part that is played right, and the grid
   gets the tempo that section averages, to the nearest BPM. The whole file is then warped to it.
+- **Align**: the pins put the beats on the grid; a warp marker puts one hit on it. Drag a transient
+  in the upper half of the waveform onto a grid line (at the resolution of **grid**, the same setting
+  as in Beats; <kbd>G</kbd> changes it) and let go: the warp moves that hit exactly onto the line and
+  stretches the audio either side to fit. While it is dragged, an arrow shows the line it will land
+  on; once it is dropped, the grid bends so that line sits on the hit, and the hit wears a tab in the
+  bar ruler. <kbd>Alt</kbd> drops it off the grid. A double tap puts a transient on its nearest line,
+  or lets a warp marker go; <kbd>Delete</kbd> removes the selected one. **Quantize** (<kbd>Q</kbd>)
+  puts every transient of what is warped on its nearest line, the closer of two taking a line they
+  both reach for (a flam), and **Clear** takes every warp marker off. All of it is undoable.
 - **whole file · just the loop**: what is warped, heard and saved. Drawing a loop to take its tempo
   leaves this on the whole file. A loop warped alone starts the file and is exactly as many beats long
   as it holds at the new tempo, named like the loop export: `name_4bars_100bpm_warped.wav`.
 - **Material**: the method (below).
-- **Reset** goes back to the whole file at its average tempo, Full mix.
+- **Reset** goes back to the whole file at its average tempo, Full mix, with no warp markers (undo brings
+  them back).
 
 In Export, *Whole file + lead-in* keeps what comes before bar 1 and puts silence ahead of it so the
 file starts on a bar line; *Trim to bar 1* starts the file on bar 1. Channels, normalizing and bit
@@ -36,6 +46,12 @@ down, red for one sped up.
 
 The tempo map is straight lines between pins, so moving each pin to where a steady tempo puts it
 defines the warp exactly (`core/warp/map.ts`). Between pins the stretch is constant.
+
+Warp markers (`core/warp/markers.ts`) are laid over the pins to make the map the warp follows
+(`App.warpTempo`); the tempo map of Beats is left as it was, so its MIDI and bars don't change. A pin a
+marker contradicts gives way to it, markers can't cross each other, and the map past its ends keeps the
+pins' tempo, so a marker near bar 1 doesn't stretch the lead-in. They are in the undoable document and in
+the session file (`warp.markers`, written only when there are some), unlike the other Warp settings.
 
 ## One method per material
 
@@ -67,9 +83,9 @@ frame's shift in the others.
 
 ## Later
 
-- Quantizing the transients themselves to the grid (moving hits inside a beat, not only the beats).
+- A strength for Quantize (part of the way to the grid).
 - A view of the warped waveform itself, on the straight grid.
-- Saving the warp settings with the session (they are kept for the visit only for now).
+- Saving the other warp settings (tempo, material, range) with the session; only the warp markers are kept for now.
 - Other stretchers worth trying: phase gradient heap integration ([Průša & Holighaus 2017][pghi]),
   which needs no peak picking or transient handling.
 

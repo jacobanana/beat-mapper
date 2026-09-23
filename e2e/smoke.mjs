@@ -121,6 +121,29 @@ try {
     assert.equal(d.suggestedFilename(), 'drifting-drum-loop_warped_100bpm.wav');
     assert.equal(await page.inputValue('#warpBpmB'), '100');
   });
+  await step('Warp: a transient dragged onto the grid is lined up there, undo lets it go', async () => {
+    const b = await (await page.$('#cv')).boundingBox();
+    await page.keyboard.press('z');
+    for (let i = 0; i < 4; i++) await page.keyboard.press('+');
+    // a transient in the edit half (the cursor says)
+    let x = 200;
+    for (; x < 1200; x += 2) {
+      await page.mouse.move(b.x + x, b.y + 80);
+      if ((await page.$eval('#cv', (e) => e.style.cursor)) === 'ew-resize') break;
+    }
+    await page.mouse.down();
+    await page.mouse.move(b.x + x + 10, b.y + 80, { steps: 3 });
+    await page.mouse.move(b.x + x + 20, b.y + 80, { steps: 3 });
+    await page.mouse.up();
+    assert.match(await text('wSum'), / · 1 transient lined up$/);
+    assert.equal(await page.isDisabled('#wClearMarkers'), false);
+    await page.keyboard.press('Control+z');
+    assert.doesNotMatch(await text('wSum'), /lined up/);
+    await page.keyboard.press('q');
+    assert.match(await text('wSum'), / · \d+ transients lined up$/);
+    await page.click('#wClearMarkers');
+    assert.doesNotMatch(await text('wSum'), /lined up/);
+  });
   await step('Warp: Reset goes back to the average', async () => {
     await page.click('#resetW');
     assert.equal(await page.isVisible('#confirmDlg'), true);

@@ -12,6 +12,7 @@ import { Grid, barQ } from '../core/tempo/meter';
 import { type Bar, TempoMap } from '../core/tempo/tempo-map';
 import type { Anchor, Candidate, Marker, TimeRange } from '../core/types';
 import { type WarpMap, averageBpm, planWarp, warpRange } from '../core/warp/map';
+import { type WarpMarker, warpTempoMap } from '../core/warp/markers';
 import type { Step } from '../io/session';
 import { Emitter } from '../state/emitter';
 import { History } from '../state/history';
@@ -29,7 +30,11 @@ export type Topic =
   | 'audio' | 'doc' | 'candidates' | 'detection' | 'beats' | 'export' | 'slicer' | 'slices'
   | 'warp' | 'transport' | 'playhead' | 'view' | 'step' | 'selection' | 'hover' | 'display' | 'drums' | 'groove' | 'mix' | 'mute';
 
-export type Selection = { kind: 'marker'; id: string } | { kind: 'anchor'; q: number } | { kind: 'hit'; voice: Voice; t: number } | null;
+export type Selection =
+  | { kind: 'marker'; id: string } | { kind: 'anchor'; q: number } | { kind: 'hit'; voice: Voice; t: number }
+  /** In the Warp step: a transient, or the warp marker on it, by its time. */
+  | { kind: 'warp'; t: number }
+  | null;
 /** What the pointer is over: a marker, a pin, or a grid line that could become a pin. */
 export type Hover = Selection | { kind: 'grid'; q: number };
 
@@ -99,6 +104,11 @@ export class App {
   excluded: number[] = [];
   /** Start time of the selected slice. */
   sliceSel: number | null = null;
+  /**
+   * A transient being dragged onto the grid in the Warp step: its time, and the position it would be
+   * put on if let go now (null while it is off the grid, or would cross another warp marker).
+   */
+  warpDrag: { t: number; q: number | null; at: number } | null = null;
   /** True while a pointer drag is editing something; autosave waits for it to finish. */
   dragging = false;
   busy = false;
@@ -166,6 +176,22 @@ export class App {
     return this._groove(this.drumHits, this.tempoMap, this.doc.meter, this.groove.grid, this.groove.ref, this.sliceRange);
   }
 
+  private readonly _warpTempo = memo((map: TempoMap, wm: readonly WarpMarker[]) => warpTempoMap(map, wm));
+  /** The tempo map with the warp markers laid over the pins: what the warp puts on the straight grid. */
+  get warpTempo(): TempoMap { return this._warpTempo(this.tempoMap, this.doc.warpMarkers); }
+
+  private readonly _warpGrid = memo((map: TempoMap, wm: readonly WarpMarker[], skip: number | null) =>
+    warpTempoMap(map, skip == null ? wm : wm.filter((w) => w.t !== skip)));
+  /**
+   * The grid drawn in the Warp step, which a transient is dragged onto: the warp's own, less the warp
+   * marker being dragged, so its grid line stays still under the pointer.
+   */
+  get warpGrid(): TempoMap { return this._warpGrid(this.tempoMap, this.doc.warpMarkers, this.warpDrag?.t ?? null); }
+
+  private readonly _warpBars = memo((map: TempoMap, meter: ProjectDoc['meter'], dur: number) => map.bars(meter, dur));
+  /** Every bar's tempo as the warp sees it, warp markers included. */
+  get warpBars(): readonly Bar[] { return this._warpBars(this.warpTempo, this.doc.meter, this.dur); }
+
   private readonly _warp = memo((map: TempoMap, meter: ProjectDoc['meter'], dur: number, lead: ExportSettings['lead'], loop: TimeRange | null, gridBpm: number | null): WarpPlan | null => {
     if (map.isEmpty) return null;
     const r = warpRange(map, meter, dur, { lead, loop });
@@ -183,7 +209,7 @@ export class App {
     if (!this.audio || !this.hasMap) return null;
     const loop = this.warp.range === 'loop' ? this.activeLoop : null;
     if (this.warp.range === 'loop' && !loop) return null;
-    return this._warp(this.tempoMap, this.doc.meter, this.dur, this.exportSettings.lead, loop, this.warp.bpm);
+    return this._warp(this.warpTempo, this.doc.meter, this.dur, this.exportSettings.lead, loop, this.warp.bpm);
   }
 
   get dur(): number { return this.audio?.dur ?? 0; }
