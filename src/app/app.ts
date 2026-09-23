@@ -1,6 +1,10 @@
 // The application state and the derived data everything else reads. Features (app/features/*) change
 // it through the methods here; the UI listens for the topics they emit and redraws.
 import type { Analysis } from '../core/dsp/onset';
+import type { DrumAnalysis } from '../core/drums/detect';
+import { selectHits } from '../core/drums/select';
+import type { DrumHit, PerVoice } from '../core/drums/voices';
+import { type Groove, analyseGroove } from '../core/groove/pocket';
 import { detectMarkers, filterMarkers, sensToThr } from '../core/markers/detect';
 import { type Slice, isExcluded, loopInfo, planSlices, sliceKey } from '../core/slices/slices';
 import { Grid, barQ } from '../core/tempo/meter';
@@ -12,8 +16,8 @@ import { History } from '../state/history';
 import { memo } from '../state/memo';
 import { type ProjectDoc, emptyDoc } from '../state/project';
 import {
-  type BeatSettings, type DetectionSettings, type ExportSettings, type SlicerSettings, type TransportState,
-  defaultBeats, defaultDetection, defaultExport, defaultSlicer, defaultTransport,
+  type BeatSettings, type DetectionSettings, type ExportSettings, type GrooveSettings, type SlicerSettings, type TransportState,
+  defaultBeats, defaultDetection, defaultExport, defaultGroove, defaultSlicer, defaultTransport,
 } from '../state/settings';
 import { Viewport } from '../state/viewport';
 import type { AudioAsset } from './audio-asset';
@@ -21,7 +25,7 @@ import type { AudioAsset } from './audio-asset';
 /** What changed. Listeners subscribe to the topics they display. */
 export type Topic =
   | 'audio' | 'doc' | 'candidates' | 'detection' | 'beats' | 'export' | 'slicer' | 'slices'
-  | 'transport' | 'playhead' | 'view' | 'step' | 'selection' | 'hover' | 'display';
+  | 'transport' | 'playhead' | 'view' | 'step' | 'selection' | 'hover' | 'display' | 'drums' | 'groove';
 
 export type Selection = { kind: 'marker'; id: string } | { kind: 'anchor'; q: number } | null;
 /** What the pointer is over: a marker, a pin, or a grid line that could become a pin. */
@@ -39,7 +43,7 @@ export interface Notifier {
   idle(): void;
 }
 
-type Settings = { detection: DetectionSettings; beats: BeatSettings; export: ExportSettings; slicer: SlicerSettings; transport: TransportState };
+type Settings = { detection: DetectionSettings; beats: BeatSettings; export: ExportSettings; slicer: SlicerSettings; transport: TransportState; groove: GrooveSettings };
 
 export class App {
   readonly bus = new Emitter<Topic>();
@@ -50,6 +54,8 @@ export class App {
   analysis: Analysis | null = null;
   /** Candidate transients for the current band and algorithm. */
   cands: readonly Candidate[] = [];
+  /** Kick, snare and hat hits, found the first time the Groove step opens. */
+  drums: DrumAnalysis | null = null;
   doc: ProjectDoc = emptyDoc();
 
   detection = defaultDetection();
@@ -57,6 +63,7 @@ export class App {
   exportSettings = defaultExport();
   slicer = defaultSlicer();
   transport = defaultTransport();
+  groove = defaultGroove();
 
   step: Step = 1;
   sel: Selection = null;
@@ -113,6 +120,17 @@ export class App {
     let bi = -1, bd = Infinity;
     for (const sl of this.slices) { const d = Math.abs(sl.t0 - this.sliceSel); if (d < bd) { bd = d; bi = sl.i; } }
     return bd < 0.05 ? bi : null;
+  }
+
+  private readonly _drumHits = memo((d: DrumAnalysis | null, sens: GrooveSettings['sens']) => (d ? selectHits(d.hits, sens) : null));
+  /** The drum hits the sensitivities let through. */
+  get drumHits(): PerVoice<DrumHit[]> | null { return this._drumHits(this.drums, this.groove.sens); }
+
+  private readonly _groove = memo((hits: PerVoice<DrumHit[]> | null, map: TempoMap, meter: ProjectDoc['meter'], grid: GrooveSettings['grid'], ref: GrooveSettings['ref'], range: TimeRange) =>
+    hits && !map.isEmpty ? analyseGroove(hits, { map, meter, grid, ref, range }) : null);
+  /** Where each voice sits against the beat, inside the loop when it is on. */
+  get pocket(): Groove | null {
+    return this._groove(this.drumHits, this.tempoMap, this.doc.meter, this.groove.grid, this.groove.ref, this.sliceRange);
   }
 
   get dur(): number { return this.audio?.dur ?? 0; }

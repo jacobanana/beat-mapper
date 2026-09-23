@@ -83,6 +83,7 @@ export class EditorRenderer {
     layers.odf(f);
     layers.slices(f);
     layers.markers(f);
+    layers.drums(f);
     if (app.hasMap) layers.pins(f);
     layers.tempoLane(f);
     layers.timeRuler(f);

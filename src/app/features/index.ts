@@ -2,6 +2,7 @@ import type { Analyzer } from '../../analysis/analyzer';
 import type { App } from '../app';
 import { Beats } from './beats';
 import { Exports } from './exports';
+import { Groove } from './groove';
 import { Loader } from './loader';
 import { Markers } from './markers';
 import { Playback } from './playback';
@@ -17,6 +18,7 @@ export interface Features {
   workflow: Workflow;
   exports: Exports;
   slicer: Slicer;
+  groove: Groove;
   sessions: Sessions;
   loader: Loader;
 }
@@ -25,10 +27,11 @@ export function createFeatures(app: App, analyzer: Analyzer, store: KeyValueStor
   const playback = new Playback(app);
   const markers = new Markers(app, playback, analyzer);
   const beats = new Beats(app, playback);
-  const workflow = new Workflow(app, beats);
   const exports = new Exports(app, beats);
+  const groove = new Groove(app, analyzer, exports);
+  const workflow = new Workflow(app, beats, groove);
   const slicer = new Slicer(app, playback, exports);
   const sessions = new Sessions(app, markers, playback, workflow, store);
   const loader = new Loader(app, analyzer, playback, sessions, workflow);
-  return { playback, markers, beats, workflow, exports, slicer, sessions, loader };
+  return { playback, markers, beats, workflow, exports, slicer, groove, sessions, loader };
 }

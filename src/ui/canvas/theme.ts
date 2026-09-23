@@ -1,6 +1,6 @@
 // Colours come from the CSS custom properties, so the canvas follows the light/dark theme.
 
-export const COLOR_KEYS = ['bg', 'panel', 'raise', 'line', 'ink', 'dim', 'wave', 'mark', 'beat', 'down', 'play', 'stage', 'start', 'slice'] as const;
+export const COLOR_KEYS = ['bg', 'panel', 'raise', 'line', 'ink', 'dim', 'wave', 'mark', 'beat', 'down', 'play', 'stage', 'start', 'slice', 'kick', 'snare', 'hat'] as const;
 export type Colors = Record<(typeof COLOR_KEYS)[number], string>;
 
 export function readColors(): Colors {

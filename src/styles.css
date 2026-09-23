@@ -2,15 +2,18 @@
 :root{
   --bg:#e6e9ef; --panel:#f4f5f8; --raise:#ffffff; --line:#c6cdd8; --ink:#1b2130; --dim:#5a6475;
   --wave:#42506a; --mark:#b65f00; --beat:#087d78; --down:#c62850; --play:#0f131b; --focus:#2c63d6; --stage:#dde1e8; --start:#2f6fe0; --slice:#7a45cf;
+  --kick:#a8740a; --snare:#cf4a17; --hat:#46678c;
   box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
 @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
   --bg:#191d25; --panel:#222833; --raise:#2c3341; --line:#3a4353; --ink:#ece8dd; --dim:#98a1b1;
   --wave:#b7c3d9; --mark:#f3a73d; --beat:#5cc8c0; --down:#ff7f93; --play:#ffffff; --focus:#8ab4ff; --stage:#14171e; --start:#7fb2ff; --slice:#c6a4ff;
+  --kick:#d9ae4a; --snare:#e0632f; --hat:#9fb3c8;
 }}
 :root[data-theme="dark"]{
   --bg:#191d25; --panel:#222833; --raise:#2c3341; --line:#3a4353; --ink:#ece8dd; --dim:#98a1b1;
   --wave:#b7c3d9; --mark:#f3a73d; --beat:#5cc8c0; --down:#ff7f93; --play:#ffffff; --focus:#8ab4ff; --stage:#14171e; --start:#7fb2ff; --slice:#c6a4ff;
+  --kick:#d9ae4a; --snare:#e0632f; --hat:#9fb3c8;
 }
 *,*::before,*::after{box-sizing:inherit}
 html,body{height:100%;margin:0}
@@ -99,6 +102,15 @@ td.up{color:var(--mark)} td.dn{color:var(--beat)}
 #p4 .col{flex:2 1 470px;min-width:0;display:flex;flex-direction:column;gap:6px}
 .sect{color:var(--dim);display:inline-flex;align-items:center;flex:none}
 #expInfo{flex-basis:100%;margin:0}
+#p5 .col{flex:1 1 380px;min-width:0;display:flex;flex-direction:column;gap:6px}
+#p5 .sl input{width:84px}
+.vs b{font-weight:600;width:12px;text-align:center}
+.kick{color:var(--kick)} .snare{color:var(--snare)} .hat{color:var(--hat)}
+#gSens-kick{accent-color:var(--kick)} #gSens-snare{accent-color:var(--snare)} #gSens-hat{accent-color:var(--hat)}
+#p5 .sl output{min-width:28px}
+#gSum{color:var(--dim);margin:0;font-size:14px}
+.groove{flex:3 1 520px;min-width:260px}
+#grooveCv{display:block;width:100%;height:150px;border:1px solid var(--line);border-radius:7px;background:var(--raise)}
 
 dialog{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:18px 20px;max-width:min(760px,94vw);max-height:88vh}
 dialog::backdrop{background:rgba(0,0,0,.5)}

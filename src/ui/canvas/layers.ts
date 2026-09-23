@@ -71,7 +71,7 @@ export function grid({ g, app, L, C, xOf }: Frame): 0 | 1 | 2 {
 // area. Full height is its 99th percentile. Zoomed out, each pixel shows the loudest frame it covers.
 export function odf({ g, app, L, C, xOf, beatsMode }: Frame): void {
   const an = app.analysis, a = app.audio;
-  if (!app.detection.showOdf || !an || !a) return;
+  if (!app.detection.showOdf || !an || !a || app.step === 5) return;
   const { w, wh, ly } = L, v = app.view, { algo, band } = app.detection;
   const f = odfOf(an, algo, band), ref = odfRef(an, algo, band), dt = an.hop / a.sr, tf = (0.6 * an.N - an.pad) / a.sr, span = v.span, hh = wh - 4;
   const pts: number[] = [];
@@ -117,8 +117,9 @@ export function slices({ g, app, L, C, xOf }: Frame): void {
   g.lineWidth = 1;
 }
 
-/** Transient markers: a line with a flag, filled for manual ones. */
+/** Transient markers: a line with a flag, filled for manual ones. The Groove step shows drum lanes instead. */
 export function markers({ g, app, L, C, xOf, beatsMode }: Frame): void {
+  if (app.step === 5) return;
   const { w, wy, ly, ey } = L, v = app.view, M = app.markers, i0 = lowerBound(M, v.t0), dense = lowerBound(M, v.t1) - i0 > w / 4, ma = beatsMode ? 0.5 : 1;
   const sel = app.sel?.kind === 'marker' ? app.sel.id : null, hov = app.hover?.kind === 'marker' ? app.hover.id : null;
   for (let i = i0; i < M.length && M[i].t <= v.t1; i++) {
@@ -133,6 +134,35 @@ export function markers({ g, app, L, C, xOf, beatsMode }: Frame): void {
       else { g.fillStyle = C.stage; g.fill(); g.lineWidth = 1.2; g.stroke(); }
     }
   }
+  g.lineWidth = 1;
+}
+
+// The Groove step: kick, snare and hats in three lanes over the waveform (hats on top), each hit a
+// tick as tall as it is loud, with a tail back to the grid line it was measured from when zoomed in
+// far enough to see a few milliseconds.
+const LANES = ['hat', 'snare', 'kick'] as const;
+export function drums({ g, app, L, C, xOf }: Frame): void {
+  if (app.step !== 5) return;
+  const hits = app.drumHits;
+  if (!hits) return;
+  const { w, wy, wh } = L, v = app.view, lh = wh / 3, pxMs = w / (v.span * 1000), placed = app.pocket?.hits;
+  g.font = '600 12px ' + FONT; g.textBaseline = 'middle';
+  LANES.forEach((voice, i) => {
+    const top = wy + i * lh, mid = top + lh / 2, col = C[voice];
+    g.fillStyle = rgba(col, 0.06); g.fillRect(0, top + 1, w, lh - 2);
+    g.fillStyle = rgba(col, 0.9); g.fillText(voice === 'hat' ? 'HATS' : voice.toUpperCase(), 6, top + 10);
+    const list = placed ? placed.filter((h) => h.voice === voice) : hits[voice].map((h) => ({ t: h.t, vel: 100, gridMs: 0 }));
+    for (const h of list) {
+      if (h.t < v.t0 - 0.05 || h.t > v.t1 + 0.05) continue;
+      const x = Math.round(xOf(h.t)) + 0.5, hh = (lh - 8) * (0.3 + 0.7 * Math.min(1, h.vel / 127));
+      if (pxMs >= 0.4 && Math.abs(h.gridMs) * pxMs >= 2) {
+        g.strokeStyle = rgba(col, 0.75); g.lineWidth = 2;
+        g.beginPath(); g.moveTo(xOf(h.t - h.gridMs / 1000), mid); g.lineTo(x, mid); g.stroke();
+      }
+      g.strokeStyle = col; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(x, mid - hh / 2); g.lineTo(x, mid + hh / 2); g.stroke();
+    }
+  });
   g.lineWidth = 1;
 }
 

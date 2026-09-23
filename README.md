@@ -8,6 +8,13 @@ you can pick up where you left off.
 
 **Live:** https://jacobanana.github.io/beat-mapper/
 
+**Groove** (step 5) shows the pocket of a drum performance from real measurements: it finds the
+kick, snare and hats, times every hit to a fraction of a millisecond, and shows where each voice sits
+against the beat, ahead or behind, bar by bar and in a typical bar drawn the way
+[Pocket Science](https://github.com/jacobanana/pocket-science) draws its grooves. The drums export
+as MIDI with every hit where it was played, or as a Pocket Science groove file. It works on drum
+stems and loops; a full mix is experimental (see [docs/groove.md](docs/groove.md)).
+
 It started as a single HTML file in [jacobanana/appz](https://github.com/jacobanana/appz) and moved
 here to grow. Everything runs in the browser; audio never leaves the machine.
 
@@ -33,6 +40,7 @@ app state and features sit on top of it (`src/state`, `src/app`), and the UI on 
 
 One `localStorage` entry per audio file (`beatmapper:s:<file name>|<length in ms>`), holding the
 markers, pins and settings of the last eight files, plus an index of which those are
-(`beatmapper:index`). Never the audio. The **Session** button in step 3 saves the same thing as a
+(`beatmapper:index`). Never the audio. The Groove step's settings aren't saved yet; the drums are
+found again when the step opens. The **Session** button in step 3 saves the same thing as a
 `.json` file to carry the work to another device. The format is unchanged from the single-file app,
 and so are the keys, so work saved there comes back here.

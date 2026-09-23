@@ -1,4 +1,5 @@
 import { type Algo, type Analysis, type Band, analyze } from '../core/dsp/onset';
+import { type DrumAnalysis, type DrumSource, detectDrums } from '../core/drums/detect';
 import { pickCandidates } from '../core/markers/detect';
 import type { Candidate } from '../core/types';
 
@@ -12,6 +13,8 @@ export interface Analyzer {
   analyze(x: Float32Array, sr: number, onProgress?: (f: number) => void): Promise<Analysis>;
   /** The candidate transients for one detection function and band of the last analysis. */
   candidates(band: Band, algo: Algo): Promise<Candidate[]>;
+  /** Kick, snare and hat hits in the last analysed signal. */
+  drums(source: DrumSource, onProgress?: (f: number) => void): Promise<DrumAnalysis>;
   dispose(): void;
 }
 
@@ -33,6 +36,11 @@ export class InlineAnalyzer implements Analyzer {
   async candidates(band: Band, algo: Algo): Promise<Candidate[]> {
     if (!this.an || !this.x) throw new Error('Nothing analysed yet');
     return pickCandidates(this.an, band, this.x, this.sr, algo);
+  }
+
+  async drums(source: DrumSource, onProgress?: (f: number) => void): Promise<DrumAnalysis> {
+    if (!this.x) throw new Error('Nothing analysed yet');
+    return detectDrums(this.x, this.sr, { source, onProgress, yieldToEventLoop: this.yieldToEventLoop });
   }
 
   dispose(): void {

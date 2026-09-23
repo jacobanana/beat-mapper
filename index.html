@@ -45,6 +45,7 @@
 <symbol id="i-save" viewBox="0 0 20 20"><path d="M4 3.5h9.5L16.5 6.5v10h-12.5ZM7 3.5v4h5.5v-4M7 16.5v-5h6v5"/></symbol>
 <symbol id="i-import" viewBox="0 0 20 20"><path d="M10 13V4M6.5 7.5 10 4l3.5 3.5M4 16h12"/></symbol>
 <symbol id="i-tol" viewBox="0 0 20 20"><path d="M10 4v12M6 7l-3 3 3 3M14 7l3 3-3 3"/></symbol>
+<symbol id="i-groove" viewBox="0 0 20 20"><path d="M2 5h16M2 10h16M2 15h16" stroke-dasharray="1 3" stroke-width="1"/><path class="f" d="M4 5m-1.8 0a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0-3.6 0M12.5 10m-2.2 0a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0M7 15m-2.2 0a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0"/><path d="M10 7.5v5"/></symbol>
 <symbol id="i-slice" viewBox="0 0 20 20"><path d="M1.5 13h2.2l1.4-3.5L7 16l2-13 2 10.5 1.4-2.5h4.1"/><path d="M6.2 2v16M13.8 2v16" stroke-dasharray="2 2.4"/></symbol>
 </defs></svg>
 <div id="app">
@@ -59,6 +60,7 @@
       <button role="tab" id="t2" aria-selected="false" title="Beats (2)" aria-label="Beats"><svg class="ic"><use href="#i-beats"/></svg></button>
       <button role="tab" id="t3" aria-selected="false" title="Export (3)" aria-label="Export"><svg class="ic"><use href="#i-export"/></svg></button>
       <button role="tab" id="t4" aria-selected="false" title="Slice samples (4)" aria-label="Slice samples"><svg class="ic"><use href="#i-slice"/></svg></button>
+      <button role="tab" id="t5" aria-selected="false" title="Groove: the pocket of kick, snare and hats (5)" aria-label="Groove"><svg class="ic"><use href="#i-groove"/></svg></button>
     </nav>
     <div class="grp tools">
       <button class="btn" id="zOut" title="Zoom out (−)" aria-label="Zoom out"><svg class="ic"><use href="#i-zout"/></svg></button>
@@ -88,6 +90,7 @@
           <div class="row">
             <label class="btn primary" id="chooseBtn" for="fileIn" tabindex="0" role="button"><svg class="ic"><use href="#i-open"/></svg>Open</label>
             <button class="btn" id="demoBtn">Demo loop</button>
+            <button class="btn" id="kitDemoBtn" title="A funk groove with a known pocket: the kick pushes, the snare lays back">Pocket demo</button>
           </div>
         </div>
       </div>
@@ -199,6 +202,26 @@
           <div class="wrap"><table><thead><tr><th title="Keep"></th><th>#</th><th>Start</th><th>ms</th><th>dB</th><th></th></tr></thead><tbody id="sliceRows"></tbody></table></div>
         </div>
       </div>
+      <div class="pane" id="p5" hidden>
+        <div class="col">
+          <div class="bar">
+            <select id="gSource" title="What the audio is. A full mix is experimental: the other instruments are modelled apart from the drums, but expect misses" aria-label="Audio source"><option value="drums">drums only</option><option value="mix">full mix</option></select>
+            <label class="sl vs" title="Kick sensitivity"><b class="kick">K</b><input type="range" id="gSens-kick" min="0" max="100" value="55" aria-label="Kick sensitivity"><output id="gN-kick"></output></label>
+            <label class="sl vs" title="Snare sensitivity: raise it for ghost notes"><b class="snare">S</b><input type="range" id="gSens-snare" min="0" max="100" value="55" aria-label="Snare sensitivity"><output id="gN-snare"></output></label>
+            <label class="sl vs" title="Hats sensitivity"><b class="hat">H</b><input type="range" id="gSens-hat" min="0" max="100" value="55" aria-label="Hats sensitivity"><output id="gN-hat"></output></label>
+          </div>
+          <div class="bar">
+            <select id="gGrid" title="Grid each hit is placed on" aria-label="Grid"><option value="8">1/8</option><option value="16" selected>1/16</option><option value="8t">1/8T</option><option value="16t">1/16T</option></select>
+            <select id="gRef" title="What the pocket is measured against, bar by bar. Auto: the hats when they keep time, else the tempo map's grid" aria-label="Measured against"><option value="auto">vs auto</option><option value="hat">vs hats</option><option value="kick">vs kick</option><option value="snare">vs snare</option><option value="kit">vs whole kit</option><option value="grid">vs grid</option></select>
+            <button class="btn on" id="gExag" title="Draw the offsets in the bar three times their size (X)" aria-label="Exaggerate offsets" aria-pressed="true">×3</button>
+            <span class="sep"></span>
+            <button class="btn primary" id="gMidi" title="Save the drums as MIDI: every hit where it was played, on the tempo map"><svg class="ic"><use href="#i-export"/></svg>MIDI</button>
+            <button class="btn" id="gJson" title="Save the typical bar as a Pocket Science groove file (.json)"><svg class="ic"><use href="#i-export"/></svg>GROOVE</button>
+          </div>
+          <p id="gSum"></p>
+        </div>
+        <div class="groove"><canvas id="grooveCv" role="img" aria-label="Pocket chart and the typical bar"></canvas></div>
+      </div>
     </section>
   </main>
 </div>
@@ -212,6 +235,7 @@
     <div><svg class="ic"><use href="#i-beats"/></svg><span>Step 2 · Beats</span><span><kbd>2</kbd></span></div>
     <div><svg class="ic"><use href="#i-export"/></svg><span>Step 3 · Export</span><span><kbd>3</kbd></span></div>
     <div><svg class="ic"><use href="#i-slice"/></svg><span>Step 4 · Slice samples</span><span><kbd>4</kbd></span></div>
+    <div><svg class="ic"><use href="#i-groove"/></svg><span>Step 5 · Groove</span><span><kbd>5</kbd></span></div>
     <div><svg class="ic"><use href="#i-play"/></svg><span>Play from playhead / stop</span><span><kbd>Space</kbd></span></div>
     <div><svg class="ic"><use href="#i-tostart"/></svg><span>Play from first transient, or loop start</span><span><kbd>Enter</kbd></span></div>
     <div><svg class="ic"><use href="#i-stay"/></svg><span>Stop leaves the playhead in place (on the closest transient or grid line, whichever the magnet is set to)</span><span><kbd>H</kbd></span></div>
@@ -255,6 +279,13 @@
     <div><svg class="ic"><use href="#i-clear"/></svg><span>Keep or drop the selected slice</span><span><kbd>X</kbd></span></div>
     <div><svg class="ic"><use href="#i-loop"/></svg><span>Save the whole loop as one .wav, named with the bars and BPM it works out at – written without fades so it loops seamlessly</span><span></span></div>
     <div><svg class="ic"><use href="#i-export"/></svg><span>Save the selected slice, every kept slice as a .zip of .wav files, or a REAPER project with the slices in place</span><span></span></div>
+    <h3>Groove</h3>
+    <div><svg class="ic"><use href="#i-groove"/></svg><span>Kick, snare and hats are found in the audio, and each hit is measured against the beat. The waveform shows them in three lanes, each with a tail back to its grid line. Map the beats first (step 2) if the take drifts</span><span></span></div>
+    <div><span>Source</span><span>Drums only, or a full mix (experimental: the other instruments are modelled apart from the drums, but expect misses)</span></div>
+    <div><span>K S H</span><span>Sensitivity per voice, with how many hits each has. Raise the snare's for ghost notes</span></div>
+    <div><span>vs</span><span>What the pocket is measured against, bar by bar: the hats (the timekeeper), one of the others, the whole kit, or the tempo map's grid. Measuring against a grid found from the same hits is circular, so auto takes the hats when they keep time</span></div>
+    <div><span>Chart</span><span>Left: where each voice sits, ahead or behind – every hit, its middle half, and its median. Right: the typical bar – dot size is velocity, faint dots are steps played in only some bars, tails show the lean</span></div>
+    <div><svg class="ic"><use href="#i-export"/></svg><span>Save the drums as MIDI (every hit where it was played, on the tempo map), or the typical bar as a Pocket Science groove file</span><span></span></div>
   </div>
   <h2 style="margin-top:18px">Keyboard shortcuts</h2>
   <div class="keys">
@@ -274,7 +305,7 @@
     <div><span><kbd>+</kbd> <kbd>−</kbd> <kbd>Z</kbd></span><span>Zoom in, out, fit whole file</span></div>
     <div><span><kbd>Home</kbd> <kbd>End</kbd></span><span>Go to start / end</span></div>
     <div><span><kbd>K</kbd></span><span>Click on markers or beats</span></div>
-    <div><span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></span><span>Transients, Beats, Export, Slice</span></div>
+    <div><span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> <kbd>5</kbd></span><span>Transients, Beats, Export, Slice, Groove</span></div>
     <div><span><kbd>Ctrl/⌘</kbd><kbd>Z</kbd></span><span>Undo (add ⇧ to redo)</span></div>
     <div><span><kbd>Esc</kbd></span><span>Deselect</span></div>
     <h3>Step 1 – Transients</h3>
@@ -297,6 +328,9 @@
     <div><span><kbd>X</kbd></span><span>Keep or drop the selected slice</span></div>
     <div><span>Tap the waveform</span><span>Plays the slice under the pointer · double-tap keeps or drops it</span></div>
     <div><span>Loop</span><span>With the loop on, only what is inside it is sliced and exported, and every file saved is named with the loop's bars and BPM</span></div>
+    <h3>Step 5 – Groove</h3>
+    <div><span><kbd>X</kbd></span><span>Offsets in the bar drawn three times their size, or true to size</span></div>
+    <div><span>Loop</span><span>With the loop on, only the bars inside it are measured</span></div>
     <h3>Where you touch decides what happens</h3>
     <div><span>Top strip</span><span>Loop: drag to draw, drag edges or middle to adjust, tap it to switch on/off, double-tap to loop a bar</span></div>
     <div><span>Bar ruler</span><span>Drag pins and bar lines (step 2)</span></div>

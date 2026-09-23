@@ -212,3 +212,41 @@ describe('sessions', () => {
     });
   });
 });
+
+describe('groove', () => {
+  it('finds the demo loop\'s kick, snare and hats and measures their pocket', async () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.workflow.goTo(5);
+    await f.groove.ensureDrums();
+    expect(app.step).toBe(5);
+    const h = app.drumHits!;
+    // 16 bars: kick on 1 and 3, snare on 2 and 4, hats on every eighth. The demo's hats are quiet
+    // and those on the beat are buried under the kick and snare; the off-beat ones must all be there.
+    expect(h.kick.length).toBe(32);
+    expect(h.snare.length).toBe(32);
+    expect(h.hat.length).toBeGreaterThanOrEqual(64);
+    const g = app.pocket!;
+    expect(g.bars).toBe(16);
+    expect(g.ref).toBe('hat');
+    // The demo plays every voice on the beat; only its off-beat hats wander (±4 ms).
+    for (const v of g.voices) expect(Math.abs(v.median), v.voice).toBeLessThan(1.5);
+    expect(f.groove.summary()).toMatch(/^16 bars · 9\d\.\d BPM/);
+  });
+
+  it('follows the settings', async () => {
+    const { app, f } = t;
+    f.workflow.goTo(5);
+    await f.groove.ensureDrums();
+    const n = app.drumHits!.hat.length;
+    f.groove.setSensitivity('hat', 0);
+    expect(app.drumHits!.hat.length).toBeLessThan(n);
+    f.groove.setGrid('8');
+    expect(app.pocket!.stepsPerBar).toBe(8);
+    f.groove.setReference('grid');
+    expect(app.pocket!.ref).toBe('grid');
+    f.playback.setLoop({ a: app.tempoMap.posToTime(8), b: app.tempoMap.posToTime(16) }, true);
+    expect(app.pocket!.bars).toBe(2);
+  });
+});

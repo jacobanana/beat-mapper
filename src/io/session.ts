@@ -11,7 +11,7 @@ import {
 export const SESSION_FORMAT = 'beatmapper-session';
 export const SESSION_VERSION = 1;
 
-export type Step = 1 | 2 | 3 | 4;
+export type Step = 1 | 2 | 3 | 4 | 5;
 
 /** Everything a session holds, in the app's own terms. */
 export interface SessionContent {
@@ -108,7 +108,8 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
     },
     transport: { loop, loopOn: !!tr.loopOn && !!loop, start, playhead: T(tr.playhead) ? tr.playhead : start, stay: !!tr.stay, click: !!tr.click },
     view,
-    step: oneOf<Step>([1, 2, 3, 4], d.step, 1),
+    // Step 5 (Groove) came later; a version 1 reader that predates it falls back to 1.
+    step: oneOf<Step>([1, 2, 3, 4, 5], d.step, 1),
     export: {
       lead: ex.lead === 'trim' ? 'trim' : 'full',
       res: oneOf(['pins', 'bar', 'beat'] as const, ex.res, 'pins'),
