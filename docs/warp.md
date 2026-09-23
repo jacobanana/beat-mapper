@@ -50,8 +50,8 @@ defines the warp exactly (`core/warp/map.ts`). Between pins the stretch is const
 Warp markers (`core/warp/markers.ts`) are laid over the pins to make the map the warp follows
 (`App.warpTempo`); the tempo map of Beats is left as it was, so its MIDI and bars don't change. A pin a
 marker contradicts gives way to it, markers can't cross each other, and the map past its ends keeps the
-pins' tempo, so a marker near bar 1 doesn't stretch the lead-in. They are in the undoable document, but
-like the other Warp settings not yet in the session file.
+pins' tempo, so a marker near bar 1 doesn't stretch the lead-in. They are in the undoable document and in
+the session file (`warp.markers`, written only when there are some), unlike the other Warp settings.
 
 ## One method per material
 
@@ -83,9 +83,9 @@ frame's shift in the others.
 
 ## Later
 
-- A strength for Quantize (part of the way to the grid), and saving warp markers with the session.
+- A strength for Quantize (part of the way to the grid).
 - A view of the warped waveform itself, on the straight grid.
-- Saving the warp settings with the session (they are kept for the visit only for now).
+- Saving the other warp settings (tempo, material, range) with the session; only the warp markers are kept for now.
 - Other stretchers worth trying: phase gradient heap integration ([Průša & Holighaus 2017][pghi]),
   which needs no peak picking or transient handling.
 

@@ -372,6 +372,10 @@ describe('sessions', () => {
     a.f.beats.autoMap();
     a.f.slicer.toggle(4);
     a.f.markers.setSensitivity(61);
+    a.f.workflow.goTo(3);
+    a.f.warp.snap(a.app.markers[5].t);
+    a.f.warp.snap(a.app.markers[9].t);
+    a.f.workflow.goTo(2);
     a.f.sessions.autosave();
     expect([...store.map.keys()]).toEqual(['beatmapper:s:drifting-drum-loop.wav|40220', 'beatmapper:index']);
 
@@ -380,6 +384,8 @@ describe('sessions', () => {
     expect(b.toasts.at(-1)).toBe('Picked up where you left off');
     expect(b.app.markers.map((m) => [m.t, m.manual])).toEqual(a.app.markers.map((m) => [m.t, m.manual]));
     expect(b.app.doc.tempo).toEqual(a.app.doc.tempo);
+    expect(b.app.doc.warpMarkers).toEqual(a.app.doc.warpMarkers);
+    expect(b.app.doc.warpMarkers.length).toBe(2);
     expect(b.app.detection.sens).toBe(61);
     expect(b.app.step).toBe(2);
     expect(b.app.excluded).toEqual(a.app.excluded);
