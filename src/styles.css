@@ -61,9 +61,11 @@ label.btn{user-select:none}
 .chn{display:inline-flex;align-items:center;gap:6px;color:var(--dim)}
 .ch input[type=range]{width:100%;accent-color:var(--beat);margin:0}
 .ch output{color:var(--dim);font-size:14px;text-align:right}
-.ch select{grid-column:2/-1}
 .ch .hint{grid-column:1/-1;margin:0;font-size:13px;color:var(--dim)}
-.ch.idle select{opacity:.6}
+.ch .mute{padding:3px;min-height:28px;min-width:28px;border-color:transparent;background:none;color:var(--dim)}
+.ch .mute.on{box-shadow:none;border-color:transparent;color:var(--beat)}
+.ch:has(.mute:not(.on)) :is(input,output){opacity:.45}
+.ch.idle .mute{opacity:.6}
 @media (pointer:coarse){ #zIn,#zOut{display:none} .btn{min-height:38px;min-width:38px} .steps button{padding:9px 14px} }
 :focus-visible{outline:2px solid var(--focus);outline-offset:1px}
 canvas:focus-visible{outline-offset:-2px}

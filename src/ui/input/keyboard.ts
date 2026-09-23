@@ -90,7 +90,10 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
       else if (k === 'x') f.slicer.toggleSelected();
     } else if (app.step === 5) {
       if (k === 'x') f.groove.toggleExaggerate();
-      else if (k === 'm') f.groove.cycleListen();
+      else if (k === 'm') {
+        f.mixer.toggleMute('drums');
+        if (app.drums) app.notify.toast(app.mute.drums ? 'Synth kit: muted' : 'Synth kit: on');
+      }
       else if (k === 'c') f.groove.toggleChart();
     }
   });

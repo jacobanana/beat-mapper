@@ -82,8 +82,6 @@ export interface GrooveSettings {
   ref: Reference | 'auto';
   /** Draw offsets three times their size, as Pocket Science's pocket-emphasis mode does. */
   exaggerate: boolean;
-  /** What play sounds like in this step: the audio, the drums found in it played by a synth kit, or both. */
-  listen: GrooveListen;
   /** The chart under the controls: the pocket, or the hits as a MIDI transcript. */
   chart: GrooveChartMode;
 }
@@ -97,10 +95,18 @@ export interface MixSettings {
 }
 
 export const MIX_CHANNELS = ['audio', 'click', 'drums'] as const;
+
+/**
+ * What the mixer has muted, keeping each level for when it comes back. The click has no mute here:
+ * its on/off in the transport is its mute. The kit starts muted, so the Groove step sounds like the
+ * audio until asked otherwise.
+ */
+export interface MuteSettings {
+  audio: boolean;
+  drums: boolean;
+}
 export const MIX_MAX = 150;
 
-export const GROOVE_LISTENS = ['audio', 'midi', 'both'] as const;
-export type GrooveListen = (typeof GROOVE_LISTENS)[number];
 export type GrooveChartMode = 'pocket' | 'midi';
 
 export const defaultDetection = (): DetectionSettings => ({ sens: 55, gap: 60, band: 'full', algo: 'flux', showOdf: true });
@@ -110,8 +116,9 @@ export const defaultSlicer = (): SlicerSettings => ({
   mode: 'gap', len: 500, tail: 0, fadeIn: 1, fadeOut: 8, min: 40, mono: false, bits: 16, norm: false, target: -1, naming: 'num', csv: true,
 });
 export const defaultTransport = (): TransportState => ({ loop: null, loopOn: false, start: 0, playhead: 0, stay: false, click: false, scrubMode: false });
-export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', ref: 'auto', exaggerate: true, listen: 'audio', chart: 'pocket' });
+export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', ref: 'auto', exaggerate: true, chart: 'pocket' });
 export const defaultMix = (): MixSettings => ({ audio: 100, click: 100, drums: 100 });
+export const defaultMute = (): MuteSettings => ({ audio: false, drums: true });
 
 /** Reads mixer levels saved by an earlier visit, keeping only numbers in range. */
 export function parseMix(json: string | null): MixSettings {

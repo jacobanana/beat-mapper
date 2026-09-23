@@ -9,10 +9,8 @@ import { grooveJson } from '../../io/formats/groove';
 import { type DrumNote, buildMidi } from '../../io/formats/midi';
 import { zipFiles } from '../../io/formats/zip';
 import type { App } from '../app';
-import { GROOVE_LISTENS, type GrooveChartMode, type GrooveListen } from '../../state/settings';
+import type { GrooveChartMode } from '../../state/settings';
 import type { Exports } from './exports';
-
-const LISTEN_TOAST: Record<GrooveListen, string> = { audio: 'Hear: the audio', midi: 'Hear: the drums as MIDI, on a synth kit', both: 'Hear: the audio and the MIDI drums' };
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
@@ -67,18 +65,6 @@ export class Groove {
   toggleExaggerate(): void { this.app.set('groove', { exaggerate: !this.app.groove.exaggerate }); }
   setChart(chart: GrooveChartMode): void { this.app.set('groove', { chart }); }
   toggleChart(): void { this.setChart(this.app.groove.chart === 'pocket' ? 'midi' : 'pocket'); }
-
-  /** What play sounds like here: the audio, the drums found in it on a synth kit, or both. */
-  setListen(listen: GrooveListen): void {
-    this.app.set('groove', { listen });
-    if (listen !== 'audio' && !this.app.drums) this.app.notify.toast('The kit plays the drums once they are found.');
-  }
-
-  cycleListen(): void {
-    const i = GROOVE_LISTENS.indexOf(this.app.groove.listen), next = GROOVE_LISTENS[(i + 1) % GROOVE_LISTENS.length];
-    this.setListen(next);
-    this.app.notify.toast(LISTEN_TOAST[next]);
-  }
 
   /** One line for the panel: the pocket in words. */
   summary(): string {
