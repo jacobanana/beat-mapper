@@ -57,6 +57,20 @@ try {
     assert.equal(await page.isVisible('#exportDlg'), false);
     assert.equal(d.suggestedFilename(), 'drifting-drum-loop-tempo-map.mid');
   });
+  await step('Export: the audio warped onto a straight grid downloads as a .wav', async () => {
+    await page.keyboard.press('3');
+    await page.click('[data-fmt=warpWav]');
+    assert.equal(await page.isVisible('#warpMode'), true);
+    assert.equal(await page.isVisible('#clicks'), false);
+    assert.equal(await page.getAttribute('#warpBpm', 'placeholder'), '98');
+    await page.selectOption('#warpMode', 'beats');
+    assert.match(await text('expInfo'), /^Cut at the transients.* at 98 BPM, stretched \d+ %–\d+ %\./);
+    await page.fill('#warpBpm', '100');
+    await page.dispatchEvent('#warpBpm', 'change');
+    assert.match(await text('expInfo'), / at 100 BPM/);
+    const [d] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#expSave')]);
+    assert.equal(d.suggestedFilename(), 'drifting-drum-loop_warped_100bpm.wav');
+  });
   await step('Slice: one slice per transient', async () => {
     await page.keyboard.press('4');
     assert.equal(await text('slCount'), '128/128 kept');

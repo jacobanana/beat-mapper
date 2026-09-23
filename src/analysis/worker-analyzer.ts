@@ -1,6 +1,7 @@
 import type { Algo, Analysis, Band } from '../core/dsp/onset';
 import type { DrumAnalysis, DrumSource } from '../core/drums/detect';
 import type { Candidate } from '../core/types';
+import type { WarpJob } from '../core/warp/modes';
 import { type Analyzer, InlineAnalyzer } from './analyzer';
 import type { Request, Response } from './protocol';
 
@@ -76,6 +77,20 @@ export class WorkerAnalyzer implements Analyzer {
     const r = await this.request({ type: 'drums', source }, [], onProgress);
     if (r.type !== 'drums') throw new Error('Unexpected reply ' + r.type);
     return r.drums;
+  }
+
+  async warp(job: WarpJob, onProgress?: (f: number) => void): Promise<Float32Array[]> {
+    if (this.inline) return this.inline.warp(job, onProgress);
+    // The worker gets its own copies of the channels; the page's stay for drawing and playback.
+    const chans = job.chans.map((c) => c.slice());
+    try {
+      const r = await this.request({ type: 'warp', job: { ...job, chans } }, chans.map((c) => c.buffer), onProgress);
+      if (r.type !== 'warp') throw new Error('Unexpected reply ' + r.type);
+      return r.chans;
+    } catch (e) {
+      if (e instanceof WorkerGone) return this.fallback().warp(job, onProgress);
+      throw e;
+    }
   }
 
   dispose(): void {

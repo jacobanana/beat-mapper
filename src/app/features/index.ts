@@ -9,6 +9,7 @@ import { Mixer } from './mixer';
 import { Playback } from './playback';
 import { type KeyValueStore, Sessions } from './sessions';
 import { Slicer } from './slicer';
+import { Warp } from './warp';
 import { Workflow } from './workflow';
 
 /** Every feature of the editor, wired to one App. The UI calls these; they change the App. */
@@ -20,6 +21,7 @@ export interface Features {
   workflow: Workflow;
   exports: Exports;
   slicer: Slicer;
+  warp: Warp;
   groove: Groove;
   sessions: Sessions;
   loader: Loader;
@@ -34,7 +36,8 @@ export function createFeatures(app: App, analyzer: Analyzer, store: KeyValueStor
   const groove = new Groove(app, analyzer, exports, playback);
   const workflow = new Workflow(app, beats, groove);
   const slicer = new Slicer(app, playback, exports);
+  const warp = new Warp(app, analyzer, beats, slicer);
   const sessions = new Sessions(app, markers, playback, workflow, store);
   const loader = new Loader(app, analyzer, playback, sessions, workflow);
-  return { playback, mixer, markers, beats, workflow, exports, slicer, groove, sessions, loader };
+  return { playback, mixer, markers, beats, workflow, exports, slicer, warp, groove, sessions, loader };
 }

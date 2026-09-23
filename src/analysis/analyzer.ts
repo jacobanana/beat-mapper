@@ -2,11 +2,13 @@ import { type Algo, type Analysis, type Band, analyze } from '../core/dsp/onset'
 import { type DrumAnalysis, type DrumSource, detectDrums } from '../core/drums/detect';
 import { pickCandidates } from '../core/markers/detect';
 import type { Candidate } from '../core/types';
+import { type WarpJob, renderWarp } from '../core/warp/modes';
 
 /**
- * Finds the transients in a signal. The analysis is heavy (an FFT per 6 ms of audio, and a
- * sample-level look at every candidate), so the app runs it in a worker; this interface lets the
- * rest of the app not care where it runs.
+ * Finds the transients in a signal, and renders warped audio. Both are heavy (an FFT per 6 ms of
+ * audio, and a sample-level look at every candidate; an FFT or a waveform search per few ms of every
+ * channel), so the app runs them in a worker; this interface lets the rest of the app not care where
+ * they run.
  */
 export interface Analyzer {
   /** Analyses a new signal. Later `candidates` calls read from it. */
@@ -15,6 +17,8 @@ export interface Analyzer {
   candidates(band: Band, algo: Algo): Promise<Candidate[]>;
   /** Kick, snare and hat hits in the last analysed signal. */
   drums(source: DrumSource, onProgress?: (f: number) => void): Promise<DrumAnalysis>;
+  /** The audio re-timed onto a straight grid. */
+  warp(job: WarpJob, onProgress?: (f: number) => void): Promise<Float32Array[]>;
   dispose(): void;
 }
 
@@ -41,6 +45,10 @@ export class InlineAnalyzer implements Analyzer {
   async drums(source: DrumSource, onProgress?: (f: number) => void): Promise<DrumAnalysis> {
     if (!this.x) throw new Error('Nothing analysed yet');
     return detectDrums(this.x, this.sr, { source, onProgress, yieldToEventLoop: this.yieldToEventLoop });
+  }
+
+  async warp(job: WarpJob, onProgress?: (f: number) => void): Promise<Float32Array[]> {
+    return renderWarp(job, onProgress);
   }
 
   dispose(): void {

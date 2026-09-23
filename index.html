@@ -252,6 +252,8 @@
       <h3>Tempo map</h3>
       <button data-fmt="midi">MIDI <small>.mid</small></button>
       <button data-fmt="rpp">REAPER <small>.rpp</small></button>
+      <h3>Audio</h3>
+      <button data-fmt="warpWav">Warped to the grid <small>.wav</small></button>
       <h3>Samples</h3>
       <button data-fmt="slices">Slices <small>.zip</small></button>
       <button data-fmt="slicesRpp">Slices in REAPER <small>.zip</small></button>
@@ -266,14 +268,16 @@
     <div class="xopts">
       <p id="expDesc"></p>
       <div class="fields">
-        <label class="fld" data-for="midi rpp"><span>Audio</span><select id="lead" aria-label="Audio placement"><option value="full">Whole file + lead-in</option><option value="trim">Trim to bar 1</option></select></label>
+        <label class="fld" data-for="warpWav"><span>Material</span><select id="warpMode" aria-label="Material, which sets the warp algorithm"><option value="beats">Drums</option><option value="mono">Mono (bass, lead)</option><option value="vocal">Vocal</option><option value="poly">Poly (chords, pads, keys)</option><option value="music">Full mix</option><option value="repitch">Re-pitch (like a turntable)</option></select></label>
+        <div class="fld" data-for="warpWav"><span>Grid tempo (BPM)</span><span class="pair"><input type="number" id="warpBpm" min="20" max="400" step="0.01" aria-label="Grid tempo in BPM; empty follows the audio"><span class="num" id="warpAvg"></span></span></div>
+        <label class="fld" data-for="midi rpp warpWav"><span>Audio</span><select id="lead" aria-label="Audio placement"><option value="full">Whole file + lead-in</option><option value="trim">Trim to bar 1</option></select></label>
         <label class="fld" data-for="midi rpp slicesRpp"><span>Tempo change at</span><select id="res" aria-label="Tempo change at"><option value="pins">every pin</option><option value="bar">every bar</option><option value="beat">every beat</option></select></label>
         <label class="fld chk" data-for="midi"><input type="checkbox" id="clicks" checked><span>Click track of MIDI notes</span></label>
         <label class="fld chk" data-for="rpp"><input type="checkbox" id="rppAudio" checked><span>Pack the audio file in the zip</span></label>
         <div class="fld" data-for="slices slicesRpp sliceWav"><span>Fade in / out (ms)</span><span class="pair"><input type="number" id="slFadeIn" data-slicer min="0" max="500" step="1" value="1" aria-label="Fade in, ms"><input type="number" id="slFadeOut" data-slicer min="0" max="2000" step="1" value="8" aria-label="Fade out, ms"></span></div>
-        <div class="fld" data-for="slices slicesRpp sliceWav loopWav"><span>Normalize</span><span class="pair"><label class="chk"><input type="checkbox" id="slNorm" data-slicer>to</label><input type="number" id="slTarget" data-slicer min="-24" max="0" step="0.5" value="-1" aria-label="Normalize target in dBFS"><span class="num">dBFS</span></span></div>
-        <label class="fld" data-for="slices slicesRpp sliceWav loopWav"><span>Channels</span><select id="slMono" data-slicer aria-label="Channels"><option value="src">as source</option><option value="mono">mono</option></select></label>
-        <label class="fld" data-for="slices slicesRpp sliceWav loopWav"><span>Bit depth</span><select id="slBits" data-slicer aria-label="Bit depth"><option value="16">16-bit</option><option value="24">24-bit</option></select></label>
+        <div class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Normalize</span><span class="pair"><label class="chk"><input type="checkbox" id="slNorm" data-slicer>to</label><input type="number" id="slTarget" data-slicer min="-24" max="0" step="0.5" value="-1" aria-label="Normalize target in dBFS"><span class="num">dBFS</span></span></div>
+        <label class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Channels</span><select id="slMono" data-slicer aria-label="Channels"><option value="src">as source</option><option value="mono">mono</option></select></label>
+        <label class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Bit depth</span><select id="slBits" data-slicer aria-label="Bit depth"><option value="16">16-bit</option><option value="24">24-bit</option></select></label>
         <label class="fld" data-for="slices slicesRpp sliceWav"><span>File names</span><select id="slName" data-slicer aria-label="File names"><option value="num">name_01.wav</option><option value="time">name_01 + start time</option></select></label>
         <label class="fld chk" data-for="slices slicesRpp"><input type="checkbox" id="slCsv" checked><span>Add a .csv list of the slices</span></label>
         <div class="fld" data-for="session"><span>Open</span><span class="pair"><label class="btn" id="sessOpen" for="sessIn" tabindex="0" role="button" title="Open a session file, then the same audio"><svg class="ic"><use href="#i-import"/></svg>Open a session file</label></span></div>
