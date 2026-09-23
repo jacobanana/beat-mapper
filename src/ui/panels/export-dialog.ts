@@ -150,6 +150,7 @@ export function bindExportDialog(app: App, f: Features, onPick: (e: Event) => vo
     void formats[fmt].run();
   };
   $('expClose').onclick = () => dlg.close();
+  $('expCancel').onclick = () => dlg.close();
   dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
 
   // The tempo map's options; the slicer's are bound with the Slice step's (data-slicer).

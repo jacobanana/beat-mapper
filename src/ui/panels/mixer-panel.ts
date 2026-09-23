@@ -1,4 +1,4 @@
-// The mixer: a popover under the top bar with a level for the audio, the click and the synth kit, and
+// The mixer: a popover under its button with a level for the audio, the click and the synth kit, and
 // what the Groove step plays. The click's on/off stays in the transport, where it is one tap away.
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
@@ -9,6 +9,11 @@ export function bindMixerPanel(app: App, f: Features): void {
   const pop = $('mixer'), btn = $('mixBtn');
   const show = (open: boolean) => {
     pop.hidden = !open;
+    // Hangs under its button, kept on screen: the button sits mid-bar on a desktop, at the edge on a phone.
+    if (open) {
+      const r = btn.getBoundingClientRect(), bar = pop.offsetParent!.getBoundingClientRect(), w = pop.offsetWidth;
+      pop.style.left = Math.max(8, Math.min(bar.width - w - 8, r.right - bar.left - w)) + 'px';
+    }
     btn.setAttribute('aria-expanded', String(open));
     btn.classList.toggle('on', open);
   };

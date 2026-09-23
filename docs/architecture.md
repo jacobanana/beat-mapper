@@ -72,6 +72,8 @@ bridge when the app runs inside one).
   `export-dialog.ts` is the Export window: every format, each showing only the options that change
   it; `mixer-panel.ts` is the mixer popover. Step 3 was Export; it is kept as a `Step` value so old
   sessions load, and `Workflow` sends it to Beats.
+- Where a new button goes (top bar groups, panel clusters, dialogs) is set out in
+  [ui-conventions.md](ui-conventions.md).
 
 ## Tests
 

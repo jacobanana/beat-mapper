@@ -25,6 +25,7 @@
 <symbol id="i-zin" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5"/><path d="M12.3 12.3 17 17M6.3 8.5h4.4M8.5 6.3v4.4"/></symbol>
 <symbol id="i-zout" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5"/><path d="M12.3 12.3 17 17M6.3 8.5h4.4"/></symbol>
 <symbol id="i-fit" viewBox="0 0 20 20"><path d="M3 4v12M17 4v12M6 10h8M8 8l-2 2 2 2M12 8l2 2-2 2"/></symbol>
+<symbol id="i-redo" viewBox="0 0 20 20"><path d="M13 5l3.5 3.5L13 12M16.5 8.5H8a4 4 0 0 0 0 8h3"/></symbol>
 <symbol id="i-undo" viewBox="0 0 20 20"><path d="M7 5 3.5 8.5 7 12M3.5 8.5H12a4 4 0 0 1 0 8H9"/></symbol>
 <symbol id="i-prev" viewBox="0 0 20 20"><path d="M12 4 6 10l6 6"/></symbol>
 <symbol id="i-next" viewBox="0 0 20 20"><path d="M8 4l6 6-6 6"/></symbol>
@@ -51,35 +52,40 @@
 </defs></svg>
 <div id="app">
   <header class="top">
-    <div class="grp">
+    <div class="grp file">
       <label class="btn" id="openBtn" for="fileIn" tabindex="0" role="button" title="Open audio (Ctrl/Cmd+O)" aria-label="Open audio"><svg class="ic"><use href="#i-open"/></svg></label>
       <input type="file" id="fileIn" class="vh" tabindex="-1" aria-hidden="true">
+      <button class="btn" id="exportBtn" title="Export: tempo map, samples, drums, session (Ctrl/Cmd+E)" aria-label="Export" aria-haspopup="dialog"><svg class="ic"><use href="#i-export"/></svg><span class="lbl">Export</span></button>
       <span id="fileInfo"></span>
     </div>
+    <div class="grp edit">
+      <button class="btn" id="undoBtn" title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" disabled><svg class="ic"><use href="#i-undo"/></svg></button>
+      <button class="btn" id="redoBtn" title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" disabled><svg class="ic"><use href="#i-redo"/></svg></button>
+    </div>
     <nav class="steps" role="tablist" aria-label="Workflow">
-      <button role="tab" id="t1" aria-selected="true" title="Transients (1)" aria-label="Transients"><svg class="ic"><use href="#i-wave"/></svg></button>
-      <button role="tab" id="t2" aria-selected="false" title="Beats (2)" aria-label="Beats"><svg class="ic"><use href="#i-beats"/></svg></button>
-      <button role="tab" id="t4" aria-selected="false" title="Slice samples (4)" aria-label="Slice samples"><svg class="ic"><use href="#i-slice"/></svg></button>
-      <button role="tab" id="t5" aria-selected="false" title="Groove: the pocket of kick, snare and hats (5)" aria-label="Groove"><svg class="ic"><use href="#i-groove"/></svg></button>
+      <button role="tab" id="t1" aria-selected="true" title="Transients (1)" aria-label="Transients"><svg class="ic"><use href="#i-wave"/></svg><span class="lbl">Transients</span></button>
+      <button role="tab" id="t2" aria-selected="false" title="Beats (2)" aria-label="Beats"><svg class="ic"><use href="#i-beats"/></svg><span class="lbl">Beats</span></button>
+      <button role="tab" id="t4" aria-selected="false" title="Slice samples (4)" aria-label="Slice samples"><svg class="ic"><use href="#i-slice"/></svg><span class="lbl">Slice</span></button>
+      <button role="tab" id="t5" aria-selected="false" title="Groove: the pocket of kick, snare and hats (5)" aria-label="Groove"><svg class="ic"><use href="#i-groove"/></svg><span class="lbl">Groove</span></button>
     </nav>
-    <button class="btn" id="exportBtn" title="Export: tempo map, samples, drums, session (3)" aria-label="Export" aria-haspopup="dialog"><svg class="ic"><use href="#i-export"/></svg></button>
-    <div class="grp tools">
-      <button class="btn" id="zOut" title="Zoom out (−)" aria-label="Zoom out"><svg class="ic"><use href="#i-zout"/></svg></button>
-      <button class="btn" id="zFit" title="Fit whole file (Z)" aria-label="Fit"><svg class="ic"><use href="#i-fit"/></svg></button>
-      <button class="btn" id="zIn" title="Zoom in (+)" aria-label="Zoom in"><svg class="ic"><use href="#i-zin"/></svg></button>
-      <button class="btn" id="undoBtn" title="Undo (Ctrl/Cmd+Z)" aria-label="Undo"><svg class="ic"><use href="#i-undo"/></svg></button>
-      <button class="btn" id="mixBtn" title="Mixer: audio, click and drums" aria-label="Mixer" aria-expanded="false" aria-controls="mixer"><svg class="ic"><use href="#i-mix"/></svg></button>
-      <button class="btn" id="helpBtn" title="Help and shortcuts (?)" aria-label="Help">?</button>
-    </div>
+    <span class="brk" aria-hidden="true"></span>
     <div class="grp transport">
-      <button class="btn" id="playBtn" title="Play / stop (Space)" aria-label="Play or stop"><svg class="ic"><use href="#i-play"/></svg></button>
       <button class="btn" id="fromStart" title="Play from the first transient, or the loop start (Enter)" aria-label="Play from start"><svg class="ic"><use href="#i-tostart"/></svg></button>
-      <button class="btn" id="stayBtn" title="Stop leaves the playhead where it stopped; with the magnet on it sticks to the closest transient (H)" aria-label="Playhead stays on stop" aria-pressed="false"><svg class="ic"><use href="#i-stay"/></svg></button>
+      <button class="btn" id="playBtn" title="Play / stop (Space)" aria-label="Play or stop"><svg class="ic"><use href="#i-play"/></svg></button>
+      <span class="sep"></span>
       <button class="btn" id="loopBtn" title="Loop (L)" aria-label="Loop" aria-pressed="false"><svg class="ic"><use href="#i-loop"/></svg></button>
-      <button class="btn" id="scrubBtn" title="Scrub: drag the waveform to listen (R)" aria-label="Scrub" aria-pressed="false"><svg class="ic"><use href="#i-scrub"/></svg></button>
       <button class="btn" id="clickBtn" title="Click on markers / beats (K)" aria-label="Click" aria-pressed="false"><svg class="ic"><use href="#i-click"/></svg></button>
-      <div class="read"><b id="rTime" title="Time">0:00.000</b><b id="rPos" title="Bar.beat">–</b><b id="rBpm" title="BPM">–</b></div>
+      <button class="btn" id="scrubBtn" title="Scrub: drag the waveform to listen (R)" aria-label="Scrub" aria-pressed="false"><svg class="ic"><use href="#i-scrub"/></svg></button>
+      <button class="btn" id="stayBtn" title="Stop leaves the playhead where it stopped; with the magnet on it sticks to the closest transient (H)" aria-label="Playhead stays on stop" aria-pressed="false"><svg class="ic"><use href="#i-stay"/></svg></button>
+      <button class="btn" id="mixBtn" title="Mixer: audio, click and drums levels" aria-label="Mixer" aria-expanded="false" aria-controls="mixer"><svg class="ic"><use href="#i-mix"/></svg></button>
     </div>
+    <div class="read"><b id="rTime" title="Time">0:00.000</b><b id="rPos" title="Bar.beat">–</b><b id="rBpm" title="BPM">–</b></div>
+    <div class="grp view">
+      <button class="btn" id="zOut" title="Zoom out (−)" aria-label="Zoom out"><svg class="ic"><use href="#i-zout"/></svg></button>
+      <button class="btn" id="zIn" title="Zoom in (+)" aria-label="Zoom in"><svg class="ic"><use href="#i-zin"/></svg></button>
+      <button class="btn" id="zFit" title="Fit whole file (Z)" aria-label="Fit"><svg class="ic"><use href="#i-fit"/></svg></button>
+    </div>
+    <button class="btn" id="helpBtn" title="Help and shortcuts (?)" aria-label="Help">?</button>
     <div class="pop" id="mixer" role="group" aria-label="Mixer" hidden>
       <div class="ch">
         <span class="chn"><svg class="ic"><use href="#i-wave"/></svg>Audio</span>
@@ -119,45 +125,68 @@
 
     <section id="panel" aria-label="Controls">
       <div class="pane" id="p1">
-        <div class="bar">
-          <label class="sl" title="Sensitivity ([ ])"><svg class="ic"><use href="#i-sens"/></svg><input type="range" id="sens" min="0" max="100" value="55" aria-label="Sensitivity"><output id="sensO">55%</output></label>
-          <label class="sl" title="Minimum gap between markers"><svg class="ic"><use href="#i-gap"/></svg><input type="range" id="gap" min="10" max="300" step="5" value="60" aria-label="Minimum gap"><output id="gapO">60 ms</output></label>
-          <select id="algo" title="Detection algorithm" aria-label="Detection algorithm"><option value="flux">Spectral flux</option><option value="complex">Complex domain</option><option value="gdelay">Group delay</option><option value="energy">Energy rise</option></select>
-          <select id="band" title="Frequency band to detect on" aria-label="Band"><option value="full">All</option><option value="low">Lows</option><option value="high">Highs</option></select>
-          <button class="btn on" id="odfBtn" title="Show the transientness curve on the waveform (V)" aria-label="Show transientness" aria-pressed="true"><svg class="ic"><use href="#i-odf"/></svg></button>
-          <span class="sep"></span>
-          <button class="btn" id="prevM" title="Previous transient (Shift+Tab)" aria-label="Previous transient"><svg class="ic"><use href="#i-prev"/></svg></button>
-          <button class="btn" id="nextM" title="Next transient (Tab)" aria-label="Next transient"><svg class="ic"><use href="#i-next"/></svg></button>
-          <button class="btn" id="addM" title="Add marker at playhead (A)" aria-label="Add marker"><svg class="ic"><use href="#i-add"/></svg></button>
-          <button class="btn" id="delM" title="Delete selected marker (Del)" aria-label="Delete marker"><svg class="ic"><use href="#i-del"/></svg></button>
-          <button class="btn" id="resetM" title="Discard manual edits" aria-label="Discard manual edits"><svg class="ic"><use href="#i-reset"/></svg></button>
-          <span class="num" id="mCount" title="Markers"></span>
+        <div class="bar groups">
+          <span class="cluster">
+            <label class="sl" title="Sensitivity ([ ])"><svg class="ic"><use href="#i-sens"/></svg><input type="range" id="sens" min="0" max="100" value="55" aria-label="Sensitivity"><output id="sensO">55%</output></label>
+            <label class="sl" title="Minimum gap between markers"><svg class="ic"><use href="#i-gap"/></svg><input type="range" id="gap" min="10" max="300" step="5" value="60" aria-label="Minimum gap"><output id="gapO">60 ms</output></label>
+          </span>
+          <span class="cluster">
+            <select id="algo" title="Detection algorithm" aria-label="Detection algorithm"><option value="flux">Spectral flux</option><option value="complex">Complex domain</option><option value="gdelay">Group delay</option><option value="energy">Energy rise</option></select>
+            <select id="band" title="Frequency band to detect on" aria-label="Band"><option value="full">All</option><option value="low">Lows</option><option value="high">Highs</option></select>
+            <button class="btn on" id="odfBtn" title="Show the transientness curve on the waveform (V)" aria-label="Show transientness" aria-pressed="true"><svg class="ic"><use href="#i-odf"/></svg></button>
+          </span>
+          <span class="cluster">
+            <button class="btn" id="prevM" title="Previous transient (Shift+Tab)" aria-label="Previous transient"><svg class="ic"><use href="#i-prev"/></svg></button>
+            <button class="btn" id="nextM" title="Next transient (Tab)" aria-label="Next transient"><svg class="ic"><use href="#i-next"/></svg></button>
+          </span>
+          <span class="cluster">
+            <button class="btn" id="addM" title="Add marker at playhead (A)" aria-label="Add marker"><svg class="ic"><use href="#i-add"/></svg></button>
+            <button class="btn" id="delM" title="Delete selected marker (Del)" aria-label="Delete marker"><svg class="ic"><use href="#i-del"/></svg></button>
+            <span class="num" id="mCount" title="Markers"></span>
+          </span>
+          <span class="cluster">
+            <button class="btn" id="resetM" title="Discard manual edits" aria-label="Discard manual edits"><svg class="ic"><use href="#i-reset"/></svg></button>
+          </span>
         </div>
       </div>
 
       <div class="pane" id="p2" hidden>
-        <div class="bar" style="flex:2 1 420px">
-          <input type="number" id="num" min="1" max="32" value="4" title="Beats per bar" aria-label="Beats per bar"><span class="num" style="padding:0">/</span>
-          <select id="den" title="Beat unit" aria-label="Beat unit"><option>2</option><option selected>4</option><option>8</option><option>16</option></select>
-          <select id="grid" title="Grid (G)" aria-label="Grid"><option value="bar">Bar</option><option value="2">1/2</option><option value="4">1/4</option><option value="8">1/8</option><option value="16" selected>1/16</option><option value="32">1/32</option><option value="4t">1/4T</option><option value="8t">1/8T</option><option value="16t">1/16T</option></select>
-          <input type="number" id="bpm" min="20" max="400" step="0.01" value="120" title="Starting tempo (BPM)" aria-label="Starting tempo">
-          <button class="btn" id="half" title="Half time">÷2</button><button class="btn" id="dbl" title="Double time">×2</button>
-          <button class="btn" id="tap" title="Tap tempo (T)" aria-label="Tap tempo"><svg class="ic"><use href="#i-tap"/></svg></button>
-          <span class="sep"></span>
-          <button class="btn" id="prevM2" title="Previous transient (Shift+Tab)" aria-label="Previous transient"><svg class="ic"><use href="#i-prev"/></svg></button>
-          <button class="btn" id="nextM2" title="Next transient (Tab)" aria-label="Next transient"><svg class="ic"><use href="#i-next"/></svg></button>
-          <button class="btn" id="setDown" title="Bar 1 starts at playhead (D)" aria-label="Set bar 1"><svg class="ic"><use href="#i-down"/></svg></button>
-          <button class="btn" id="pinHere" title="Pin nearest grid line to playhead (B)" aria-label="Pin here"><svg class="ic"><use href="#i-pin"/></svg></button>
-          <button class="btn" id="unpin" title="Unpin selected (Del)" aria-label="Unpin"><svg class="ic"><use href="#i-unpin"/></svg></button>
-          <button class="btn" id="clearPins" title="Clear all pins except bar 1" aria-label="Clear pins"><svg class="ic"><use href="#i-clear"/></svg></button>
-          <span class="sl" title="Magnet: what the playhead and dragging land on (S cycles)"><svg class="ic"><use href="#i-snap"/></svg><select id="snapTo" aria-label="Snap to"><option value="markers">transients</option><option value="grid">grid</option><option value="off">nothing</option></select></span>
-          <span class="sep"></span>
-          <button class="btn primary" id="derive" title="Derive from loop: keep the loop, rebuild the rest (F)" aria-label="Derive from loop"><svg class="ic"><use href="#i-derive"/></svg></button>
-          <input type="number" id="loopBars" min="1" max="64" placeholder="bars" title="Bars in the loop (blank = auto)" aria-label="Bars in the loop">
-          <button class="btn" id="autoMap" title="Auto-map from bar 1 (M)" aria-label="Auto-map"><svg class="ic"><use href="#i-auto"/></svg></button>
-          <select id="mapEvery" title="Pin every" aria-label="Pin every"><option value="beat">beat</option><option value="bar">bar</option></select>
-          <label class="sl" title="Search window around each beat"><svg class="ic"><use href="#i-tol"/></svg><input type="range" id="tol" min="5" max="45" value="20" aria-label="Search window"><output id="tolO">±20%</output></label>
-          <span class="num" id="aCount" title="Pins"></span>
+        <div class="bar groups" style="flex:2 1 420px">
+          <span class="cluster">
+            <input type="number" id="bpm" min="20" max="400" step="0.01" value="120" title="Starting tempo (BPM)" aria-label="Starting tempo"><span class="num" style="padding:0 4px 0 0">BPM</span>
+            <button class="btn" id="half" title="Half time">÷2</button><button class="btn" id="dbl" title="Double time">×2</button>
+            <button class="btn" id="tap" title="Tap tempo (T)" aria-label="Tap tempo"><svg class="ic"><use href="#i-tap"/></svg></button>
+          </span>
+          <span class="cluster">
+            <input type="number" id="num" min="1" max="32" value="4" title="Beats per bar" aria-label="Beats per bar"><span class="num" style="padding:0">/</span>
+            <select id="den" title="Beat unit" aria-label="Beat unit"><option>2</option><option selected>4</option><option>8</option><option>16</option></select>
+          </span>
+          <span class="cluster">
+            <select id="grid" title="Grid (G)" aria-label="Grid"><option value="bar">Bar</option><option value="2">1/2</option><option value="4">1/4</option><option value="8">1/8</option><option value="16" selected>1/16</option><option value="32">1/32</option><option value="4t">1/4T</option><option value="8t">1/8T</option><option value="16t">1/16T</option></select>
+            <span class="sl" title="Magnet: what the playhead and dragging land on (S cycles)"><svg class="ic"><use href="#i-snap"/></svg><select id="snapTo" aria-label="Snap to"><option value="markers">transients</option><option value="grid">grid</option><option value="off">nothing</option></select></span>
+          </span>
+          <span class="cluster">
+            <button class="btn" id="prevM2" title="Previous transient (Shift+Tab)" aria-label="Previous transient"><svg class="ic"><use href="#i-prev"/></svg></button>
+            <button class="btn" id="nextM2" title="Next transient (Tab)" aria-label="Next transient"><svg class="ic"><use href="#i-next"/></svg></button>
+          </span>
+          <span class="cluster">
+            <button class="btn" id="setDown" title="Bar 1 starts at playhead (D)" aria-label="Set bar 1"><svg class="ic"><use href="#i-down"/></svg></button>
+            <button class="btn" id="pinHere" title="Pin nearest grid line to playhead (B)" aria-label="Pin here"><svg class="ic"><use href="#i-pin"/></svg></button>
+            <button class="btn" id="unpin" title="Unpin selected (Del)" aria-label="Unpin"><svg class="ic"><use href="#i-unpin"/></svg></button>
+            <button class="btn" id="clearPins" title="Clear all pins except bar 1" aria-label="Clear pins"><svg class="ic"><use href="#i-clear"/></svg></button>
+            <span class="num" id="aCount" title="Pins"></span>
+          </span>
+          <span class="cluster">
+            <button class="btn primary" id="derive" title="Derive from loop: keep the loop, rebuild the rest (F)" aria-label="Derive from loop"><svg class="ic"><use href="#i-derive"/></svg>Derive</button>
+            <input type="number" id="loopBars" min="1" max="64" placeholder="bars" title="Bars in the loop (blank = auto)" aria-label="Bars in the loop">
+          </span>
+          <span class="cluster">
+            <button class="btn" id="autoMap" title="Auto-map from bar 1 (M)" aria-label="Auto-map"><svg class="ic"><use href="#i-auto"/></svg>Auto-map</button>
+            <select id="mapEvery" title="Pin every" aria-label="Pin every"><option value="beat">beat</option><option value="bar">bar</option></select>
+          </span>
+          <span class="cluster">
+            <label class="sl" title="Search window around each beat"><svg class="ic"><use href="#i-tol"/></svg><input type="range" id="tol" min="5" max="45" value="20" aria-label="Search window"><output id="tolO">±20%</output></label>
+          </span>
         </div>
         <div class="bars">
           <p id="sum"></p>
@@ -180,7 +209,7 @@
             <button class="btn" id="slNext" title="Next slice, and hear it (Tab)" aria-label="Next slice"><svg class="ic"><use href="#i-next"/></svg></button>
             <button class="btn" id="slPlay" title="Play the selected slice on its own (E)" aria-label="Play slice"><svg class="ic"><use href="#i-play"/></svg></button>
             <button class="btn" id="slOff" title="Keep or drop the selected slice (X)" aria-label="Keep or drop slice"><svg class="ic"><use href="#i-clear"/></svg></button>
-            <button class="btn" id="slAll" title="Keep every slice again" aria-label="Keep every slice">all</button>
+            <button class="btn" id="slAll" title="Keep every slice again">Keep all</button>
           </div>
         </div>
         <div class="bars">
@@ -246,7 +275,7 @@
         <input type="file" id="sessIn" class="vh" tabindex="-1" aria-hidden="true">
       </div>
       <p id="expInfo"></p>
-      <div class="xfoot"><button class="btn primary" id="expSave"><svg class="ic"><use href="#i-export"/></svg><span id="expSaveL">Save</span></button></div>
+      <div class="xfoot"><button class="btn" id="expCancel">Cancel</button><button class="btn primary" id="expSave"><svg class="ic"><use href="#i-export"/></svg><span id="expSaveL">Save</span></button></div>
     </div>
   </div>
 </dialog>
@@ -254,24 +283,25 @@
 <dialog id="help">
   <h2>Buttons</h2>
   <div class="legend">
-    <h3>Top bar</h3>
+    <h3>Top bar, left to right</h3>
     <div><svg class="ic"><use href="#i-open"/></svg><span>Open audio</span><span><kbd>Ctrl/⌘</kbd><kbd>O</kbd></span></div>
+    <div><svg class="ic"><use href="#i-export"/></svg><span>Export: every format, each with its own options</span><span><kbd>3</kbd> <kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
+    <div><svg class="ic"><use href="#i-undo"/></svg><span>Undo</span><span><kbd>Ctrl/⌘</kbd><kbd>Z</kbd></span></div>
+    <div><svg class="ic"><use href="#i-redo"/></svg><span>Redo</span><span><kbd>Ctrl/⌘</kbd><kbd>⇧</kbd><kbd>Z</kbd></span></div>
     <div><svg class="ic"><use href="#i-wave"/></svg><span>Step 1 · Transients</span><span><kbd>1</kbd></span></div>
     <div><svg class="ic"><use href="#i-beats"/></svg><span>Step 2 · Beats</span><span><kbd>2</kbd></span></div>
-    <div><svg class="ic"><use href="#i-export"/></svg><span>Export: every format, each with its own options</span><span><kbd>3</kbd></span></div>
     <div><svg class="ic"><use href="#i-slice"/></svg><span>Step 4 · Slice samples</span><span><kbd>4</kbd></span></div>
     <div><svg class="ic"><use href="#i-groove"/></svg><span>Step 5 · Groove</span><span><kbd>5</kbd></span></div>
-    <div><svg class="ic"><use href="#i-play"/></svg><span>Play from playhead / stop</span><span><kbd>Space</kbd></span></div>
     <div><svg class="ic"><use href="#i-tostart"/></svg><span>Play from first transient, or loop start</span><span><kbd>Enter</kbd></span></div>
-    <div><svg class="ic"><use href="#i-stay"/></svg><span>Stop leaves the playhead in place (on the closest transient or grid line, whichever the magnet is set to)</span><span><kbd>H</kbd></span></div>
+    <div><svg class="ic"><use href="#i-play"/></svg><span>Play from playhead / stop</span><span><kbd>Space</kbd></span></div>
     <div><svg class="ic"><use href="#i-loop"/></svg><span>Loop on/off</span><span><kbd>L</kbd></span></div>
-    <div><svg class="ic"><use href="#i-scrub"/></svg><span>Scrub: drag the waveform to listen</span><span><kbd>R</kbd></span></div>
     <div><svg class="ic"><use href="#i-click"/></svg><span>Click on markers / beats</span><span><kbd>K</kbd></span></div>
+    <div><svg class="ic"><use href="#i-scrub"/></svg><span>Scrub: drag the waveform to listen</span><span><kbd>R</kbd></span></div>
+    <div><svg class="ic"><use href="#i-stay"/></svg><span>Stop leaves the playhead in place (on the closest transient or grid line, whichever the magnet is set to)</span><span><kbd>H</kbd></span></div>
     <div><svg class="ic"><use href="#i-mix"/></svg><span>Mixer: audio, click and drums levels</span><span></span></div>
     <div><svg class="ic"><use href="#i-zout"/></svg><span>Zoom out</span><span><kbd>−</kbd></span></div>
-    <div><svg class="ic"><use href="#i-fit"/></svg><span>Fit whole file</span><span><kbd>Z</kbd></span></div>
     <div><svg class="ic"><use href="#i-zin"/></svg><span>Zoom in</span><span><kbd>+</kbd></span></div>
-    <div><svg class="ic"><use href="#i-undo"/></svg><span>Undo</span><span><kbd>Ctrl/⌘</kbd><kbd>Z</kbd></span></div>
+    <div><svg class="ic"><use href="#i-fit"/></svg><span>Fit whole file</span><span><kbd>Z</kbd></span></div>
     <h3>Transients</h3>
     <div><svg class="ic"><use href="#i-sens"/></svg><span>Sensitivity</span><span><kbd>[</kbd><kbd>]</kbd></span></div>
     <div><svg class="ic"><use href="#i-gap"/></svg><span>Minimum gap between markers</span><span></span></div>

@@ -76,7 +76,7 @@ export function bindSlicePanel(app: App, f: Features): void {
   let lastSel: number | null = null;
   const render = () => {
     const S = app.slices, sel = app.sliceIndex;
-    $('slCount').textContent = S.length ? S.filter((x) => !x.off).length + '/' + S.length : '';
+    $('slCount').textContent = S.length ? S.filter((x) => !x.off).length + '/' + S.length + ' kept' : '';
     if ($('p4').hidden) return;
     const n = Math.min(S.length, SL_ROWS);
     while (rows.rows.length > n) rows.deleteRow(rows.rows.length - 1);

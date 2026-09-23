@@ -23,7 +23,7 @@ try {
   await step('demo loop is analysed', async () => {
     await page.click('#demoBtn');
     await page.waitForFunction(() => document.getElementById('mCount').textContent !== '' && document.getElementById('busy').hidden, null, { timeout: 30000 });
-    assert.equal(await text('mCount'), '128');
+    assert.equal(await text('mCount'), '128 markers');
   });
   await step('a double-click adds a marker, undo takes it away', async () => {
     const b = await (await page.$('#cv')).boundingBox();
@@ -35,15 +35,15 @@ try {
       if ((await page.$eval('#cv', (e) => e.style.cursor)) === 'default') break;
     }
     await page.mouse.dblclick(b.x + x, b.y + 80);
-    assert.equal(await text('mCount'), '129');
+    assert.equal(await text('mCount'), '129 markers');
     await page.keyboard.press('Control+z');
-    assert.equal(await text('mCount'), '128');
+    assert.equal(await text('mCount'), '128 markers');
   });
   await step('Beats: bar 1, then auto-map', async () => {
     await page.keyboard.press('2');
-    assert.equal(await text('aCount'), '1');
+    assert.equal(await text('aCount'), '1 pin');
     await page.keyboard.press('m');
-    assert.equal(await text('aCount'), '64');
+    assert.equal(await text('aCount'), '64 pins');
     assert.match(await text('sum'), /^17 bars · avg 98\.16/);
   });
   await step('Export: MIDI file downloads', async () => {
@@ -59,7 +59,7 @@ try {
   });
   await step('Slice: one slice per transient', async () => {
     await page.keyboard.press('4');
-    assert.equal(await text('slCount'), '128/128');
+    assert.equal(await text('slCount'), '128/128 kept');
     await page.click('#exportBtn');
     assert.equal(await page.getAttribute('[data-fmt=slices]', 'aria-pressed'), 'true');
     assert.equal(await page.isVisible('#slBits'), true);

@@ -32,7 +32,13 @@ button,input,select{font:inherit;color:inherit}
 .steps button{border:0;background:none;padding:6px 12px;cursor:pointer;color:var(--dim);border-right:1px solid var(--line)}
 .steps button:last-child{border-right:0}
 .steps button[aria-selected="true"]{background:var(--raise);color:var(--beat)}
-.transport{margin-left:auto;flex-wrap:wrap} .tools{order:3}
+.grp .sep{margin:4px 3px}
+/* Desktop: file and edit at the left, the transport in the middle, view and help at the right. */
+.transport,.view{margin-left:auto}
+.brk{display:none}
+.steps button{display:inline-flex;align-items:center;gap:6px}
+.lbl{display:none}
+@media (min-width:1520px){ .lbl{display:inline} }
 .read{display:flex;gap:10px;padding:0 6px;font-size:16px;font-weight:500}
 .read b{font-weight:500} .read #rPos{color:var(--beat)} .read #rBpm{color:var(--dim)}
 
@@ -82,6 +88,9 @@ main{flex:1;display:flex;flex-direction:column;min-height:0}
 .pane{display:flex;gap:8px 14px;align-items:flex-start;flex-wrap:wrap}
 .bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 5px}
 .sep{width:1px;align-self:stretch;background:var(--line);margin:2px 5px}
+/* A panel bar is made of clusters that wrap as wholes, spaced apart so each reads as one group. */
+.bar.groups{gap:6px 18px}
+.cluster{display:inline-flex;align-items:center;gap:5px;flex-wrap:nowrap}
 .seg{display:inline-flex}
 .seg .btn{border-radius:0}
 .seg .btn:first-child{border-radius:6px 0 0 6px}
@@ -164,7 +173,8 @@ kbd{font:inherit;font-size:13px;color:var(--dim);border:1px solid var(--line);bo
 .pair{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
 .pair input[type=number]{width:64px}
 #expInfo{color:var(--dim);margin:0;font-size:14px;padding-top:10px;border-top:1px solid var(--line)}
-.xfoot{display:flex;justify-content:flex-end}
+.xfoot{display:flex;justify-content:flex-end;gap:8px}
+.xfoot .btn{min-width:96px}
 @media (max-width:560px){
   .xbody{flex-direction:column}
   .fmts{flex:none;flex-direction:row;flex-wrap:wrap;gap:4px;border-right:0;border-bottom:1px solid var(--line)}
@@ -172,7 +182,7 @@ kbd{font:inherit;font-size:13px;color:var(--dim);border:1px solid var(--line);bo
   .fmts button{border-color:var(--line);background:var(--raise);padding:6px 9px}
   .fld{grid-template-columns:1fr}
   .xopts{padding:12px 14px}
-  .xfoot .btn{width:100%}
+  .xfoot .btn{flex:1}
 }
 #toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);
   padding:8px 14px;border-radius:8px;max-width:90vw;opacity:0;pointer-events:none;transition:opacity .18s;z-index:9}
@@ -180,7 +190,11 @@ kbd{font:inherit;font-size:13px;color:var(--dim);border:1px solid var(--line);bo
 @media (max-width:720px){
   #stage{min-height:180px} #panel{max-height:36%;padding:6px}
   .top{padding:5px 6px;gap:5px 6px} #ov{height:24px} .bars{max-width:none} .bars .wrap{max-height:110px}
-  .transport{margin-left:0} .tools{order:0;margin-left:auto} #fileInfo{display:none} .sl input{width:96px}
+  /* Phone: file, edit, steps and help; then the transport and fit; then the readout. */
+  .file{order:1} .edit{order:2} .steps{order:3} #helpBtn{order:4;margin-left:auto}
+  .brk{display:block;order:5;flex-basis:100%;height:0}
+  .transport{order:6;margin-left:0} .view{order:7} .read{order:8}
+  #fileInfo{display:none} .sl input{width:96px}
   .read{font-size:15px;gap:8px;padding:0 2px}
   .pop{right:6px}
 }

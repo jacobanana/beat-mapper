@@ -94,6 +94,8 @@ export class Sessions {
       const off = Math.abs(s.audio.duration - this.app.dur) > 0.05;
       await this.apply(s);
       this.app.history.clear();
+      // Nothing to undo now; the undo button hears it on 'doc'.
+      this.app.bus.emit('doc');
       this.app.notify.toast(off ? 'Session applied, but this audio has a different length – check the markers.' : from === 'saved' ? 'Picked up where you left off' : 'Session loaded');
     } catch (e) {
       console.error(e);
