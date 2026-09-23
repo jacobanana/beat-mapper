@@ -20,6 +20,7 @@
 <symbol id="i-tostart" viewBox="0 0 20 20"><path d="M5 4v12"/><path class="f" d="M16 4 7.5 10 16 16Z"/></symbol>
 <symbol id="i-loop" viewBox="0 0 20 20"><path d="M4 9V8a2.5 2.5 0 0 1 2.5-2.5H15M12.5 3 15 5.5 12.5 8M16 11v1a2.5 2.5 0 0 1-2.5 2.5H5M7.5 17 5 14.5 7.5 12"/></symbol>
 <symbol id="i-scrub" viewBox="0 0 20 20"><path d="M10 3v14M7 7l-3 3 3 3M13 7l3 3-3 3"/></symbol>
+<symbol id="i-mix" viewBox="0 0 20 20"><path d="M5 3v14M10 3v14M15 3v14"/><path class="f" d="M3 11.5h4v3H3ZM8 5.5h4v3H8ZM13 9h4v3h-4Z"/></symbol>
 <symbol id="i-click" viewBox="0 0 20 20"><path d="M7.5 3h5l3 14h-11ZM10 13l4.5-8"/></symbol>
 <symbol id="i-zin" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5"/><path d="M12.3 12.3 17 17M6.3 8.5h4.4M8.5 6.3v4.4"/></symbol>
 <symbol id="i-zout" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5"/><path d="M12.3 12.3 17 17M6.3 8.5h4.4"/></symbol>
@@ -75,8 +76,24 @@
       <button class="btn" id="stayBtn" title="Stop leaves the playhead where it stopped; with the magnet on it sticks to the closest transient (H)" aria-label="Playhead stays on stop" aria-pressed="false"><svg class="ic"><use href="#i-stay"/></svg></button>
       <button class="btn" id="loopBtn" title="Loop (L)" aria-label="Loop" aria-pressed="false"><svg class="ic"><use href="#i-loop"/></svg></button>
       <button class="btn" id="scrubBtn" title="Scrub: drag the waveform to listen (R)" aria-label="Scrub" aria-pressed="false"><svg class="ic"><use href="#i-scrub"/></svg></button>
-      <button class="btn" id="clickBtn" title="Click on markers / beats (K)" aria-label="Click" aria-pressed="false"><svg class="ic"><use href="#i-click"/></svg></button>
+      <button class="btn" id="mixBtn" title="Mixer: audio, click and drums" aria-label="Mixer" aria-expanded="false" aria-controls="mixer"><svg class="ic"><use href="#i-mix"/></svg></button>
       <div class="read"><b id="rTime" title="Time">0:00.000</b><b id="rPos" title="Bar.beat">–</b><b id="rBpm" title="BPM">–</b></div>
+    </div>
+    <div class="pop" id="mixer" role="group" aria-label="Mixer" hidden>
+      <div class="ch">
+        <span class="chn"><svg class="ic"><use href="#i-wave"/></svg>Audio</span>
+        <input type="range" id="mix-audio" min="0" max="150" step="5" value="100" aria-label="Audio level"><output id="mixO-audio">100%</output>
+      </div>
+      <div class="ch">
+        <button class="btn chn" id="clickBtn" title="Click on markers / beats (K)" aria-label="Click" aria-pressed="false"><svg class="ic"><use href="#i-click"/></svg>Click</button>
+        <input type="range" id="mix-click" min="0" max="150" step="5" value="100" aria-label="Click level"><output id="mixO-click">100%</output>
+      </div>
+      <div class="ch" id="mixDrums">
+        <span class="chn"><svg class="ic"><use href="#i-groove"/></svg>Drums</span>
+        <input type="range" id="mix-drums" min="0" max="150" step="5" value="100" aria-label="Drums level"><output id="mixO-drums">100%</output>
+        <select id="gListen" title="What play sounds like in the Groove step: the audio, the drums found in it as MIDI on a synth kit, or both (M)" aria-label="Hear"><option value="audio">hear audio</option><option value="midi">hear MIDI</option><option value="both">hear both</option></select>
+        <p class="hint" id="mixHint">The synth kit plays the drums found in the Groove step.</p>
+      </div>
     </div>
   </header>
 
@@ -204,21 +221,20 @@
       </div>
       <div class="pane" id="p5" hidden>
         <div class="col">
-          <div class="bar">
-            <select id="gSource" title="What the audio is. A full mix is experimental: the other instruments are modelled apart from the drums, but expect misses" aria-label="Audio source"><option value="drums">drums only</option><option value="mix">full mix</option></select>
+          <div class="voices">
             <label class="sl vs" title="Kick sensitivity"><b class="kick">K</b><input type="range" id="gSens-kick" min="0" max="100" value="55" aria-label="Kick sensitivity"><output id="gN-kick"></output></label>
             <label class="sl vs" title="Snare sensitivity: raise it for ghost notes"><b class="snare">S</b><input type="range" id="gSens-snare" min="0" max="100" value="55" aria-label="Snare sensitivity"><output id="gN-snare"></output></label>
             <label class="sl vs" title="Hats sensitivity"><b class="hat">H</b><input type="range" id="gSens-hat" min="0" max="100" value="55" aria-label="Hats sensitivity"><output id="gN-hat"></output></label>
           </div>
           <div class="bar">
+            <select id="gSource" title="What the audio is. A full mix is experimental: the other instruments are modelled apart from the drums, but expect misses" aria-label="Audio source"><option value="drums">drums only</option><option value="mix">full mix</option></select>
             <select id="gGrid" title="Grid each hit is placed on" aria-label="Grid"><option value="8">1/8</option><option value="16" selected>1/16</option><option value="8t">1/8T</option><option value="16t">1/16T</option></select>
             <select id="gRef" title="What the pocket is measured against, bar by bar. Auto: the hats when they keep time, else the tempo map's grid" aria-label="Measured against"><option value="auto">vs auto</option><option value="hat">vs hats</option><option value="kick">vs kick</option><option value="snare">vs snare</option><option value="kit">vs whole kit</option><option value="grid">vs grid</option></select>
             <button class="btn on" id="gExag" title="Draw the offsets in the bar three times their size (X)" aria-label="Exaggerate offsets" aria-pressed="true">×3</button>
-            <span class="sep"></span>
-            <select id="gListen" title="What play sounds like: the audio, the drums found in it as MIDI on a synth kit, or both (M)" aria-label="Hear"><option value="audio">hear audio</option><option value="midi">hear MIDI</option><option value="both">hear both</option></select>
-            <span class="seg" role="group" aria-label="Chart"><button class="btn on" id="gChartPocket" title="Chart: the pocket and the typical bar (C)" aria-pressed="true">POCKET</button><button class="btn" id="gChartMidi" title="Chart: the hits as a MIDI transcript, following the playhead (C)" aria-pressed="false">MIDI</button></span>
           </div>
           <div class="bar">
+            <span class="seg" role="group" aria-label="Chart"><button class="btn on" id="gChartPocket" title="Chart: the pocket and the typical bar (C)" aria-pressed="true">POCKET</button><button class="btn" id="gChartMidi" title="Chart: the hits as a MIDI transcript, following the playhead (C)" aria-pressed="false">MIDI</button></span>
+            <span class="sep"></span>
             <button class="btn primary" id="gMidi" title="Save the drums as MIDI: every hit where it was played, on the tempo map"><svg class="ic"><use href="#i-export"/></svg>MIDI</button>
             <button class="btn" id="gJson" title="Save the typical bar as a Pocket Science groove file (.json)"><svg class="ic"><use href="#i-export"/></svg>GROOVE</button>
           </div>
@@ -245,7 +261,8 @@
     <div><svg class="ic"><use href="#i-stay"/></svg><span>Stop leaves the playhead in place (on the closest transient or grid line, whichever the magnet is set to)</span><span><kbd>H</kbd></span></div>
     <div><svg class="ic"><use href="#i-loop"/></svg><span>Loop on/off</span><span><kbd>L</kbd></span></div>
     <div><svg class="ic"><use href="#i-scrub"/></svg><span>Scrub: drag the waveform to listen</span><span><kbd>R</kbd></span></div>
-    <div><svg class="ic"><use href="#i-click"/></svg><span>Click on markers / beats</span><span><kbd>K</kbd></span></div>
+    <div><svg class="ic"><use href="#i-mix"/></svg><span>Mixer: audio, click and drums levels</span><span></span></div>
+    <div><svg class="ic"><use href="#i-click"/></svg><span>In the mixer: click on markers / beats</span><span><kbd>K</kbd></span></div>
     <div><svg class="ic"><use href="#i-zout"/></svg><span>Zoom out</span><span><kbd>−</kbd></span></div>
     <div><svg class="ic"><use href="#i-fit"/></svg><span>Fit whole file</span><span><kbd>Z</kbd></span></div>
     <div><svg class="ic"><use href="#i-zin"/></svg><span>Zoom in</span><span><kbd>+</kbd></span></div>
@@ -288,6 +305,7 @@
     <div><span>Source</span><span>Drums only, or a full mix (experimental: the other instruments are modelled apart from the drums, but expect misses)</span></div>
     <div><span>K S H</span><span>Sensitivity per voice, with how many hits each has. Raise the snare's for ghost notes</span></div>
     <div><span>vs</span><span>What the pocket is measured against, bar by bar: the hats (the timekeeper), one of the others, the whole kit, or the tempo map's grid. Measuring against a grid found from the same hits is circular, so auto takes the hats when they keep time</span></div>
+    <div><svg class="ic"><use href="#i-mix"/></svg><span>Hear the audio, the drums as MIDI on a synth kit, or both: in the mixer, with the kit's level</span><span><kbd>M</kbd></span></div>
     <div><span>Chart</span><span>Left: where each voice sits, ahead or behind – every hit, its middle half, and its median. Right: the typical bar – dot size is velocity, faint dots are steps played in only some bars, tails show the lean</span></div>
     <div><svg class="ic"><use href="#i-export"/></svg><span>Save the drums as MIDI (every hit where it was played, on the tempo map), or the typical bar as a Pocket Science groove file</span><span></span></div>
   </div>

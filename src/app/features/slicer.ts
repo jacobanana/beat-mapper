@@ -80,7 +80,7 @@ export class Slicer {
     if (playback.playing) playback.stop(true);
     playback.stopPreview();
     const r = renderSlice(a.chans, a.sr, sl.t0, sl.t1, this.renderOptions());
-    playback.oneShot.play(bufferFrom(r.chans, a.sr), sl.t0, sl.t1, () => app.setPlayhead(sl.t0, false));
+    playback.oneShot.play(bufferFrom(r.chans, a.sr), sl.t0, sl.t1, () => app.setPlayhead(sl.t0, false), playback.audioLevel);
     this.select(i);
     app.reveal(sl.t0);
     app.setPlayhead(sl.t0, false);

@@ -1,4 +1,5 @@
-// The top bar: open, the five steps, zoom, undo, help, transport buttons and the time readout.
+// The top bar: open, the five steps, zoom, undo, help, transport buttons and the time readout. The
+// mixer that opens from it is in mixer-panel.ts.
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { fmtTime } from '../../core/format';
@@ -23,7 +24,6 @@ export function bindHeader(app: App, f: Features, openHelp: () => void): void {
   $('stayBtn').onclick = () => f.playback.toggleStay();
   $('loopBtn').onclick = () => f.playback.toggleLoop();
   $('scrubBtn').onclick = () => f.playback.toggleScrub();
-  $('clickBtn').onclick = () => f.playback.toggleClick();
 
   const syncSteps = () => {
     for (let i = 1; i <= 5; i++) {
@@ -36,7 +36,6 @@ export function bindHeader(app: App, f: Features, openHelp: () => void): void {
     setPressed($('stayBtn'), t.stay);
     setPressed($('loopBtn'), t.loopOn);
     setPressed($('scrubBtn'), t.scrubMode);
-    setPressed($('clickBtn'), t.click);
     const playing = f.playback.playing, btn = $('playBtn');
     if (btn.dataset.state !== String(playing)) { btn.dataset.state = String(playing); btn.innerHTML = icon(playing ? 'stop' : 'play'); }
   };

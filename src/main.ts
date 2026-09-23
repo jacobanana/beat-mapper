@@ -15,6 +15,7 @@ import { bindDetectPanel } from './ui/panels/detect-panel';
 import { bindExportPanel } from './ui/panels/export-panel';
 import { bindGroovePanel } from './ui/panels/groove-panel';
 import { bindHeader } from './ui/panels/header';
+import { bindMixerPanel } from './ui/panels/mixer-panel';
 import { bindSlicePanel } from './ui/panels/slice-panel';
 
 const safeStorage = (() => { try { return window.localStorage; } catch { return null; } })();
@@ -69,6 +70,7 @@ window.addEventListener('drop', (e) => {
 
 // ---------- panels and keys ----------
 bindHeader(app, f, openHelp);
+bindMixerPanel(app, f);
 bindDetectPanel(app, f);
 bindBeatsPanel(app, f, refocus);
 bindExportPanel(app, f, onPick);

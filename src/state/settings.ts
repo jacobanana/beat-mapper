@@ -88,6 +88,17 @@ export interface GrooveSettings {
   chart: GrooveChartMode;
 }
 
+/** How loud each thing that plays is, in percent of its natural level: 100 is as it always was. */
+export interface MixSettings {
+  audio: number;
+  click: number;
+  /** The synth kit playing the drums the Groove step found. */
+  drums: number;
+}
+
+export const MIX_CHANNELS = ['audio', 'click', 'drums'] as const;
+export const MIX_MAX = 150;
+
 export const GROOVE_LISTENS = ['audio', 'midi', 'both'] as const;
 export type GrooveListen = (typeof GROOVE_LISTENS)[number];
 export type GrooveChartMode = 'pocket' | 'midi';
@@ -100,3 +111,17 @@ export const defaultSlicer = (): SlicerSettings => ({
 });
 export const defaultTransport = (): TransportState => ({ loop: null, loopOn: false, start: 0, playhead: 0, stay: false, click: false, scrubMode: false });
 export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', ref: 'auto', exaggerate: true, listen: 'audio', chart: 'pocket' });
+export const defaultMix = (): MixSettings => ({ audio: 100, click: 100, drums: 100 });
+
+/** Reads mixer levels saved by an earlier visit, keeping only numbers in range. */
+export function parseMix(json: string | null): MixSettings {
+  const m = defaultMix();
+  try {
+    const d = json ? JSON.parse(json) : null;
+    for (const k of MIX_CHANNELS) {
+      const v = d?.[k];
+      if (typeof v === 'number' && Number.isFinite(v)) m[k] = Math.max(0, Math.min(MIX_MAX, Math.round(v)));
+    }
+  } catch {}
+  return m;
+}

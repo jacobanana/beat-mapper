@@ -213,6 +213,28 @@ describe('sessions', () => {
   });
 });
 
+describe('mixer', () => {
+  it('keeps its levels in range, on this device and out of sessions', () => {
+    const store = new MemoryStore();
+    const a = createTestApp(store);
+    expect(a.app.mix).toEqual({ audio: 100, click: 100, drums: 100 });
+    a.f.mixer.setLevel('click', 60);
+    a.f.mixer.setLevel('drums', 999);
+    a.f.mixer.setLevel('audio', -5);
+    expect(a.app.mix).toEqual({ audio: 0, click: 60, drums: 150 });
+    expect(JSON.parse(store.getItem('beatmapper:mix')!)).toEqual(a.app.mix);
+    expect(createTestApp(store).app.mix).toEqual(a.app.mix);
+  });
+
+  it('falls back to the defaults for anything unreadable it saved', () => {
+    const store = new MemoryStore();
+    store.setItem('beatmapper:mix', '{"audio":"loud","click":40.4}');
+    expect(createTestApp(store).app.mix).toEqual({ audio: 100, click: 40, drums: 100 });
+    store.setItem('beatmapper:mix', 'not json');
+    expect(createTestApp(store).app.mix).toEqual({ audio: 100, click: 100, drums: 100 });
+  });
+});
+
 describe('groove', () => {
   it('finds the demo loop\'s kick, snare and hats and measures their pocket', async () => {
     const { app, f } = t;

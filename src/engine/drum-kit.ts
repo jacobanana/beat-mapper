@@ -14,12 +14,12 @@ function noiseBuffer(c: BaseAudioContext): AudioBuffer {
   return (noise = b);
 }
 
-/** Plays one hit of `voice` at context time `when`, as loud as MIDI velocity `vel` says. */
-export function drumHit(voice: Voice, when: number, vel: number): void {
+/** Plays one hit of `voice` at context time `when`, as loud as MIDI velocity `vel` says, into `dest`. */
+export function drumHit(voice: Voice, when: number, vel: number, dest?: AudioNode): void {
   const c = audioContext(), out = c.createGain();
   // Velocity to gain as a drum machine does it: squared, so ghost notes sit well below the accents.
   out.gain.value = Math.pow(Math.max(1, Math.min(127, vel)) / 127, 2) * 0.9;
-  out.connect(c.destination);
+  out.connect(dest ?? c.destination);
   if (voice === 'kick') kick(c, out, when);
   else if (voice === 'snare') snare(c, out, when);
   else hat(c, out, when);
