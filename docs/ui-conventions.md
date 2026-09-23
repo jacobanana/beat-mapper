@@ -41,6 +41,9 @@ edit, steps and help; then the transport, mixer and fit; then the readout. This 
 - A dialog has its title at the top left, a close button at the top right, and Cancel then the
   default action at the bottom right. Escape and a click on the backdrop close it.
 - Every file goes out through the one Export window, never through a button in a panel.
+- On a phone the Export window's formats are a dropdown: a button showing the chosen format and a
+  line on what it holds, opening the grouped list with that line under every format. Escape or a
+  press outside closes the list before the window.
 - A popover (the mixer) opens under the button that opened it, and closes on Escape or on a press
   anywhere else.
 

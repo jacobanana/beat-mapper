@@ -248,22 +248,24 @@
 <dialog id="exportDlg" aria-labelledby="expTitle">
   <div class="xhead"><h2 id="expTitle">Export</h2><button class="btn" id="expClose" aria-label="Close">✕</button></div>
   <div class="xbody">
-    <nav class="fmts" aria-label="Format">
+    <!-- On a phone the formats are a dropdown: this shows the chosen one and opens the list. -->
+    <button class="fmtPick" id="fmtPick" aria-haspopup="true" aria-expanded="false" aria-controls="fmtList"><span class="nm" id="fmtPickNm"></span><small id="fmtPickExt"></small><span class="sub" id="fmtPickSub"></span><svg class="ic chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+    <nav class="fmts" id="fmtList" aria-label="Format">
       <h3>Tempo map</h3>
-      <button data-fmt="midi">MIDI <small>.mid</small></button>
-      <button data-fmt="rpp">REAPER <small>.rpp</small></button>
+      <button data-fmt="midi"><span class="nm">MIDI</span><small>.mid</small><span class="sub">The tempo map, for any DAW</span></button>
+      <button data-fmt="rpp"><span class="nm">REAPER</span><small>.rpp</small><span class="sub">The tempo map and the audio, in REAPER</span></button>
       <h3>Audio</h3>
-      <button data-fmt="warpWav">Warped to the grid <small>.wav</small></button>
+      <button data-fmt="warpWav"><span class="nm">Warped to the grid</span><small>.wav</small><span class="sub">The audio re-timed to one steady tempo</span></button>
       <h3>Samples</h3>
-      <button data-fmt="slices">Slices <small>.zip</small></button>
-      <button data-fmt="slicesRpp">Slices in REAPER <small>.zip</small></button>
-      <button data-fmt="sliceWav">Selected slice <small>.wav</small></button>
-      <button data-fmt="loopWav">Loop <small>.wav</small></button>
+      <button data-fmt="slices"><span class="nm">Slices</span><small>.zip</small><span class="sub">Every kept slice, zipped</span></button>
+      <button data-fmt="slicesRpp"><span class="nm">Slices in REAPER</span><small>.zip</small><span class="sub">The slices, placed in a REAPER project</span></button>
+      <button data-fmt="sliceWav"><span class="nm">Selected slice</span><small>.wav</small><span class="sub">The selected slice on its own</span></button>
+      <button data-fmt="loopWav"><span class="nm">Loop</span><small>.wav</small><span class="sub">The loop, seamless</span></button>
       <h3>Drums</h3>
-      <button data-fmt="drumsMidi">Drums MIDI <small>.mid</small></button>
-      <button data-fmt="groove">Groove <small>.json</small></button>
+      <button data-fmt="drumsMidi"><span class="nm">Drums MIDI</span><small>.mid</small><span class="sub">Kick, snare and hats as notes</span></button>
+      <button data-fmt="groove"><span class="nm">Groove</span><small>.json</small><span class="sub">The typical bar, for Pocket Science</span></button>
       <h3>Work</h3>
-      <button data-fmt="session">Session <small>.json</small></button>
+      <button data-fmt="session"><span class="nm">Session</span><small>.json</small><span class="sub">Your work, without the audio</span></button>
     </nav>
     <div class="xopts">
       <p id="expDesc"></p>

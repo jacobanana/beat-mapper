@@ -71,6 +71,27 @@ try {
     const [d] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#expSave')]);
     assert.equal(d.suggestedFilename(), 'drifting-drum-loop_warped_100bpm.wav');
   });
+  await step('Export on a phone: the formats are a dropdown', async () => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.keyboard.press('3');
+    assert.equal(await page.isVisible('#fmtList'), false);
+    // It opens on the format last chosen in this step.
+    assert.equal(await text('fmtPickNm'), 'Warped to the grid');
+    await page.click('#fmtPick');
+    assert.equal(await page.getAttribute('#fmtPick', 'aria-expanded'), 'true');
+    await page.click('#fmtList [data-fmt=midi]');
+    assert.equal(await page.isVisible('#fmtList'), false);
+    assert.equal(await text('fmtPickNm'), 'MIDI');
+    assert.equal(await page.isVisible('#clicks'), true);
+    // Escape closes the list first, then the window.
+    await page.click('#fmtPick');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.isVisible('#fmtList'), false);
+    assert.equal(await page.isVisible('#exportDlg'), true);
+    await page.keyboard.press('Escape');
+    assert.equal(await page.isVisible('#exportDlg'), false);
+    await page.setViewportSize({ width: 1280, height: 800 });
+  });
   await step('Slice: one slice per transient', async () => {
     await page.keyboard.press('4');
     assert.equal(await text('slCount'), '128/128 kept');

@@ -143,10 +143,41 @@ export function bindExportDialog(app: App, f: Features, onPick: (e: Event) => vo
   const byStep: Partial<Record<Step, ExportFormat>> = { 1: 'midi', 2: 'midi', 4: 'slices', 5: 'drumsMidi' };
   let fmt: ExportFormat = 'midi';
 
+  // On a phone the list of formats drops down from a button showing the chosen one.
+  const pick = $btn('fmtPick'), list = $('fmtList');
+  const listOpen = () => list.classList.contains('open');
+  const setList = (open: boolean) => {
+    list.classList.toggle('open', open);
+    pick.setAttribute('aria-expanded', String(open));
+    if (open) {
+      // Under the button, and no taller than the window has room for, so the list scrolls inside itself.
+      const top = pick.offsetTop + pick.offsetHeight + 4, body = list.parentElement!;
+      list.style.top = top + 'px';
+      list.style.maxHeight = Math.max(200, body.clientHeight - top - 12) + 'px';
+      (list.querySelector('button[aria-pressed="true"]') as HTMLElement | null)?.focus();
+    }
+  };
+  pick.onclick = () => setList(!listOpen());
+  // Escape and a press outside close the list before they close the window.
+  dlg.addEventListener('cancel', (e) => {
+    if (!listOpen()) return;
+    e.preventDefault();
+    setList(false);
+    pick.focus();
+  });
+  dlg.addEventListener('pointerdown', (e) => {
+    const t = e.target as Node;
+    if (listOpen() && !list.contains(t) && !pick.contains(t)) setList(false);
+  });
+
   const render = () => {
     if (!dlg.open) return;
     const F = formats[fmt], i = F.info();
     dlg.querySelectorAll<HTMLButtonElement>('.fmts button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.fmt === fmt)));
+    const cur = list.querySelector<HTMLElement>(`button[data-fmt="${fmt}"]`)!;
+    setText($('fmtPickNm'), cur.querySelector('.nm')!.textContent!);
+    setText($('fmtPickExt'), cur.querySelector('small')!.textContent!);
+    setText($('fmtPickSub'), cur.querySelector('.sub')!.textContent!);
     dlg.querySelectorAll<HTMLElement>('.fld').forEach((el) => { el.hidden = !el.dataset.for!.split(' ').includes(fmt); });
     setText($('expDesc'), F.desc);
     setText($('expInfo'), i.text);
@@ -156,6 +187,7 @@ export function bindExportDialog(app: App, f: Features, onPick: (e: Event) => vo
   const choose = (next: ExportFormat) => {
     fmt = next;
     byStep[app.step] = next;
+    if (listOpen()) { setList(false); pick.focus(); }
     render();
   };
   dlg.querySelectorAll<HTMLButtonElement>('.fmts button').forEach((b) => { b.onclick = () => choose(b.dataset.fmt as ExportFormat); });
@@ -215,7 +247,10 @@ export function bindExportDialog(app: App, f: Features, onPick: (e: Event) => vo
     if (app.audio) f.beats.ensureDownbeat();
     fmt = next ?? byStep[app.step] ?? 'midi';
     if (!dlg.open) dlg.showModal();
+    setList(false);
     render();
-    (dlg.querySelector('.fmts button[aria-pressed="true"]') as HTMLElement | null)?.focus();
+    // The chosen format takes the focus: in the list, or on the dropdown's button on a phone.
+    const cur = dlg.querySelector('.fmts button[aria-pressed="true"]') as HTMLElement | null;
+    if (cur?.offsetParent) cur.focus(); else pick.focus();
   };
 }
