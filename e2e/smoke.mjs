@@ -39,6 +39,14 @@ try {
     await page.keyboard.press('Control+z');
     assert.equal(await text('mCount'), '128 markers');
   });
+  await step('Transients makes nothing to export; the session is by Open', async () => {
+    assert.equal(await page.isDisabled('#exportBtn'), true);
+    await page.click('#sessBtn');
+    assert.equal(await page.isVisible('#sessPop'), true);
+    const [d] = await Promise.all([page.waitForEvent('download'), page.click('#sessSave')]);
+    assert.equal(d.suggestedFilename(), 'drifting-drum-loop-session.json');
+    assert.equal(await page.isVisible('#sessPop'), false);
+  });
   await step('Beats: bar 1, then auto-map', async () => {
     await page.keyboard.press('2');
     assert.equal(await text('aCount'), '1 pin');
@@ -50,6 +58,10 @@ try {
     await page.keyboard.press('3');
     assert.equal(await page.isVisible('#exportDlg'), true);
     assert.equal(await page.getAttribute('[data-fmt=midi]', 'aria-pressed'), 'true');
+    // Only what Beats makes is listed.
+    assert.equal(await page.isVisible('[data-fmt=warpWav]'), true);
+    assert.equal(await page.isVisible('[data-fmt=slices]'), false);
+    assert.equal(await page.isVisible('[data-fmt=drumsMidi]'), false);
     assert.match(await text('expInfo'), /tempo changes/);
     assert.equal(await page.isVisible('#lead'), true);
     assert.equal(await page.isVisible('#slBits'), false);
@@ -57,11 +69,49 @@ try {
     assert.equal(await page.isVisible('#exportDlg'), false);
     assert.equal(d.suggestedFilename(), 'drifting-drum-loop-tempo-map.mid');
   });
+  await step('Export: the audio warped onto a straight grid downloads as a .wav', async () => {
+    await page.keyboard.press('3');
+    await page.click('[data-fmt=warpWav]');
+    assert.equal(await page.isVisible('#warpMode'), true);
+    assert.equal(await page.isVisible('#clicks'), false);
+    assert.equal(await page.getAttribute('#warpBpm', 'placeholder'), '98');
+    await page.selectOption('#warpMode', 'beats');
+    assert.match(await text('expInfo'), /^Cut at the transients.* at 98 BPM, stretched \d+ %–\d+ %\./);
+    await page.fill('#warpBpm', '100');
+    await page.dispatchEvent('#warpBpm', 'change');
+    assert.match(await text('expInfo'), / at 100 BPM/);
+    const [d] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#expSave')]);
+    assert.equal(d.suggestedFilename(), 'drifting-drum-loop_warped_100bpm.wav');
+  });
+  await step('Export on a phone: the formats are a dropdown', async () => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.keyboard.press('3');
+    assert.equal(await page.isVisible('#fmtList'), false);
+    // It opens on the format last chosen in this step.
+    assert.equal(await text('fmtPickNm'), 'Warped to the grid');
+    // With the long Warp options below, the button keeps its height: nothing of its subtitle is cut.
+    assert.equal(await page.$eval('#fmtPick', (b) => b.scrollHeight - b.clientHeight), 0);
+    await page.click('#fmtPick');
+    assert.equal(await page.getAttribute('#fmtPick', 'aria-expanded'), 'true');
+    await page.click('#fmtList [data-fmt=midi]');
+    assert.equal(await page.isVisible('#fmtList'), false);
+    assert.equal(await text('fmtPickNm'), 'MIDI');
+    assert.equal(await page.isVisible('#clicks'), true);
+    // Escape closes the list first, then the window.
+    await page.click('#fmtPick');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.isVisible('#fmtList'), false);
+    assert.equal(await page.isVisible('#exportDlg'), true);
+    await page.keyboard.press('Escape');
+    assert.equal(await page.isVisible('#exportDlg'), false);
+    await page.setViewportSize({ width: 1280, height: 800 });
+  });
   await step('Slice: one slice per transient', async () => {
     await page.keyboard.press('4');
     assert.equal(await text('slCount'), '128/128 kept');
     await page.click('#exportBtn');
     assert.equal(await page.getAttribute('[data-fmt=slices]', 'aria-pressed'), 'true');
+    assert.equal(await page.isVisible('[data-fmt=midi]'), false);
     assert.equal(await page.isVisible('#slBits'), true);
     assert.equal(await page.isVisible('#lead'), false);
     assert.equal(await page.isVisible('#clicks'), false);

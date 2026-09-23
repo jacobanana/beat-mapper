@@ -55,7 +55,8 @@
     <div class="grp file">
       <label class="btn" id="openBtn" for="fileIn" tabindex="0" role="button" title="Open audio (Ctrl/Cmd+O)" aria-label="Open audio"><svg class="ic"><use href="#i-open"/></svg></label>
       <input type="file" id="fileIn" class="vh" tabindex="-1" aria-hidden="true">
-      <button class="btn" id="exportBtn" title="Export: tempo map, samples, drums, session (Ctrl/Cmd+E)" aria-label="Export" aria-haspopup="dialog"><svg class="ic"><use href="#i-export"/></svg><span class="lbl">Export</span></button>
+      <button class="btn" id="sessBtn" title="Session: save your work, or open a saved one" aria-label="Session" aria-haspopup="true" aria-expanded="false" aria-controls="sessPop"><svg class="ic"><use href="#i-save"/></svg></button>
+      <button class="btn" id="exportBtn" title="Export what this step makes (Ctrl/Cmd+E)" aria-label="Export" aria-haspopup="dialog"><svg class="ic"><use href="#i-export"/></svg><span class="lbl">Export</span></button>
       <span id="fileInfo"></span>
     </div>
     <div class="grp edit">
@@ -86,6 +87,14 @@
       <button class="btn" id="zFit" title="Fit whole file (Z)" aria-label="Fit"><svg class="ic"><use href="#i-fit"/></svg></button>
     </div>
     <button class="btn" id="helpBtn" title="Help and shortcuts (?)" aria-label="Help">?</button>
+    <div class="pop" id="sessPop" role="group" aria-label="Session" hidden>
+      <p class="hint">Your markers, pins and settings, without the audio. Open the session, then the same audio, to carry the work to another device.</p>
+      <div class="acts">
+        <button class="btn" id="sessSave"><svg class="ic"><use href="#i-save"/></svg>Save session</button>
+        <label class="btn" id="sessOpen" for="sessIn" tabindex="0" role="button"><svg class="ic"><use href="#i-import"/></svg>Open a session</label>
+      </div>
+      <input type="file" id="sessIn" class="vh" tabindex="-1" aria-hidden="true">
+    </div>
     <div class="pop" id="mixer" role="group" aria-label="Mixer" hidden>
       <div class="ch">
         <span class="chn"><button class="btn mute" id="mute-audio" title="Mute or unmute the audio" aria-label="Audio on" aria-pressed="false"><svg class="ic"><use href="#i-wave"/></svg></button>Audio</span>
@@ -248,36 +257,38 @@
 <dialog id="exportDlg" aria-labelledby="expTitle">
   <div class="xhead"><h2 id="expTitle">Export</h2><button class="btn" id="expClose" aria-label="Close">✕</button></div>
   <div class="xbody">
-    <nav class="fmts" aria-label="Format">
+    <!-- On a phone the formats are a dropdown: this shows the chosen one and opens the list. -->
+    <button class="fmtPick" id="fmtPick" aria-haspopup="true" aria-expanded="false" aria-controls="fmtList"><span class="nm" id="fmtPickNm"></span><small id="fmtPickExt"></small><span class="sub" id="fmtPickSub"></span><svg class="ic chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+    <nav class="fmts" id="fmtList" aria-label="Format">
       <h3>Tempo map</h3>
-      <button data-fmt="midi">MIDI <small>.mid</small></button>
-      <button data-fmt="rpp">REAPER <small>.rpp</small></button>
+      <button data-fmt="midi"><span class="nm">MIDI</span><small>.mid</small><span class="sub">The tempo map, for any DAW</span></button>
+      <button data-fmt="rpp"><span class="nm">REAPER</span><small>.rpp</small><span class="sub">The tempo map and the audio, in REAPER</span></button>
+      <h3>Audio</h3>
+      <button data-fmt="warpWav"><span class="nm">Warped to the grid</span><small>.wav</small><span class="sub">The audio re-timed to one steady tempo</span></button>
       <h3>Samples</h3>
-      <button data-fmt="slices">Slices <small>.zip</small></button>
-      <button data-fmt="slicesRpp">Slices in REAPER <small>.zip</small></button>
-      <button data-fmt="sliceWav">Selected slice <small>.wav</small></button>
-      <button data-fmt="loopWav">Loop <small>.wav</small></button>
+      <button data-fmt="slices"><span class="nm">Slices</span><small>.zip</small><span class="sub">Every kept slice, zipped</span></button>
+      <button data-fmt="slicesRpp"><span class="nm">Slices in REAPER</span><small>.zip</small><span class="sub">The slices, placed in a REAPER project</span></button>
+      <button data-fmt="sliceWav"><span class="nm">Selected slice</span><small>.wav</small><span class="sub">The selected slice on its own</span></button>
+      <button data-fmt="loopWav"><span class="nm">Loop</span><small>.wav</small><span class="sub">The loop, seamless</span></button>
       <h3>Drums</h3>
-      <button data-fmt="drumsMidi">Drums MIDI <small>.mid</small></button>
-      <button data-fmt="groove">Groove <small>.json</small></button>
-      <h3>Work</h3>
-      <button data-fmt="session">Session <small>.json</small></button>
+      <button data-fmt="drumsMidi"><span class="nm">Drums MIDI</span><small>.mid</small><span class="sub">Kick, snare and hats as notes</span></button>
+      <button data-fmt="groove"><span class="nm">Groove</span><small>.json</small><span class="sub">The typical bar, for Pocket Science</span></button>
     </nav>
     <div class="xopts">
       <p id="expDesc"></p>
       <div class="fields">
-        <label class="fld" data-for="midi rpp"><span>Audio</span><select id="lead" aria-label="Audio placement"><option value="full">Whole file + lead-in</option><option value="trim">Trim to bar 1</option></select></label>
+        <label class="fld" data-for="warpWav"><span>Material</span><select id="warpMode" aria-label="Material, which sets the warp algorithm"><option value="beats">Drums</option><option value="mono">Mono (bass, lead)</option><option value="vocal">Vocal</option><option value="poly">Poly (chords, pads, keys)</option><option value="music">Full mix</option><option value="repitch">Re-pitch (like a turntable)</option></select></label>
+        <div class="fld" data-for="warpWav"><span>Grid tempo (BPM)</span><span class="pair"><input type="number" id="warpBpm" min="20" max="400" step="0.01" aria-label="Grid tempo in BPM; empty follows the audio"><span class="num" id="warpAvg"></span></span></div>
+        <label class="fld" data-for="midi rpp warpWav"><span>Audio</span><select id="lead" aria-label="Audio placement"><option value="full">Whole file + lead-in</option><option value="trim">Trim to bar 1</option></select></label>
         <label class="fld" data-for="midi rpp slicesRpp"><span>Tempo change at</span><select id="res" aria-label="Tempo change at"><option value="pins">every pin</option><option value="bar">every bar</option><option value="beat">every beat</option></select></label>
         <label class="fld chk" data-for="midi"><input type="checkbox" id="clicks" checked><span>Click track of MIDI notes</span></label>
         <label class="fld chk" data-for="rpp"><input type="checkbox" id="rppAudio" checked><span>Pack the audio file in the zip</span></label>
         <div class="fld" data-for="slices slicesRpp sliceWav"><span>Fade in / out (ms)</span><span class="pair"><input type="number" id="slFadeIn" data-slicer min="0" max="500" step="1" value="1" aria-label="Fade in, ms"><input type="number" id="slFadeOut" data-slicer min="0" max="2000" step="1" value="8" aria-label="Fade out, ms"></span></div>
-        <div class="fld" data-for="slices slicesRpp sliceWav loopWav"><span>Normalize</span><span class="pair"><label class="chk"><input type="checkbox" id="slNorm" data-slicer>to</label><input type="number" id="slTarget" data-slicer min="-24" max="0" step="0.5" value="-1" aria-label="Normalize target in dBFS"><span class="num">dBFS</span></span></div>
-        <label class="fld" data-for="slices slicesRpp sliceWav loopWav"><span>Channels</span><select id="slMono" data-slicer aria-label="Channels"><option value="src">as source</option><option value="mono">mono</option></select></label>
-        <label class="fld" data-for="slices slicesRpp sliceWav loopWav"><span>Bit depth</span><select id="slBits" data-slicer aria-label="Bit depth"><option value="16">16-bit</option><option value="24">24-bit</option></select></label>
+        <div class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Normalize</span><span class="pair"><label class="chk"><input type="checkbox" id="slNorm" data-slicer>to</label><input type="number" id="slTarget" data-slicer min="-24" max="0" step="0.5" value="-1" aria-label="Normalize target in dBFS"><span class="num">dBFS</span></span></div>
+        <label class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Channels</span><select id="slMono" data-slicer aria-label="Channels"><option value="src">as source</option><option value="mono">mono</option></select></label>
+        <label class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Bit depth</span><select id="slBits" data-slicer aria-label="Bit depth"><option value="16">16-bit</option><option value="24">24-bit</option></select></label>
         <label class="fld" data-for="slices slicesRpp sliceWav"><span>File names</span><select id="slName" data-slicer aria-label="File names"><option value="num">name_01.wav</option><option value="time">name_01 + start time</option></select></label>
         <label class="fld chk" data-for="slices slicesRpp"><input type="checkbox" id="slCsv" checked><span>Add a .csv list of the slices</span></label>
-        <div class="fld" data-for="session"><span>Open</span><span class="pair"><label class="btn" id="sessOpen" for="sessIn" tabindex="0" role="button" title="Open a session file, then the same audio"><svg class="ic"><use href="#i-import"/></svg>Open a session file</label></span></div>
-        <input type="file" id="sessIn" class="vh" tabindex="-1" aria-hidden="true">
       </div>
       <p id="expInfo"></p>
       <div class="xfoot"><button class="btn" id="expCancel">Cancel</button><button class="btn primary" id="expSave"><svg class="ic"><use href="#i-export"/></svg><span id="expSaveL">Save</span></button></div>
@@ -290,7 +301,8 @@
   <div class="legend">
     <h3>Top bar, left to right</h3>
     <div><svg class="ic"><use href="#i-open"/></svg><span>Open audio</span><span><kbd>Ctrl/⌘</kbd><kbd>O</kbd></span></div>
-    <div><svg class="ic"><use href="#i-export"/></svg><span>Export: every format, each with its own options</span><span><kbd>3</kbd> <kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
+    <div><svg class="ic"><use href="#i-save"/></svg><span>Session: save your work, or open a saved one</span><span></span></div>
+    <div><svg class="ic"><use href="#i-export"/></svg><span>Export what this step makes: tempo map and warped audio (Beats), samples (Slice), drums (Groove). Off in Transients</span><span><kbd>3</kbd> <kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
     <div><svg class="ic"><use href="#i-undo"/></svg><span>Undo</span><span><kbd>Ctrl/⌘</kbd><kbd>Z</kbd></span></div>
     <div><svg class="ic"><use href="#i-redo"/></svg><span>Redo</span><span><kbd>Ctrl/⌘</kbd><kbd>⇧</kbd><kbd>Z</kbd></span></div>
     <div><svg class="ic"><use href="#i-wave"/></svg><span>Step 1 · Transients</span><span><kbd>1</kbd></span></div>

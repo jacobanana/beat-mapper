@@ -184,6 +184,30 @@ describe('export', () => {
     expect(info.count).toBe(63);
     expect(info.leadBars).toBe(1);
   });
+
+  it('plans a warp onto a straight grid: the whole file from a bar line, or the loop alone', () => {
+    const { app, f } = t;
+    expect(f.warp.plan()).toBeNull();
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    const p = f.warp.plan()!;
+    // The demo drifts from 94 to 101 BPM; the grid takes the whole-number tempo it averages.
+    expect(p.bpm).toBe(Math.round(p.avgBpm));
+    expect(p.ratios[0]).toBeLessThan(1);
+    expect(p.ratios[1]).toBeGreaterThan(1);
+    // Bar 1 is the pin at the first transient, a bar of silence ahead of it holds the lead-in.
+    expect(p.map.dstAt(app.markers[0].t)).toBeCloseTo((4 * 60) / p.bpm, 6);
+    expect(f.warp.fileName(p)).toBe(`drifting-drum-loop_warped_${p.bpm}bpm.wav`);
+
+    f.warp.update({ bpm: 100 });
+    const b1 = app.tempoMap.posToTime(4), b3 = app.tempoMap.posToTime(12);
+    f.playback.setLoop({ a: b1, b: b3 }, false);
+    f.playback.toggleLoop();
+    const l = f.warp.plan()!;
+    expect(l.loop).toBe(true);
+    expect(l.outDur).toBeCloseTo((8 * 60) / 100, 6);
+    expect(f.warp.fileName(l)).toBe('drifting-drum-loop_2bars_100bpm_warped.wav');
+  });
 });
 
 describe('sessions', () => {

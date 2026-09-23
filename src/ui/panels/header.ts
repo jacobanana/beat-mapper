@@ -5,6 +5,7 @@ import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { fmtTime } from '../../core/format';
 import { $, $btn, icon, setPressed } from '../dom';
+import { STEP_FORMATS } from './export-dialog';
 
 // Step 3 was Export; it is the Export window now, so the tabs skip it.
 const STEPS = [1, 2, 4, 5] as const;
@@ -37,6 +38,10 @@ export function bindHeader(app: App, f: Features, openHelp: () => void, openExpo
       $('t' + i).setAttribute('aria-selected', String(i === app.step));
       $('p' + i).hidden = i !== app.step;
     }
+    // Export follows the step: off where the step makes nothing to export.
+    const none = !STEP_FORMATS[app.step].length, ex = $btn('exportBtn');
+    ex.disabled = none;
+    ex.title = none ? 'Nothing to export from this step' : 'Export what this step makes (Ctrl/Cmd+E)';
   };
   const syncTransport = () => {
     const t = app.transport;

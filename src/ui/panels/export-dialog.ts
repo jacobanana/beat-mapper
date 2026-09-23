@@ -1,15 +1,26 @@
-// The Export window: every file BeatMapper saves, one format at a time, each showing only the options
-// that change it and what the file will hold. It opens on the format that fits the step you are in.
+// The Export window: what the step you are in makes, one format at a time, each showing only the options
+// that change it and what the file will hold. Transients makes nothing of its own, so there it is off;
+// the session, wanted from every step, is beside Open instead (session-panel.ts).
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { fmtBpm, fmtTime, plural } from '../../core/format';
 import { VOICES } from '../../core/drums/voices';
+import { WARP_MODES, WARP_MODE_INFO, type WarpMode } from '../../core/warp/modes';
 import type { Step } from '../../io/session';
 import { buildMidi } from '../../io/formats/midi';
 import { $, $btn, $in, $sel, setText, setValue } from '../dom';
 
-export const FORMATS = ['midi', 'rpp', 'slices', 'slicesRpp', 'sliceWav', 'loopWav', 'drumsMidi', 'groove', 'session'] as const;
+export const FORMATS = ['midi', 'rpp', 'warpWav', 'slices', 'slicesRpp', 'sliceWav', 'loopWav', 'drumsMidi', 'groove'] as const;
 export type ExportFormat = (typeof FORMATS)[number];
+
+/** What each step makes, in the order the window lists it. Step 3 was Export, and Workflow sends it to 2. */
+export const STEP_FORMATS: Record<Step, readonly ExportFormat[]> = {
+  1: [],
+  2: ['midi', 'rpp', 'warpWav'],
+  3: [],
+  4: ['slices', 'slicesRpp', 'sliceWav', 'loopWav'],
+  5: ['drumsMidi', 'groove'],
+};
 
 interface Format {
   desc: string;
@@ -23,7 +34,7 @@ interface Format {
 const OPEN_FIRST = { text: 'Open an audio file first.', ok: false };
 const kb = (b: number) => (b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.round(b / 1024) + ' KB');
 
-export function bindExportDialog(app: App, f: Features, onPick: (e: Event) => void): (fmt?: ExportFormat) => void {
+export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) => void {
   const dlg = $('exportDlg') as HTMLDialogElement;
 
   // How much tempo map there is, and where to put the audio in the DAW.
@@ -54,6 +65,18 @@ export function bindExportDialog(app: App, f: Features, onPick: (e: Event) => vo
       ok: true,
     };
   };
+  // What the warp will do: the material's method, the lengths, and how far anything is stretched.
+  const warpInfo = () => {
+    if (!app.audio) return OPEN_FIRST;
+    const p = f.warp.plan();
+    if (!p) return { text: 'Set bar 1 and at least a tempo in step 2 first.', ok: false };
+    const pct = (r: number) => Math.round(r * 100) + ' %', [lo, hi] = p.ratios;
+    let s = WARP_MODE_INFO[app.warp.mode].desc + ' ';
+    s += `${p.loop ? 'The loop' : 'The file'}, ${fmtTime(p.srcDur)} → ${fmtTime(p.outDur)} at ${fmtBpm(p.bpm)} BPM, `;
+    s += Math.abs(hi - lo) < 0.005 ? `stretched to ${pct(lo)}.` : `stretched ${pct(lo)}–${pct(hi)}.`;
+    if (lo < 0.75 || hi > 1.33) s += ' That is a lot of stretch: check the grid tempo, or halve or double the map in step 2.';
+    return { text: s, ok: true };
+  };
   const drumsInfo = (what: () => string) => {
     if (!app.audio) return OPEN_FIRST;
     if (!app.drums) return { text: 'Open the Groove step (5) to find the drums first.', ok: false };
@@ -70,6 +93,10 @@ export function bindExportDialog(app: App, f: Features, onPick: (e: Event) => vo
     rpp: {
       desc: 'A REAPER project with the tempo map and the audio in place.',
       save: 'Save REAPER project', info: mapInfo, run: () => f.exports.saveRpp(),
+    },
+    warpWav: {
+      desc: 'The audio warped so the tempo map becomes a straight grid: every bar the same length, ready for a DAW at one tempo. With the loop on, only the loop.',
+      save: 'Save .wav', info: warpInfo, run: () => f.warp.save(),
     },
     slices: {
       desc: 'Every kept slice as a .wav, in one .zip.',
@@ -114,22 +141,61 @@ export function bindExportDialog(app: App, f: Features, onPick: (e: Event) => vo
       desc: 'The typical bar as a Pocket Science groove file.',
       save: 'Save .json', info: () => drumsInfo(() => f.groove.summary()), run: () => f.groove.saveGroove(),
     },
-    session: {
-      desc: 'Markers, pins and settings, without the audio. Open it, then the same audio, to carry the work to another device.',
-      save: 'Save session',
-      info: () => (app.audio ? { text: 'For ' + app.audio.name, ok: true } : { text: 'Open an audio file to save its session. A session file can be opened any time.', ok: false }),
-      run: () => f.sessions.export(),
-    },
   };
 
-  // The format each step opens on, until you pick another there.
-  const byStep: Partial<Record<Step, ExportFormat>> = { 1: 'midi', 2: 'midi', 4: 'slices', 5: 'drumsMidi' };
+  // The format each step opens on, until you pick another there: its first.
+  const byStep: Partial<Record<Step, ExportFormat>> = {};
+
+  // Only this step's formats are listed, and a heading only when something under it is.
+  const showStep = (step: Step) => {
+    const mine = STEP_FORMATS[step];
+    let heading: HTMLElement | null = null, any = false;
+    const close = () => { if (heading) heading.hidden = !any; };
+    for (const el of Array.from(list.children) as HTMLElement[]) {
+      if (el.tagName === 'H3') { close(); heading = el; any = false; continue; }
+      const on = mine.includes(el.dataset.fmt as ExportFormat);
+      el.hidden = !on;
+      any ||= on;
+    }
+    close();
+  };
   let fmt: ExportFormat = 'midi';
+
+  // On a phone the list of formats drops down from a button showing the chosen one.
+  const pick = $btn('fmtPick'), list = $('fmtList');
+  const listOpen = () => list.classList.contains('open');
+  const setList = (open: boolean) => {
+    list.classList.toggle('open', open);
+    pick.setAttribute('aria-expanded', String(open));
+    if (open) {
+      // Under the button, and no taller than the window has room for, so the list scrolls inside itself.
+      const top = pick.offsetTop + pick.offsetHeight + 4, body = list.parentElement!;
+      list.style.top = top + 'px';
+      list.style.maxHeight = Math.max(200, body.clientHeight - top - 12) + 'px';
+      (list.querySelector('button[aria-pressed="true"]') as HTMLElement | null)?.focus();
+    }
+  };
+  pick.onclick = () => setList(!listOpen());
+  // Escape and a press outside close the list before they close the window.
+  dlg.addEventListener('cancel', (e) => {
+    if (!listOpen()) return;
+    e.preventDefault();
+    setList(false);
+    pick.focus();
+  });
+  dlg.addEventListener('pointerdown', (e) => {
+    const t = e.target as Node;
+    if (listOpen() && !list.contains(t) && !pick.contains(t)) setList(false);
+  });
 
   const render = () => {
     if (!dlg.open) return;
     const F = formats[fmt], i = F.info();
     dlg.querySelectorAll<HTMLButtonElement>('.fmts button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.fmt === fmt)));
+    const cur = list.querySelector<HTMLElement>(`button[data-fmt="${fmt}"]`)!;
+    setText($('fmtPickNm'), cur.querySelector('.nm')!.textContent!);
+    setText($('fmtPickExt'), cur.querySelector('small')!.textContent!);
+    setText($('fmtPickSub'), cur.querySelector('.sub')!.textContent!);
     dlg.querySelectorAll<HTMLElement>('.fld').forEach((el) => { el.hidden = !el.dataset.for!.split(' ').includes(fmt); });
     setText($('expDesc'), F.desc);
     setText($('expInfo'), i.text);
@@ -139,6 +205,7 @@ export function bindExportDialog(app: App, f: Features, onPick: (e: Event) => vo
   const choose = (next: ExportFormat) => {
     fmt = next;
     byStep[app.step] = next;
+    if (listOpen()) { setList(false); pick.focus(); }
     render();
   };
   dlg.querySelectorAll<HTMLButtonElement>('.fmts button').forEach((b) => { b.onclick = () => choose(b.dataset.fmt as ExportFormat); });
@@ -158,6 +225,21 @@ export function bindExportDialog(app: App, f: Features, onPick: (e: Event) => vo
   $sel('res').onchange = (e) => app.set('export', { res: (e.target as HTMLSelectElement).value as 'pins' | 'bar' | 'beat' });
   $in('clicks').onchange = (e) => app.set('export', { clicks: (e.target as HTMLInputElement).checked });
   $in('rppAudio').onchange = (e) => app.set('export', { rppAudio: (e.target as HTMLInputElement).checked });
+  const warpMode = $sel('warpMode'), warpBpm = $in('warpBpm');
+  warpMode.onchange = () => f.warp.update({ mode: warpMode.value as WarpMode });
+  // An empty tempo follows the audio; anything else is taken if it is a tempo at all.
+  warpBpm.onchange = () => {
+    const v = warpBpm.value.trim() === '' ? null : +warpBpm.value;
+    f.warp.update({ bpm: v != null && Number.isFinite(v) && v >= 20 && v <= 400 ? v : null });
+  };
+  const syncWarp = () => {
+    if ((WARP_MODES as readonly string[]).includes(app.warp.mode)) setValue(warpMode, app.warp.mode);
+    const p = f.warp.plan(), auto = p ? Math.round(p.avgBpm) : null;
+    if (document.activeElement !== warpBpm) warpBpm.value = app.warp.bpm == null ? '' : String(app.warp.bpm);
+    warpBpm.placeholder = auto != null ? String(auto) : '';
+    setText($('warpAvg'), p ? `averages ${fmtBpm(p.avgBpm)}` : '');
+  };
+
   const sync = () => {
     const s = app.exportSettings;
     setValue($sel('lead'), s.lead);
@@ -166,22 +248,25 @@ export function bindExportDialog(app: App, f: Features, onPick: (e: Event) => vo
     $in('rppAudio').checked = s.rppAudio;
   };
 
-  $in('sessIn').addEventListener('change', (e) => { dlg.close(); onPick(e); });
-  if (matchMedia('(pointer:fine)').matches) $in('sessIn').accept = '.json,application/json';
-  $('sessOpen').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); $in('sessIn').click(); }
-  });
 
   app.bus.on('export', sync);
-  app.bus.on(['export', 'slicer', 'slices', 'doc', 'drums', 'groove', 'transport', 'audio', 'candidates', 'selection'], render);
+  app.bus.on(['warp', 'doc', 'transport', 'audio', 'export'], syncWarp);
+  app.bus.on(['export', 'warp', 'slicer', 'slices', 'doc', 'drums', 'groove', 'transport', 'audio', 'candidates', 'selection'], render);
   sync();
+  syncWarp();
 
   return (next?: ExportFormat) => {
+    const mine = STEP_FORMATS[app.step];
+    if (!mine.length) return app.notify.toast('Nothing to export from this step. Beats, Slice and Groove each export what they make.');
     // The tempo map needs bar 1, as the Export step did; it starts on the first transient.
     if (app.audio) f.beats.ensureDownbeat();
-    fmt = next ?? byStep[app.step] ?? 'midi';
+    fmt = next && mine.includes(next) ? next : byStep[app.step] ?? mine[0];
+    showStep(app.step);
     if (!dlg.open) dlg.showModal();
+    setList(false);
     render();
-    (dlg.querySelector('.fmts button[aria-pressed="true"]') as HTMLElement | null)?.focus();
+    // The chosen format takes the focus: in the list, or on the dropdown's button on a phone.
+    const cur = dlg.querySelector('.fmts button[aria-pressed="true"]') as HTMLElement | null;
+    if (cur?.offsetParent) cur.focus(); else pick.focus();
   };
 }

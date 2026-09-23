@@ -11,7 +11,7 @@ app/       App (state + derived data + undo) and features (markers, beats, playb
   │
 state/     the undoable ProjectDoc, settings, History, Viewport, Emitter, memo
 engine/    Web Audio: Player (transport + metronome + drum hits), synth kit, grains, one-shot previews
-analysis/  Analyzer interface; runs core/dsp in a Web Worker
+analysis/  Analyzer interface; runs core/dsp and core/warp in a Web Worker
   │
 io/        file formats (MIDI, REAPER, WAV, ZIP), the session format, downloads
 core/      the audio-editing logic: DSP, markers, tempo map, beat tracking, slicing
@@ -36,6 +36,7 @@ from bar 1.
 | `slices/` | Slice planning, rendering (fades, mono, normalize), loop info, file naming. |
 | `dsp/filter.ts` | Zero-phase biquads (forwards then backwards), for timing a voice's attack in its own band. |
 | `drums/` | Kick, snare and hats: a log-frequency spectrogram (optionally percussive-only), NMF with semi-adaptive templates, per-voice hit picking and bleed cancelling, sensitivity. See [groove.md](groove.md). |
+| `warp/` | Warping onto a straight grid: the warp map from the tempo map (`map.ts`), and one algorithm per kind of material (drum slicing, WSOLA, phase-locked phase vocoder, harmonic-percussive split, re-pitch). See [warp.md](warp.md). |
 | `groove/pocket.ts` | Every drum hit on its grid step, measured against a reference voice bar by bar; per-voice and per-step statistics, swing. `transcribe` turns the hits into notes for the synth kit and the MIDI transcript. |
 
 ## io/
@@ -59,7 +60,7 @@ bridge when the app runs inside one).
   everything else on demand, memoised on the identity of its inputs: the visible markers, the tempo
   map, the grid, the bars, the slices, the drum hits the sensitivities let through, the notes they make, and the pocket. Nothing derived is stored, so nothing can go stale.
 - **Features** (`app/features/`) are the verbs: `Markers`, `Beats`, `Playback`, `Slicer`,
-  `Exports`, `Groove`, `Mixer`, `Sessions`, `Loader`, `Workflow`. They change the App and emit topics (`'doc'`,
+  `Exports`, `Warp`, `Groove`, `Mixer`, `Sessions`, `Loader`, `Workflow`. They change the App and emit topics (`'doc'`,
   `'transport'`, `'slices'`…). They talk to the user only through the `Notifier` interface.
 
 ## ui/
@@ -69,8 +70,9 @@ bridge when the app runs inside one).
 - `input/pointer.ts` maps where a touch lands (`canvas/layout.ts` zones) to features: loop strip,
   bar ruler, edit half, move half, time ruler. `input/keyboard.ts` is the shortcut table.
 - `panels/` bind each step's controls to features and re-render their text on the topics they show.
-  `export-dialog.ts` is the Export window: every format, each showing only the options that change
-  it; `mixer-panel.ts` is the mixer popover. Step 3 was Export; it is kept as a `Step` value so old
+  `export-dialog.ts` is the Export window: what the current step makes, each format showing only the
+  options that change it; `session-panel.ts` saves and opens sessions from beside Open;
+  `mixer-panel.ts` is the mixer popover. Step 3 was Export; it is kept as a `Step` value so old
   sessions load, and `Workflow` sends it to Beats.
 - Where a new button goes (top bar groups, panel clusters, dialogs) is set out in
   [ui-conventions.md](ui-conventions.md).

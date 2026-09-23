@@ -16,6 +16,7 @@ import { bindExportDialog } from './ui/panels/export-dialog';
 import { bindGroovePanel } from './ui/panels/groove-panel';
 import { bindHeader } from './ui/panels/header';
 import { bindMixerPanel } from './ui/panels/mixer-panel';
+import { bindSessionPanel } from './ui/panels/session-panel';
 import { bindSlicePanel } from './ui/panels/slice-panel';
 
 const safeStorage = (() => { try { return window.localStorage; } catch { return null; } })();
@@ -69,9 +70,10 @@ window.addEventListener('drop', (e) => {
 });
 
 // ---------- panels and keys ----------
-const openExport = bindExportDialog(app, f, onPick);
+const openExport = bindExportDialog(app, f);
 bindHeader(app, f, openHelp, () => openExport());
 bindMixerPanel(app, f);
+bindSessionPanel(app, f, onPick);
 bindDetectPanel(app, f);
 bindBeatsPanel(app, f, refocus);
 bindSlicePanel(app, f);
