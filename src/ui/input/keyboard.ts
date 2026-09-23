@@ -68,9 +68,10 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
       case '?': hooks.openHelp(); return;
       case 'Escape': app.select(null); if (el === cv) cv.blur(); return;
       case 'Delete': case 'Backspace': {
-        const m = app.selectedMarker(), a = app.selectedAnchor();
+        const m = app.selectedMarker(), a = app.selectedAnchor(), h = app.selectedHit();
         if (m && app.step === 1) f.markers.remove(m);
         else if (a && app.step === 2) f.beats.unpin(a);
+        else if (h && app.step === 5) f.groove.removeHit(h.voice, h.t);
         return done();
       }
     }
@@ -103,7 +104,7 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
     else if (!app.undo()) app.notify.toast('Nothing to undo');
   }
 
-  /** ← →: moves the selected marker (Transients) or pin, or scrolls when nothing is selected. */
+  /** ← →: moves the selected marker (Transients), pin or drum hit, or scrolls when nothing is selected. */
   function nudge(dt: number): void {
     if (!app.sel) {
       const sp = app.view.span;
@@ -113,5 +114,6 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
     const m = app.selectedMarker(), a = app.selectedAnchor();
     if (m) { if (app.step === 1) f.markers.nudge(m, dt); }
     else if (a) f.beats.nudge(a, dt);
+    else if (app.step === 5) f.groove.nudgeSelected(dt);
   }
 }

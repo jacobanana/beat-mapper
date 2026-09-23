@@ -1,5 +1,6 @@
 // Sessions: the work on each audio file is kept in this browser and comes back when the same file is
 // opened again; a session file carries it to another device. Neither ever holds audio.
+import { noHitEdits } from '../../core/drums/edit';
 import { safeName } from '../../core/format';
 import { matchRemoved } from '../../core/markers/detect';
 import { saveError, saveFile } from '../../io/download';
@@ -112,6 +113,8 @@ export class Sessions {
       meter: s.meter,
       tempo: s.tempo,
       markers: { manual, removed: matchRemoved(app.cands, s.markers.removed).map((i) => app.cands[i].t), nextId: manual.length + 1 },
+      // Hit edits aren't in the session file yet: a session starts from the hits as detected.
+      drums: noHitEdits(),
     };
     app.edit(() => doc, false);
     app.set('beats', s.beats);

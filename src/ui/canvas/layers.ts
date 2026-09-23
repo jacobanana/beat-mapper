@@ -3,7 +3,7 @@
 import type { App } from '../../app/app';
 import { lowerBound } from '../../core/search';
 import { odfOf, odfRef } from '../../core/dsp/onset';
-import { type Layout, LOOPH, RUL, RULH, TIME } from './layout';
+import { LANES, type Layout, LOOPH, RUL, RULH, TIME } from './layout';
 import { type Colors, FONT, rgba } from './theme';
 
 export interface Frame {
@@ -139,19 +139,27 @@ export function markers({ g, app, L, C, xOf, beatsMode }: Frame): void {
 
 // The Groove step: kick, snare and hats in three lanes over the waveform (hats on top), each hit a
 // tick as tall as it is loud, with a tail back to the grid line it was measured from when zoomed in
-// far enough to see a few milliseconds.
-const LANES = ['hat', 'snare', 'kick'] as const;
+// far enough to see a few milliseconds. The transients show faintly behind, since hits placed by hand
+// land on them; those hits wear a dot, and the selected or hovered hit a frame.
 export function drums({ g, app, L, C, xOf }: Frame): void {
   if (app.step !== 5) return;
   const hits = app.drumHits;
   if (!hits) return;
-  const { w, wy, wh } = L, v = app.view, lh = wh / 3, pxMs = w / (v.span * 1000), placed = app.pocket?.hits;
+  const { w, wy, wh, ly } = L, v = app.view, lh = wh / 3, pxMs = w / (v.span * 1000), placed = app.pocket?.hits, M = app.markers;
+  const i0 = lowerBound(M, v.t0);
+  if (lowerBound(M, v.t1) - i0 <= w / 6) {
+    g.strokeStyle = rgba(C.mark, 0.35); g.lineWidth = 1; g.setLineDash([2, 3]); g.beginPath();
+    for (let i = i0; i < M.length && M[i].t <= v.t1; i++) { const x = Math.round(xOf(M[i].t)) + 0.5; g.moveTo(x, wy + 1); g.lineTo(x, ly); }
+    g.stroke(); g.setLineDash([]);
+  }
+  const mark = (s: typeof app.hover) => (s?.kind === 'hit' ? s : null), sel = mark(app.sel), hov = mark(app.hover);
   g.font = '600 12px ' + FONT; g.textBaseline = 'middle';
   LANES.forEach((voice, i) => {
     const top = wy + i * lh, mid = top + lh / 2, col = C[voice];
     g.fillStyle = rgba(col, 0.06); g.fillRect(0, top + 1, w, lh - 2);
     g.fillStyle = rgba(col, 0.9); g.fillText(voice === 'hat' ? 'HATS' : voice.toUpperCase(), 6, top + 10);
     const list = placed ? placed.filter((h) => h.voice === voice) : hits[voice].map((h) => ({ t: h.t, vel: 100, gridMs: 0 }));
+    const manual = new Set(hits[voice].filter((h) => h.id != null).map((h) => h.t));
     for (const h of list) {
       if (h.t < v.t0 - 0.05 || h.t > v.t1 + 0.05) continue;
       const x = Math.round(xOf(h.t)) + 0.5, hh = (lh - 8) * (0.3 + 0.7 * Math.min(1, h.vel / 127));
@@ -161,6 +169,12 @@ export function drums({ g, app, L, C, xOf }: Frame): void {
       }
       g.strokeStyle = col; g.lineWidth = 2;
       g.beginPath(); g.moveTo(x, mid - hh / 2); g.lineTo(x, mid + hh / 2); g.stroke();
+      if (manual.has(h.t)) { g.fillStyle = col; g.beginPath(); g.arc(x, mid - hh / 2 - 4, 3, 0, Math.PI * 2); g.fill(); }
+      const isSel = sel?.voice === voice && sel.t === h.t;
+      if (isSel || (hov?.voice === voice && hov.t === h.t)) {
+        g.strokeStyle = isSel ? C.ink : rgba(C.ink, 0.5); g.lineWidth = 1;
+        g.strokeRect(x - 5.5, mid - hh / 2 - 8.5, 11, hh + 12);
+      }
     }
   });
   g.lineWidth = 1;

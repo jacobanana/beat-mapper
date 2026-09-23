@@ -41,6 +41,8 @@ button,input,select{font:inherit;color:inherit}
 @media (min-width:1520px){ .lbl{display:inline} }
 .read{display:flex;gap:10px;padding:0 6px;font-size:16px;font-weight:500}
 .read b{font-weight:500} .read #rPos{color:var(--beat)} .read #rBpm{color:var(--dim)}
+/* Each readout keeps its own width, so the buttons beside it don't shift as the numbers change. */
+.read b{display:inline-block;text-align:right;white-space:nowrap} .read #rTime{width:9ch} .read #rPos{width:7ch} .read #rBpm{width:6ch}
 
 .btn{border:1px solid var(--line);background:var(--raise);border-radius:6px;padding:6px 7px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;line-height:1;min-height:32px;min-width:32px;justify-content:center}
 .vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}

@@ -230,6 +230,12 @@
             <button class="btn on" id="gExag" title="Draw the offsets in the bar three times their size (X)" aria-label="Exaggerate offsets" aria-pressed="true">×3</button>
             <span class="sep"></span>
             <span class="seg" role="group" aria-label="Chart"><button class="btn on" id="gChartPocket" title="Chart: the pocket and the typical bar (C)" aria-pressed="true">POCKET</button><button class="btn" id="gChartMidi" title="Chart: the hits as a MIDI transcript, following the playhead (C)" aria-pressed="false">MIDI</button></span>
+            <span class="cluster">
+              <button class="btn" id="gDel" title="Delete selected hit (Del)" aria-label="Delete hit"><svg class="ic"><use href="#i-del"/></svg></button>
+            </span>
+            <span class="cluster">
+              <button class="btn" id="gReset" title="Discard hit edits: added hits go, deleted ones come back" aria-label="Discard hit edits"><svg class="ic"><use href="#i-reset"/></svg></button>
+            </span>
           </div>
           <p id="gSum"></p>
         </div>
@@ -387,9 +393,11 @@
     <div><span><kbd>X</kbd></span><span>Offsets in the bar drawn three times their size, or true to size</span></div>
     <div><span><kbd>M</kbd></span><span>Mute or unmute the synth kit playing the drums as MIDI</span></div>
     <div><span><kbd>C</kbd></span><span>Chart: the pocket, or the MIDI transcript</span></div>
+    <div><span>Drum lanes</span><span>Drag a hit to move it · double-tap a lane to add a hit, or a hit to delete it · hits land on the nearest transient (<kbd>Alt</kbd> places them freely)</span></div>
+    <div><span><kbd>Del</kbd> <kbd>←</kbd> <kbd>→</kbd></span><span>Delete or move the selected hit</span></div>
     <div><span>Loop</span><span>With the loop on, only the bars inside it are measured</span></div>
     <h3>Where you touch decides what happens</h3>
-    <div><span>Top strip</span><span>Loop: drag to draw, drag edges or middle to adjust, tap it to switch on/off, double-tap to loop a bar</span></div>
+    <div><span>Top strip</span><span>Loop: drag to draw, drag edges or middle to adjust, tap it to switch on/off, double-tap to loop a bar. Switched on with nothing drawn, the whole file loops</span></div>
     <div><span>Bar ruler</span><span>Drag pins and bar lines (step 2)</span></div>
     <div><span>Upper half of waveform</span><span>Edit: drag markers, pins, grid lines · double-tap adds or removes</span></div>
     <div><span>Lower half of waveform</span><span>Move only: drag to scroll, tap to place the playhead where the magnet says</span></div>

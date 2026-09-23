@@ -1,12 +1,13 @@
 // Pointer input on the editor canvas. Where a touch lands decides what it does (see layout.ts):
 // the loop strip draws loops, the bar ruler drags pins, the upper half of the waveform edits, the
-// lower half scrolls, and the time ruler scrubs.
+// lower half scrolls, and the time ruler scrubs. In the Groove step the whole waveform is the drum
+// lanes, where hits are dragged, added and deleted.
 import type { App, Hover } from '../../app/app';
 import type { Features } from '../../app/features';
 import { lowerBound } from '../../core/search';
 import type { TimeRange } from '../../core/types';
 import type { EditorRenderer } from '../canvas/editor-renderer';
-import { type Zone, zoneAt } from '../canvas/layout';
+import { type Zone, laneAt, zoneAt } from '../canvas/layout';
 
 type Hit = Exclude<Hover, null>;
 interface LoopDrag { mode: 'a' | 'b' | 'move' | 'new'; orig: TimeRange | null; t0: number }
@@ -21,6 +22,8 @@ interface Drag {
   loop: LoopDrag | null;
   /** Scrub position, for scrolling at the edges. */
   x: number;
+  /** Id of the placed hit being dragged, once a drag on a drum hit has begun. */
+  hitId?: number;
 }
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
@@ -58,9 +61,20 @@ export class PointerInput {
   private xOf(t: number): number { return this.app.view.xOf(t); }
 
   // ---------- hit testing ----------
-  private hitTest(x: number, touch: boolean): Hit | null {
+  private hitTest(x: number, y: number, touch: boolean): Hit | null {
     const { app } = this, r = touch ? 14 : 6;
     if (!app.audio) return null;
+    if (app.step === 5) {
+      const voice = laneAt(this.renderer.layout(), y), H = voice && app.drumHits?.[voice];
+      if (!voice || !H) return null;
+      let best = null, bd = r + 1;
+      for (let i = lowerBound(H, this.tOf(x - r - 1)); i < H.length; i++) {
+        const xh = this.xOf(H[i].t), d = Math.abs(xh - x);
+        if (xh > x + r) break;
+        if (d < bd) { bd = d; best = H[i]; }
+      }
+      return best ? { kind: 'hit', voice, t: best.t } : null;
+    }
     if (app.step === 1) {
       const M = app.markers;
       let best = null, bd = r + 1;
@@ -82,10 +96,10 @@ export class PointerInput {
     return null;
   }
 
-  private zoneHit(x: number, zone: Zone, touch: boolean): Hit | null {
+  private zoneHit(x: number, y: number, zone: Zone, touch: boolean): Hit | null {
     if (this.app.transport.scrubMode || (zone !== 'edit' && zone !== 'bars')) return null;
-    const h = this.hitTest(x, touch);
-    return h && zone === 'bars' && h.kind === 'marker' ? null : h;
+    const h = this.hitTest(x, y, touch);
+    return h && zone === 'bars' && h.kind !== 'anchor' && h.kind !== 'grid' ? null : h;
   }
 
   private loopHit(x: number, r: number): 'a' | 'b' | 'move' | null {
@@ -116,6 +130,13 @@ export class PointerInput {
     return best == null ? t : best;
   }
 
+  // Drum hits land on the transients: dragged, within a few pixels, as the magnet pulls; placed, within
+  // 30 ms too, since a double tap on a phone is rarely closer than that. Alt places them freely.
+  private hitT(x: number, touch: boolean, bypass: boolean, placing: boolean): number {
+    const t = this.tOf(x), px = (touch ? 14 : 9) * (this.app.view.span / this.app.view.width);
+    return bypass ? t : this.f.groove.alignToTransient(t, placing ? Math.max(px, 0.03) : px);
+  }
+
   // In Beats the playhead follows the magnet, so it can be dropped exactly on a beat or a transient.
   // Elsewhere a tap lands where it is aimed – in Transients that is where the next marker goes.
   private tapT(x: number, d: Drag, e: PointerEvent): number {
@@ -137,7 +158,7 @@ export class PointerInput {
       return;
     }
     const touch = e.pointerType === 'touch', r = touch ? 14 : 7, zone = zoneAt(this.renderer.layout(), y, app.step);
-    const body = zone === 'edit' || zone === 'nav', hit = this.zoneHit(x, zone, touch);
+    const body = zone === 'edit' || zone === 'nav', hit = this.zoneHit(x, y, zone, touch);
     const d: Drag = {
       x0: x, x, moved: false, hit, v0: { t0: app.view.t0, t1: app.view.t1 }, zone, touch, loop: null,
       scrub: zone === 'time' || (app.transport.scrubMode && body && !e.shiftKey),
@@ -181,6 +202,7 @@ export class PointerInput {
       const dt = ((x - d.x0) / app.view.width) * (d.v0.t1 - d.v0.t0);
       app.setView(d.v0.t0 - dt, d.v0.t1 - dt);
     } else if (h.kind === 'marker') this.f.markers.moveTo(h.id, this.tOf(x));
+    else if (h.kind === 'hit') { if (d.hitId != null) d.hit = { ...h, t: this.f.groove.moveHitTo(d.hitId, this.hitT(x, d.touch, e.altKey, false)) }; }
     else if (h.kind === 'anchor') this.f.beats.dragTo(h.q, this.snapT(x, d.touch, e.altKey, true));
   }
 
@@ -193,6 +215,10 @@ export class PointerInput {
       app.checkpoint();
       d.hit = { kind: 'marker', id: f.markers.toManual(m) };
       app.select(d.hit);
+    } else if (h.kind === 'hit') {
+      app.checkpoint();
+      d.hitId = f.groove.toManual(h.voice, h.t);
+      app.select(h);
     } else if (h.kind === 'grid' || h.kind === 'anchor') {
       d.hit = { kind: 'anchor', q: f.beats.beginDrag(h.q, h.kind === 'grid') };
       app.hover = null;
@@ -213,7 +239,7 @@ export class PointerInput {
   }
 
   private hover(x: number, y: number): void {
-    const { app } = this, zone = zoneAt(this.renderer.layout(), y, app.step), h = this.zoneHit(x, zone, false), cur = app.hover;
+    const { app } = this, zone = zoneAt(this.renderer.layout(), y, app.step), h = this.zoneHit(x, y, zone, false), cur = app.hover;
     const same = (h === null && cur === null) || (h !== null && cur !== null && h.kind === cur.kind && JSON.stringify(h) === JSON.stringify(cur));
     if (!same) { app.hover = h; app.bus.emit('hover'); }
     const lh = zone === 'loop' ? this.loopHit(x, 7) : null;
@@ -245,17 +271,17 @@ export class PointerInput {
       } else if (h?.kind === 'anchor') {
         const a = app.doc.tempo.anchors.find((k) => k.q === h.q);
         if (a) f.playback.seek(a.t, true);
-      }
+      } else if (h?.kind === 'hit') f.playback.seek(h.t, true);
       app.bus.emit('doc');
       return;
     }
     const now = performance.now(), dbl = now - this.lastClick.t < 350 && Math.abs(x - this.lastClick.x) < 8;
     this.lastClick = { t: dbl ? 0 : now, x };
-    this.tap(x, d, e, dbl);
+    this.tap(x, this.local(e)[1], d, e, dbl);
   }
 
   /** A tap or double tap (no drag). */
-  private tap(x: number, d: Drag, e: PointerEvent, dbl: boolean): void {
+  private tap(x: number, y: number, d: Drag, e: PointerEvent, dbl: boolean): void {
     const { app, f } = this, t = this.tOf(x);
     if (d.zone === 'loop') {
       const lh = this.loopHit(x, d.touch ? 14 : 7);
@@ -269,6 +295,10 @@ export class PointerInput {
       if (app.step === 1 && d.zone === 'edit') {
         const m = h?.kind === 'marker' ? app.markers.find((k) => k.id === h.id) : undefined;
         if (m) f.markers.remove(m); else f.markers.add(t);
+      } else if (app.step === 5 && d.zone === 'edit') {
+        const voice = laneAt(this.renderer.layout(), y);
+        if (h?.kind === 'hit') f.groove.removeHit(h.voice, h.t);
+        else if (voice) f.groove.addHit(voice, this.hitT(x, d.touch, e.altKey, true));
       } else if (app.step === 2) {
         if (h?.kind === 'anchor') { const a = app.doc.tempo.anchors.find((k) => k.q === h.q); if (a) f.beats.unpin(a); }
         else if (h?.kind === 'grid') f.beats.pinAt(app.tempoMap.posToTime(h.q), h.q);
@@ -286,7 +316,7 @@ export class PointerInput {
       }
     }
     const h = d.hit;
-    const target = h?.kind === 'marker' ? app.markers.find((k) => k.id === h.id) : h?.kind === 'anchor' ? app.doc.tempo.anchors.find((k) => k.q === h.q) : undefined;
+    const target = h?.kind === 'marker' ? app.markers.find((k) => k.id === h.id) : h?.kind === 'anchor' ? app.doc.tempo.anchors.find((k) => k.q === h.q) : h?.kind === 'hit' ? h : undefined;
     if (h && target && h.kind !== 'grid') { app.select(h); f.playback.seek(target.t); }
     else { app.select(null); f.playback.seek(this.tapT(x, d, e)); }
   }

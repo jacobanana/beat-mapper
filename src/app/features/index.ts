@@ -31,7 +31,7 @@ export function createFeatures(app: App, analyzer: Analyzer, store: KeyValueStor
   const markers = new Markers(app, playback, analyzer);
   const beats = new Beats(app, playback);
   const exports = new Exports(app, beats);
-  const groove = new Groove(app, analyzer, exports);
+  const groove = new Groove(app, analyzer, exports, playback);
   const workflow = new Workflow(app, beats, groove);
   const slicer = new Slicer(app, playback, exports);
   const sessions = new Sessions(app, markers, playback, workflow, store);
