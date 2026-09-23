@@ -7,7 +7,7 @@ import { saveError, saveFile } from '../../io/download';
 import { buildRppSlices } from '../../io/formats/rpp';
 import { wavEncode, wavSize } from '../../io/formats/wav';
 import { type ZipEntry, zipFiles } from '../../io/formats/zip';
-import type { SlicerSettings } from '../../state/settings';
+import { type SlicerSettings, defaultSlicer } from '../../state/settings';
 import type { App, SliceView } from '../app';
 import type { Exports } from './exports';
 import type { Playback } from './playback';
@@ -71,6 +71,24 @@ export class Slicer {
     this.app.excluded = [];
     this.app.bus.emit('slices');
     this.app.notify.toast('All slices kept');
+  }
+
+  /** Something in this step differs from how it starts: a slice dropped, or where the cuts go. */
+  get changed(): boolean {
+    const { app } = this, o = app.slicer, o0 = defaultSlicer();
+    return !!app.audio && (app.excluded.length > 0 || o.mode !== o0.mode || o.len !== o0.len || o.tail !== o0.tail || o.min !== o0.min);
+  }
+
+  /** Starts the step again: every slice kept, cut where it starts. What each .wav gets (set in Export) stays. */
+  reset(): void {
+    const { app } = this;
+    if (!this.changed) return;
+    const { mode, len, tail, min } = defaultSlicer();
+    this.update({ mode, len, tail, min });
+    app.excluded = [];
+    app.sliceSel = null;
+    app.bus.emit('slices');
+    app.notify.toast('Slices reset: every transient starts a slice, and all are kept.');
   }
 
   /** Plays slice i on its own, rendered exactly as it will be written. */

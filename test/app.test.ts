@@ -210,6 +210,103 @@ describe('export', () => {
   });
 });
 
+describe('hearing the warp', () => {
+  it('is wanted in Beats with listening on, and renders once until the warp changes', async () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.warp.update({ mode: 'repitch' });
+    expect(f.warp.wanted()).toBe(false);
+    f.warp.toggleListen();
+    expect(app.warp.listen).toBe(true);
+    expect(f.warp.wanted()).toBe(true);
+    const r = (await f.warp.render())!;
+    expect(r.chans[0].length).toBe(Math.round(r.plan.outDur * 44100));
+    // Nothing changed: the same render, for listening and for saving.
+    expect(await f.warp.render()).toBe(r);
+    // A pin moved: rendered again.
+    const a = app.doc.tempo.anchors[5];
+    f.beats.nudge(a, 0.01);
+    const r2 = (await f.warp.render())!;
+    expect(r2).not.toBe(r);
+    expect(r2.plan).toBe(app.warpPlan);
+    // Only in Beats.
+    f.workflow.goTo(4);
+    expect(f.warp.wanted()).toBe(false);
+  });
+
+  it('refuses to listen before there is a map', () => {
+    const { app, f, toasts } = t;
+    f.warp.toggleListen();
+    expect(app.warp.listen).toBe(false);
+    expect(toasts.at(-1)).toMatch(/bar 1/);
+  });
+});
+
+describe('resetting a step', () => {
+  it('starts Transients again, and undo brings the marker edits back', async () => {
+    const { app, f } = t, n = app.markers.length;
+    expect(f.workflow.canReset).toBe(false);
+    f.markers.add(30.5);
+    f.markers.setSensitivity(80);
+    await f.markers.setAlgo('complex');
+    expect(f.workflow.canReset).toBe(true);
+    f.workflow.resetStep();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(app.detection).toMatchObject({ sens: 55, gap: 60, band: 'full', algo: 'flux' });
+    expect(app.markers.length).toBe(n);
+    expect(f.workflow.canReset).toBe(false);
+    app.undo();
+    expect(app.markers.some((m) => m.manual)).toBe(true);
+  });
+
+  it('starts Beats again from bar 1 on the first transient', () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    expect(f.workflow.canReset).toBe(false);
+    const bar1 = app.doc.tempo.anchors;
+    f.beats.autoMap();
+    f.beats.setMeter({ num: 3 });
+    f.beats.setBaseBpm(120);
+    f.warp.update({ mode: 'poly', bpm: 100, listen: true });
+    expect(f.workflow.canReset).toBe(true);
+    f.workflow.resetStep();
+    expect(app.doc.tempo).toEqual({ anchors: bar1, baseBpm: 96.5 });
+    expect(app.doc.meter).toEqual({ num: 4, den: 4 });
+    expect(app.warp).toEqual({ mode: 'music', bpm: null, listen: false });
+    expect(f.workflow.canReset).toBe(false);
+    app.undo();
+    expect(app.doc.meter.num).toBe(3);
+    expect(app.doc.tempo.anchors.length).toBeGreaterThan(1);
+  });
+
+  it('starts Slice again with every slice kept', () => {
+    const { app, f } = t;
+    f.workflow.goTo(4);
+    f.slicer.toggle(3);
+    f.slicer.update({ mode: 'fixed', len: 250 });
+    expect(f.workflow.canReset).toBe(true);
+    f.workflow.resetStep();
+    expect(app.excluded).toEqual([]);
+    expect(app.slicer).toMatchObject({ mode: 'gap', len: 500 });
+    expect(f.workflow.canReset).toBe(false);
+  });
+
+  it('starts Groove again with the hits as found', async () => {
+    const { app, f } = t;
+    f.workflow.goTo(5);
+    await f.groove.ensureDrums();
+    const kicks = app.drumHits!.kick.length;
+    f.groove.removeHit('kick', app.drumHits!.kick[0].t);
+    f.groove.setSensitivity('snare', 90);
+    expect(f.workflow.canReset).toBe(true);
+    f.workflow.resetStep();
+    expect(app.drumHits!.kick.length).toBe(kicks);
+    expect(app.groove.sens.snare).toBe(55);
+    expect(f.workflow.canReset).toBe(false);
+  });
+});
+
 describe('sessions', () => {
   it('saves the work to the browser and picks it up when the same audio is opened again', async () => {
     const store = new MemoryStore();

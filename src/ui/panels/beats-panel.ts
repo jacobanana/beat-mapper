@@ -3,8 +3,9 @@ import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { fmtTime, plural } from '../../core/format';
 import type { GridDivision } from '../../core/tempo/meter';
+import { WARP_MODES, type WarpMode } from '../../core/warp/modes';
 import type { SnapMode } from '../../state/settings';
-import { $, $in, $sel, clampNum, setValue } from '../dom';
+import { $, $btn, $in, $sel, clampNum, setPressed, setValue } from '../dom';
 
 export function bindBeatsPanel(app: App, f: Features, refocus: () => void): void {
   const b = f.beats;
@@ -27,6 +28,24 @@ export function bindBeatsPanel(app: App, f: Features, refocus: () => void): void
   $('autoMap').onclick = () => b.autoMap();
   $sel('mapEvery').onchange = (e) => app.set('beats', { mapEvery: (e.target as HTMLSelectElement).value === 'bar' ? 'bar' : 'beat' });
   $in('tol').oninput = (e) => app.set('beats', { tol: +(e.target as HTMLInputElement).value });
+
+  // Hearing the warp: the same material and grid tempo as the Export window's warped .wav.
+  $('warpListen').onclick = () => f.warp.toggleListen();
+  $sel('warpModeB').onchange = (e) => f.warp.setMode((e.target as HTMLSelectElement).value as WarpMode);
+  $in('warpBpmB').onchange = (e) => {
+    const s = (e.target as HTMLInputElement).value.trim(), v = +s;
+    f.warp.update({ bpm: s !== '' && Number.isFinite(v) && v >= 20 && v <= 400 ? v : null });
+    refocus();
+  };
+  const syncWarp = () => {
+    const w = app.warp, p = f.warp.plan();
+    setPressed($('warpListen'), w.listen);
+    $btn('warpListen').disabled = !p;
+    if ((WARP_MODES as readonly string[]).includes(w.mode)) setValue($sel('warpModeB'), w.mode);
+    const bpm = $in('warpBpmB');
+    if (document.activeElement !== bpm) bpm.value = w.bpm == null ? '' : String(w.bpm);
+    bpm.placeholder = p ? String(Math.round(p.avgBpm)) : '';
+  };
 
   const rows = $('barRows');
   rows.addEventListener('click', (e) => {
@@ -86,7 +105,9 @@ export function bindBeatsPanel(app: App, f: Features, refocus: () => void): void
   };
 
   app.bus.on(['doc', 'beats', 'audio'], syncInputs);
+  app.bus.on(['warp', 'doc', 'transport', 'audio', 'export'], syncWarp);
   app.bus.on(['doc', 'audio', 'step'], renderTable);
   app.bus.on('playhead', highlight);
   syncInputs();
+  syncWarp();
 }

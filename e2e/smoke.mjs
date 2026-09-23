@@ -83,6 +83,31 @@ try {
     const [d] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#expSave')]);
     assert.equal(d.suggestedFilename(), 'drifting-drum-loop_warped_100bpm.wav');
   });
+  await step('Beats: hear it warped, with the playhead on the original', async () => {
+    // The Export window left the material on Drums and the grid on 100 BPM; the Beats panel shows both.
+    assert.equal(await page.inputValue('#warpModeB'), 'beats');
+    assert.equal(await page.inputValue('#warpBpmB'), '100');
+    await page.keyboard.press('w');
+    assert.equal(await page.getAttribute('#warpListen', 'aria-pressed'), 'true');
+    await page.keyboard.press('Home');
+    await page.keyboard.press(' ');
+    await page.waitForFunction(() => document.getElementById('playBtn').dataset.state === 'true' && document.getElementById('busy').hidden, null, { timeout: 30000 });
+    await page.waitForTimeout(700);
+    const t = await text('rTime');
+    assert.notEqual(t, '0:00.000');
+    await page.keyboard.press(' ');
+    await page.keyboard.press('w');
+    assert.equal(await page.getAttribute('#warpListen', 'aria-pressed'), 'false');
+  });
+  await step('Beats: Reset starts the map again, undo brings it back', async () => {
+    assert.equal(await page.isDisabled('#resetB'), false);
+    await page.click('#resetB');
+    assert.equal(await text('aCount'), '1 pin');
+    assert.equal(await page.inputValue('#warpBpmB'), '');
+    assert.equal(await page.isDisabled('#resetB'), true);
+    await page.keyboard.press('Control+z');
+    assert.equal(await text('aCount'), '64 pins');
+  });
   await step('Export on a phone: the formats are a dropdown', async () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.keyboard.press('3');

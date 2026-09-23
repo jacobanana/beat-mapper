@@ -32,6 +32,9 @@ export function bindHeader(app: App, f: Features, openHelp: () => void, openExpo
   $('loopBtn').onclick = () => f.playback.toggleLoop();
   $('scrubBtn').onclick = () => f.playback.toggleScrub();
   $('clickBtn').onclick = () => f.playback.toggleClick();
+  // Each step's Reset, last in its panel: it starts that step again.
+  const RESETS = ['resetM', 'resetB', 'resetS', 'gReset'];
+  for (const id of RESETS) $(id).onclick = () => f.workflow.resetStep();
 
   const syncSteps = () => {
     for (const i of STEPS) {
@@ -78,11 +81,15 @@ export function bindHeader(app: App, f: Features, openHelp: () => void, openExpo
     $btn('redoBtn').disabled = !app.history.canRedo;
   };
 
+  const syncReset = () => { for (const id of RESETS) $btn(id).disabled = !f.workflow.canReset; };
+
   app.bus.on('step', syncSteps);
+  app.bus.on(['step', 'doc', 'detection', 'candidates', 'beats', 'warp', 'slicer', 'slices', 'groove', 'drums', 'audio'], syncReset);
   app.bus.on(['doc', 'audio'], syncHistory);
   app.bus.on(['transport', 'playhead'], syncTransport);
   app.bus.on(['playhead', 'doc', 'audio'], syncReadout);
   app.bus.on('audio', syncFile);
   syncSteps();
   syncTransport();
+  syncReset();
 }

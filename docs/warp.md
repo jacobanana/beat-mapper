@@ -5,8 +5,23 @@ re-times the audio so that map becomes a straight grid: every bar the same lengt
 result is saved as a `.wav` from the Export window (**Audio → Warped to the grid**), ready to drop
 into a DAW on bar 1 with no tempo map at all.
 
-It is an export, not a new step: everything it needs is already made in the Beats step (the map) and
-the Transients step (where Drums mode cuts).
+It is not a new step: everything it needs is already made in the Beats step (the map) and the
+Transients step (where Drums mode cuts).
+
+## Hearing it before saving
+
+**Warped** in the Beats panel (or <kbd>W</kbd>) plays the warped audio in place of the original, with
+the click on the straight grid, so what you hear is the file Export would save. The material and grid
+tempo beside it are the Export window's own. The first play renders the warp in the worker; after
+that the render is reused, for playing and for saving, until something it depends on changes (a pin,
+the meter, the loop, the material, the grid tempo, the transients in Drums mode). An edit while
+playing is rendered again once the edits settle, and playback carries on from the same place.
+
+The editor stays on the original's timeline, so the playhead moves through the original: fast where
+a bar is being slowed down, slow where it is sped up, and always on the hit you are hearing
+(`Take` in `app/features/playback.ts` maps the two timelines both ways). The tempo lane draws the
+grid's tempo as a dashed line, with the gap between each bar's tempo and it shaded: blue for a bar
+that is slowed down, red for one sped up. Outside Beats, or with Warped off, the original plays.
 
 ## What gets warped
 
@@ -51,7 +66,7 @@ frame's shift in the others.
 ## Later
 
 - Quantizing the transients themselves to the grid (moving hits inside a beat, not only the beats).
-- Hearing the warp before saving it.
+- A view of the warped waveform itself, on the straight grid.
 - Saving the warp settings with the session (they are kept for the visit only for now).
 - Other stretchers worth trying: phase gradient heap integration ([Průša & Holighaus 2017][pghi]),
   which needs no peak picking or transient handling.

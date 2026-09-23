@@ -31,6 +31,9 @@ moved down when Session joined the file group: ten 38 px buttons don't fit one r
   line.
 - Order within a bar: what is being measured, then navigation (previous and next), then edits (add,
   delete, pin), then anything destructive (reset, clear) last and on its own.
+- Every step has a **Reset** with a text label, last in its bar: it starts that step again, as it was
+  on arriving, and greys out while there is nothing to reset. What it discards from the document comes
+  back with undo; the settings it puts back do not.
 - Tempo comes before the time signature (`92 BPM · 4/4`), as in every DAW's control bar. The grid
   sits next to the magnet (snap), since the two go together.
 - A count says what it counts: `128 markers`, `1 pin`, `128/128 kept`.

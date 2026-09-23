@@ -58,7 +58,7 @@ bridge when the app runs inside one).
   undone.
 - **`App`** (`app/app.ts`) holds the document, settings, the audio and its analysis, and derives
   everything else on demand, memoised on the identity of its inputs: the visible markers, the tempo
-  map, the grid, the bars, the slices, the drum hits the sensitivities let through, the notes they make, and the pocket. Nothing derived is stored, so nothing can go stale.
+  map, the grid, the bars, the slices, the drum hits the sensitivities let through, the notes they make, the pocket, and the warp plan. Nothing derived is stored, so nothing can go stale.
 - **Features** (`app/features/`) are the verbs: `Markers`, `Beats`, `Playback`, `Slicer`,
   `Exports`, `Warp`, `Groove`, `Mixer`, `Sessions`, `Loader`, `Workflow`. They change the App and emit topics (`'doc'`,
   `'transport'`, `'slices'`…). They talk to the user only through the `Notifier` interface.

@@ -2,8 +2,8 @@
 import * as edit from '../../core/beats/edit';
 import { GRID_STEPS, type GridDivision } from '../../core/tempo/meter';
 import type { Anchor } from '../../core/types';
-import { type ProjectDoc, withAnchors } from '../../state/project';
-import { SNAP_MODES, type SnapMode } from '../../state/settings';
+import { type ProjectDoc, emptyDoc, withAnchors } from '../../state/project';
+import { SNAP_MODES, type SnapMode, defaultBeats } from '../../state/settings';
 import type { App } from '../app';
 import type { Playback } from './playback';
 
@@ -67,6 +67,30 @@ export class Beats {
     const a = this.app.selectedAnchor();
     if (a) this.unpin(a);
     else this.app.notify.toast('Select a pin first.');
+  }
+
+  /** Something in this step differs from how it starts: more than bar 1 on the first transient, the meter, the tempo. */
+  get changed(): boolean {
+    const { app } = this, t = app.doc.tempo, m = app.doc.meter, m0 = emptyDoc().meter;
+    if (!app.audio) return false;
+    const bar1 = edit.ensureDownbeat([], app.markers);
+    const pinsAsFound = t.anchors.length === 0 || (t.anchors.length === 1 && !!bar1 && t.anchors[0].t === bar1[0].t && t.anchors[0].q === 0);
+    return !pinsAsFound || t.baseBpm !== app.startBpm || m.num !== m0.num || m.den !== m0.den;
+  }
+
+  /**
+   * Starts the step again, as it was on arriving: bar 1 on the first transient, no other pins, 4/4 at
+   * the tempo the audio opened with. One undo step brings the map back.
+   */
+  reset(): void {
+    const { app } = this;
+    if (!app.audio) return;
+    const anchors = edit.ensureDownbeat([], app.markers) ?? [];
+    app.edit((d) => ({ ...d, meter: emptyDoc().meter, tempo: { anchors, baseBpm: app.startBpm } }));
+    const { grid, mapEvery, tol, loopBars } = defaultBeats();
+    app.set('beats', { grid, mapEvery, tol, loopBars });
+    app.select(null);
+    app.notify.toast('Beats reset: bar 1 on the first transient, nothing else pinned. Undo brings your map back.');
   }
 
   clearPins(): void {

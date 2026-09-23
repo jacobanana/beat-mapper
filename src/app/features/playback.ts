@@ -3,8 +3,31 @@ import { fmtTime } from '../../core/format';
 import { beatQ } from '../../core/tempo/meter';
 import { lowerBound, nearest } from '../../core/search';
 import type { TimeRange } from '../../core/types';
-import { OneShot, Player, grain } from '../../engine/player';
+import { type ClickSource, OneShot, Player, grain } from '../../engine/player';
 import type { App } from '../app';
+
+/**
+ * Another take of the audio, played in its place on its own timeline: the warp preview. The editor
+ * stays on the original's timeline, so positions are mapped both ways.
+ */
+export interface Take {
+  buffer: AudioBuffer;
+  /** Original time to the take's time, and back. */
+  toTake(t: number): number;
+  toSource(t: number): number;
+  /** The metronome, on the take's timeline. */
+  clicks: ClickSource;
+}
+
+/** Where a take comes from. Playback asks it on every play. */
+export interface TakeSource {
+  /** True when a take should play instead of the audio. */
+  wanted(): boolean;
+  /** The take, or null while it has not been made for the current state. */
+  current(): Take | null;
+  /** Makes the take; false when it couldn't be made. */
+  prepare(): Promise<boolean>;
+}
 
 const STAY_ON = { markers: ' on the closest transient', grid: ' on the closest grid line', off: '' } as const;
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
@@ -14,6 +37,11 @@ export class Playback {
   /** Slice previews. */
   readonly oneShot = new OneShot();
   private scrub: { lastG: number; lastPos: number } | null = null;
+  private takes: TakeSource | null = null;
+  /** The take playing, or null when it is the audio itself. */
+  private take: Take | null = null;
+  /** Counts plays and stops, so a play waiting on a take is dropped if anything came after it. */
+  private gen = 0;
 
   constructor(private readonly app: App) {
     this.player = new Player({
@@ -24,7 +52,7 @@ export class Playback {
         for (let i = lowerBound(N, a); i < N.length && N[i].t < b; i++) emit(N[i].t, N[i].voice, N[i].vel);
       },
       // The synth kit only plays in the Groove step, where its drums are drawn.
-      hitsOn: () => app.step === 5 && !!app.drums && !app.mute.drums,
+      hitsOn: () => app.step === 5 && !!app.drums && !app.mute.drums && !this.take,
       audioLevel: () => this.audioLevel,
       clickLevel: () => app.mix.click / 100,
       hitLevel: () => app.mix.drums / 100,
@@ -34,21 +62,47 @@ export class Playback {
 
   get playing(): boolean { return this.player.playing; }
 
+  /** The take playing, or null when it is the audio itself (or nothing plays). */
+  get playingTake(): Take | null { return this.player.playing ? this.take : null; }
+
+  setTakeSource(s: TakeSource): void { this.takes = s; }
+
+  // Where the sound is in the original audio.
+  private position(): number {
+    const p = this.player.position();
+    return this.take ? this.take.toSource(p) : p;
+  }
+
   /** The audio's gain, from the mixer: scrub grains and slice previews play at it too. */
   get audioLevel(): number { return this.app.mute.audio ? 0 : 0.9 * this.app.mix.audio / 100; }
 
   /** Where the sound is now: the player's position while playing, else the playhead. */
   now(): number {
-    return this.player.playing ? this.player.position() : this.app.transport.playhead;
+    return this.player.playing ? this.position() : this.app.transport.playhead;
   }
 
   play(from: number): void {
     const { app } = this;
     if (!app.audio) return;
+    const gen = ++this.gen, T = this.takes;
+    // A take that is wanted but not made yet is made first. Whatever plays meanwhile carries on, so
+    // after an edit the old take keeps playing until the new one is ready.
+    if (T?.wanted() && !T.current()) {
+      void T.prepare().then(() => {
+        if (gen === this.gen) this.play(this.player.playing ? this.now() : from);
+      });
+      return;
+    }
     this.stopPreview();
     this.stop(true);
+    this.gen = gen;
     if (from >= app.dur - 0.01) from = 0;
-    this.player.play(app.audio.buffer, from, app.transport.loopOn ? app.transport.loop : null);
+    const take = T?.wanted() ? T.current() : null, L = app.transport.loopOn ? app.transport.loop : null;
+    this.take = take;
+    if (take) {
+      const end = take.buffer.duration;
+      this.player.play(take.buffer, Math.max(0, Math.min(end - 0.01, take.toTake(from))), L && { a: take.toTake(L.a), b: take.toTake(L.b) });
+    } else this.player.play(app.audio.buffer, from, L);
     app.transport.playhead = from;
     app.bus.emit('transport', 'playhead');
   }
@@ -59,9 +113,11 @@ export class Playback {
    */
   stop(stay: boolean | 'snap'): void {
     const { app } = this, t = app.transport;
+    this.gen++;
     this.stopPreview();
     if (this.player.playing) {
-      const p = this.player.stop();
+      const p = this.position();
+      this.player.stop();
       t.playhead = stay ? clamp(p, 0, app.dur) : t.start;
       if (!stay) app.reveal(t.start);
       else if (stay === 'snap') {
@@ -136,7 +192,8 @@ export class Playback {
   // In Transients and Slice the metronome clicks on every marker; elsewhere on the beats of the map.
   private clicksIn(a: number, b: number, fn: (t: number, down: boolean) => void): void {
     const { app } = this;
-    if (app.step === 1 || app.step === 4) {
+    if (this.take) this.take.clicks(a, b, fn);
+    else if (app.step === 1 || app.step === 4) {
       const M = app.markers;
       for (let i = lowerBound(M, a); i < M.length && M[i].t < b; i++) fn(M[i].t, false);
     } else if (app.hasMap) {
@@ -234,7 +291,7 @@ export class Playback {
   tick(followView: boolean): void {
     const { app } = this;
     if (this.player.playing) {
-      const p = clamp(this.player.position(), 0, app.dur), v = app.view, sp = v.span;
+      const p = clamp(this.position(), 0, app.dur), v = app.view, sp = v.span;
       app.transport.playhead = p;
       if (followView && (p > v.t0 + sp * 0.92 || p < v.t0)) app.setView(p - sp * 0.08, p + sp * 0.92);
       app.bus.emit('playhead');

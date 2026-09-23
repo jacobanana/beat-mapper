@@ -5,6 +5,7 @@ import { lowerBound } from '../../core/search';
 import type { Marker } from '../../core/types';
 import type { Analyzer } from '../../analysis/analyzer';
 import { addManual, moveManual, removeCandidate, sortManual, withMarkers } from '../../state/project';
+import { defaultDetection } from '../../state/settings';
 import type { App } from '../app';
 import type { Playback } from './playback';
 
@@ -88,9 +89,27 @@ export class Markers {
   }
 
   /** Discards every manual edit: placed markers go, deleted ones come back. */
-  reset(): void {
+  discardEdits(): void {
     if (!this.app.audio) return;
     this.app.edit((d) => withMarkers(d, { manual: [], removed: [] }));
+  }
+
+  /** Something in this step differs from how it starts: an edit, or a detection setting. */
+  get changed(): boolean {
+    const { app } = this, d = app.detection, d0 = defaultDetection(), m = app.doc.markers;
+    return !!app.audio && (m.manual.length > 0 || m.removed.length > 0 || d.sens !== d0.sens || d.gap !== d0.gap || d.band !== d0.band || d.algo !== d0.algo);
+  }
+
+  /** Starts the step again: the edits go (one undo step brings them back) and detection is as it starts. */
+  async reset(): Promise<void> {
+    const { app } = this;
+    if (!this.changed) return;
+    this.discardEdits();
+    const d0 = defaultDetection(), refresh = app.detection.band !== d0.band || app.detection.algo !== d0.algo;
+    app.set('detection', { sens: d0.sens, gap: d0.gap, band: d0.band, algo: d0.algo });
+    app.select(null);
+    app.notify.toast('Transients reset: detection as it starts, markers as found. Undo brings your marker edits back.');
+    if (refresh) await this.refreshCandidates();
   }
 
   /**

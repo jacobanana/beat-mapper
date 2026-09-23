@@ -1,7 +1,7 @@
 // Where each moment of the audio goes when it is warped onto a straight grid. The tempo map is
 // straight lines between pins, so a straight grid is reached by moving every pin to where a steady
 // tempo would put it: the warp is exact between pins with one point per pin.
-import { barQ, type Meter } from '../tempo/meter';
+import { barQ, beatQ, type Meter } from '../tempo/meter';
 import type { TempoMap } from '../tempo/tempo-map';
 import type { TimeRange } from '../types';
 
@@ -82,4 +82,17 @@ export function planWarp(map: TempoMap, r: WarpRange, bpm: number): WarpMap {
   for (const p of map.anchors) if (p.t > r.a + 1e-6 && p.t < r.b - 1e-6) ts.push(p.t);
   ts.push(r.b);
   return new WarpMap(ts, ts.map((t) => ((map.timeToPos(t) - r.q0) * 60) / bpm));
+}
+
+/**
+ * The beats of the straight grid between output times a and b, for a metronome over the warped audio:
+ * `emit(time, downbeat)`. Output time 0 is quarter note `q0`.
+ */
+export function gridBeats(q0: number, bpm: number, meter: Meter, a: number, b: number, emit: (t: number, down: boolean) => void): void {
+  const bq = beatQ(meter), spq = 60 / bpm;
+  for (let k = Math.ceil((q0 + a / spq) / bq - 1e-9) || 0; ; k++) {
+    const t = (k * bq - q0) * spq;
+    if (t >= b) break;
+    if (t >= a) emit(t, ((k % meter.num) + meter.num) % meter.num === 0);
+  }
 }

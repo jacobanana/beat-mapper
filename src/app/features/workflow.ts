@@ -3,9 +3,40 @@ import type { Step } from '../../io/session';
 import type { App } from '../app';
 import type { Beats } from './beats';
 import type { Groove } from './groove';
+import type { Markers } from './markers';
+import type { Slicer } from './slicer';
+import type { Warp } from './warp';
 
 export class Workflow {
-  constructor(private readonly app: App, private readonly beats: Beats, private readonly groove: Groove) {}
+  constructor(
+    private readonly app: App,
+    private readonly markers: Markers,
+    private readonly beats: Beats,
+    private readonly slicer: Slicer,
+    private readonly warp: Warp,
+    private readonly groove: Groove,
+  ) {}
+
+  /** Whether the current step has anything to reset. */
+  get canReset(): boolean {
+    switch (this.app.step) {
+      case 1: return this.markers.changed;
+      case 2: return this.beats.changed || this.app.warp.mode !== 'music' || this.app.warp.bpm != null;
+      case 4: return this.slicer.changed;
+      case 5: return this.groove.changed;
+      default: return false;
+    }
+  }
+
+  /** Starts the current step again, as it was on arriving. */
+  resetStep(): void {
+    switch (this.app.step) {
+      case 1: void this.markers.reset(); break;
+      case 2: this.beats.reset(); this.warp.reset(); break;
+      case 4: this.slicer.reset(); break;
+      case 5: this.groove.reset(); break;
+    }
+  }
 
   goTo(step: Step): void {
     // Export is a window now, not a step; a session saved in it comes back in Beats.

@@ -76,7 +76,8 @@ export class Loader {
     app.analysis = analysis;
     app.cands = cands;
     app.drums = null;
-    app.doc = emptyDoc(bpm ?? bpmFromName(fileName) ?? +estimateTempo(analysis.odfs.flux.full, analysis.fr).toFixed(2));
+    app.startBpm = bpm ?? bpmFromName(fileName) ?? +estimateTempo(analysis.odfs.flux.full, analysis.fr).toFixed(2);
+    app.doc = emptyDoc(app.startBpm);
     app.history.clear();
     app.sel = null;
     app.hover = null;
