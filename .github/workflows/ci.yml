@@ -15,9 +15,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm test
+      # The same script the Claude commit hook runs, so a branch that was
+      # green in a phone session is green here for the same reasons.
+      - name: Checks (typecheck + lint + unit tests)
+        run: bash scripts/checks.sh
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e

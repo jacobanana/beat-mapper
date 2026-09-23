@@ -3,8 +3,8 @@ import tseslint from 'typescript-eslint';
 import globals from 'globals';
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'test/legacy'] },
-  { files: ['e2e/**', '*.config.*'], languageOptions: { globals: { ...globals.node } } },
+  { ignores: ['dist', 'node_modules', 'test/legacy', '.dev'] },
+  { files: ['e2e/**', '*.config.*', '.claude/**'], languageOptions: { globals: { ...globals.node } } },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
