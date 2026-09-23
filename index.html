@@ -135,34 +135,39 @@
 
     <section id="panel" aria-label="Controls">
       <div class="pane" id="p1">
-        <div class="bar groups">
-          <span class="cluster">
-            <label class="sl" title="Sensitivity ([ ])"><svg class="ic"><use href="#i-sens"/></svg><input type="range" id="sens" min="0" max="100" value="55" aria-label="Sensitivity"><output id="sensO">55%</output></label>
-            <label class="sl" title="Minimum gap between markers"><svg class="ic"><use href="#i-gap"/></svg><input type="range" id="gap" min="10" max="300" step="5" value="60" aria-label="Minimum gap"><output id="gapO">60 ms</output></label>
-          </span>
-          <span class="cluster">
-            <select id="algo" title="Detection algorithm" aria-label="Detection algorithm"><option value="flux">Spectral flux</option><option value="complex">Complex domain</option><option value="gdelay">Group delay</option><option value="energy">Energy rise</option></select>
-            <select id="band" title="Frequency band to detect on" aria-label="Band"><option value="full">All</option><option value="low">Lows</option><option value="high">Highs</option></select>
-            <button class="btn on" id="odfBtn" title="Show the transientness curve on the waveform (V)" aria-label="Show transientness" aria-pressed="true"><svg class="ic"><use href="#i-odf"/></svg></button>
-          </span>
-          <span class="cluster">
-            <button class="btn" id="prevM" title="Previous transient (Shift+Tab)" aria-label="Previous transient"><svg class="ic"><use href="#i-prev"/></svg></button>
-            <button class="btn" id="nextM" title="Next transient (Tab)" aria-label="Next transient"><svg class="ic"><use href="#i-next"/></svg></button>
-          </span>
-          <span class="cluster">
-            <button class="btn" id="addM" title="Add marker at playhead (A)" aria-label="Add marker"><svg class="ic"><use href="#i-add"/></svg></button>
-            <button class="btn" id="delM" title="Delete selected marker (Del)" aria-label="Delete marker"><svg class="ic"><use href="#i-del"/></svg></button>
-            <span class="num" id="mCount" title="Markers"></span>
-          </span>
-          <span class="cluster">
-            <button class="btn" id="resetM" title="Reset Transients: detection as it starts, markers as found. Undo brings your marker edits back" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
-          </span>
+        <div class="col flow">
+          <div class="row2">
+            <span class="cap" title="How strong a hit has to be to count">Find</span><span class="items">
+              <label class="sl" title="Sensitivity ([ ]): raise it for quieter hits"><svg class="ic"><use href="#i-sens"/></svg><input type="range" id="sens" min="0" max="100" value="55" aria-label="Sensitivity"><output id="sensO">55%</output></label>
+              <span class="num" id="mCount" title="Markers"></span>
+            </span>
+          </div>
+          <div class="row2">
+            <span class="cap" title="Check and fix single markers, at the playhead">Fix</span><span class="items">
+              <button class="btn" id="prevM" title="Previous transient (Shift+Tab)" aria-label="Previous transient"><svg class="ic"><use href="#i-prev"/></svg></button>
+              <button class="btn" id="nextM" title="Next transient (Tab)" aria-label="Next transient"><svg class="ic"><use href="#i-next"/></svg></button>
+              <button class="btn" id="addM" title="Add a marker at the playhead (A)" aria-label="Add marker"><svg class="ic"><use href="#i-add"/></svg>Add</button>
+              <button class="btn" id="delM" title="Delete the selected marker (Del)" aria-label="Delete marker"><svg class="ic"><use href="#i-del"/></svg>Delete</button>
+              <button class="btn end" id="resetM" title="Reset Transients: detection as it starts, markers as found" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
+            </span>
+          </div>
+          <details class="more" id="mOpts">
+            <summary>Options</summary>
+            <div class="row2">
+              <span class="cap">Find</span><span class="items">
+                <label class="sl" title="Minimum gap between markers: closer hits count as one"><svg class="ic"><use href="#i-gap"/></svg><input type="range" id="gap" min="10" max="300" step="5" value="60" aria-label="Minimum gap"><output id="gapO">60 ms</output></label>
+                <select id="algo" title="What counts as a hit" aria-label="Detection algorithm"><option value="flux">Spectral flux</option><option value="complex">Complex domain</option><option value="gdelay">Group delay</option><option value="energy">Energy rise</option></select>
+                <select id="band" title="Frequency band to detect on" aria-label="Band"><option value="full">All</option><option value="low">Lows</option><option value="high">Highs</option></select>
+                <button class="btn on" id="odfBtn" title="Show the transientness curve the markers come from (V)" aria-label="Show transientness" aria-pressed="true"><svg class="ic"><use href="#i-odf"/></svg>Curve</button>
+              </span>
+            </div>
+          </details>
         </div>
       </div>
 
       <div class="pane" id="p2" hidden>
         <!-- In the order the work goes: the tempo to start from, then the map, then fixing single beats. -->
-        <div class="col steps2">
+        <div class="col flow">
           <div class="row2">
             <span class="cap" title="What the map starts from">Tempo</span><span class="items">
             <input type="number" id="bpm" min="20" max="400" step="0.01" value="120" title="Starting tempo (BPM): seeds Auto-map, and holds after the last pin" aria-label="Starting tempo"><span class="num" style="padding:0 4px 0 0">BPM</span>
@@ -207,21 +212,23 @@
       </div>
 
       <div class="pane" id="p3" hidden>
-        <div class="col">
-          <div class="bar groups">
-            <span class="cluster">
-              <span class="seg" role="group" aria-label="What plays"><button class="btn" id="wOrig" title="Play the original (W)" aria-pressed="false">Original</button><button class="btn on" id="wWarped" title="Play it warped onto the grid, with the click on the grid (W)" aria-pressed="true">Warped</button></span>
-            </span>
-            <span class="cluster">
+        <div class="col flow">
+          <div class="row2">
+            <span class="cap" title="The tempo of the straight grid">Tempo</span><span class="items">
               <input type="number" id="warpBpmB" min="20" max="400" step="0.01" title="Grid tempo (BPM); empty takes the average" aria-label="Grid tempo in BPM; empty takes the average"><span class="num" style="padding:0 4px 0 0">BPM</span>
               <button class="btn primary" id="wFromLoop" title="Grid tempo from the loop: the tempo the looped section averages, to the nearest BPM (F)" aria-label="Grid tempo from the loop"><svg class="ic"><use href="#i-loop"/></svg>From loop</button>
             </span>
-            <span class="cluster">
+          </div>
+          <div class="row2">
+            <span class="cap" title="What is warped, and how it is stretched">Warp</span><span class="items">
               <select id="warpRange" title="What is warped, heard and saved" aria-label="What is warped"><option value="file">whole file</option><option value="loop">just the loop</option></select>
               <select id="warpModeB" title="Material: sets how the audio is stretched" aria-label="Material, which sets the warp algorithm"><option value="beats">Drums</option><option value="mono">Mono</option><option value="vocal">Vocal</option><option value="poly">Poly</option><option value="music">Full mix</option><option value="repitch">Re-pitch</option></select>
             </span>
-            <span class="cluster">
-              <button class="btn" id="resetW" title="Reset Warp: the average tempo, the whole file, Full mix" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
+          </div>
+          <div class="row2">
+            <span class="cap" title="What plays">Listen</span><span class="items">
+              <span class="seg" role="group" aria-label="What plays"><button class="btn" id="wOrig" title="Play the original (W)" aria-pressed="false">Original</button><button class="btn on" id="wWarped" title="Play it warped onto the grid, with the click on the grid (W)" aria-pressed="true">Warped</button></span>
+              <button class="btn end" id="resetW" title="Reset Warp: the whole file at the tempo it averages, Full mix" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
             </span>
           </div>
           <p id="wSum"></p>
@@ -229,25 +236,33 @@
       </div>
 
       <div class="pane" id="p4" hidden>
-        <div class="col">
-          <div class="bar">
-            <span class="sect" title="Where the cuts go: every transient starts a slice"><svg class="ic"><use href="#i-slice"/></svg></span>
-            <select id="slMode" title="Where each slice ends" aria-label="Where each slice ends"><option value="gap">to next transient</option><option value="fixed">fixed length</option></select>
-            <span class="sl" title="Fixed slice length (ms)">len<input type="number" id="slLen" min="5" max="60000" step="5" value="500" aria-label="Fixed slice length in ms"></span>
-            <span class="sl" title="Audio kept past the next transient (ms)">tail<input type="number" id="slTail" min="0" max="5000" step="5" value="0" aria-label="Tail past the next transient in ms"></span>
-            <span class="sl" title="Skip transients closer together than this (ms)"><svg class="ic"><use href="#i-gap"/></svg><input type="number" id="slMin" min="0" max="5000" step="5" value="40" aria-label="Minimum slice length in ms"></span>
-            <span class="num" id="slCount" title="Kept / found"></span>
-          </div>
-          <div class="bar">
-            <button class="btn" id="slPrev" title="Previous slice, and hear it (Shift+Tab)" aria-label="Previous slice"><svg class="ic"><use href="#i-prev"/></svg></button>
-            <button class="btn" id="slNext" title="Next slice, and hear it (Tab)" aria-label="Next slice"><svg class="ic"><use href="#i-next"/></svg></button>
-            <button class="btn" id="slPlay" title="Play the selected slice on its own (E)" aria-label="Play slice"><svg class="ic"><use href="#i-play"/></svg></button>
-            <button class="btn" id="slOff" title="Keep or drop the selected slice (X)" aria-label="Keep or drop slice"><svg class="ic"><use href="#i-clear"/></svg></button>
-            <button class="btn" id="slAll" title="Keep every slice again">Keep all</button>
-            <span class="cluster">
-              <button class="btn" id="resetS" title="Reset Slice: every transient starts a slice, and all are kept" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
+        <div class="col flow">
+          <div class="row2">
+            <span class="cap" title="Where each slice starts and ends: every transient starts one">Cut</span><span class="items">
+              <select id="slMode" title="Where each slice ends" aria-label="Where each slice ends"><option value="gap">to next transient</option><option value="fixed">fixed length</option></select>
+              <label class="sl" id="slLenL" title="Fixed slice length (ms)"><input type="number" id="slLen" min="5" max="60000" step="5" value="500" aria-label="Fixed slice length in ms">ms</label>
+              <label class="sl" id="slTailL" title="Audio kept past the next transient (ms)">+<input type="number" id="slTail" min="0" max="5000" step="5" value="0" aria-label="Tail past the next transient in ms">ms</label>
+              <span class="num" id="slCount" title="Kept / found"></span>
             </span>
           </div>
+          <div class="row2">
+            <span class="cap" title="Hear each slice, and keep it or drop it">Pick</span><span class="items">
+              <button class="btn" id="slPrev" title="Previous slice, and hear it (Shift+Tab)" aria-label="Previous slice"><svg class="ic"><use href="#i-prev"/></svg></button>
+              <button class="btn" id="slNext" title="Next slice, and hear it (Tab)" aria-label="Next slice"><svg class="ic"><use href="#i-next"/></svg></button>
+              <button class="btn" id="slPlay" title="Play the selected slice on its own (E)" aria-label="Play slice"><svg class="ic"><use href="#i-play"/></svg></button>
+              <button class="btn" id="slOff" title="Keep or drop the selected slice (X)" aria-label="Keep or drop slice"><svg class="ic"><use href="#i-clear"/></svg>Drop</button>
+              <button class="btn end" id="resetS" title="Reset Slice: every transient starts a slice, and all are kept" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
+            </span>
+          </div>
+          <details class="more" id="slOpts">
+            <summary>Options</summary>
+            <div class="row2">
+              <span class="cap">Cut</span><span class="items">
+                <label class="sl" title="Skip transients closer together than this, so the slice before them keeps running (ms)">shortest<input type="number" id="slMin" min="0" max="5000" step="5" value="40" aria-label="Minimum slice length in ms">ms</label>
+                <button class="btn" id="slAll" title="Keep every slice again">Keep all</button>
+              </span>
+            </div>
+          </details>
         </div>
         <div class="bars">
           <p id="slSum"></p>
@@ -255,24 +270,33 @@
         </div>
       </div>
       <div class="pane" id="p5" hidden>
-        <div class="col">
-          <div class="voices">
-            <label class="sl vs" title="Kick sensitivity"><b class="kick">K</b><input type="range" id="gSens-kick" min="0" max="100" value="55" aria-label="Kick sensitivity"><output id="gN-kick"></output></label>
-            <label class="sl vs" title="Snare sensitivity: raise it for ghost notes"><b class="snare">S</b><input type="range" id="gSens-snare" min="0" max="100" value="55" aria-label="Snare sensitivity"><output id="gN-snare"></output></label>
-            <label class="sl vs" title="Hats sensitivity"><b class="hat">H</b><input type="range" id="gSens-hat" min="0" max="100" value="55" aria-label="Hats sensitivity"><output id="gN-hat"></output></label>
-          </div>
-          <div class="bar">
-            <select id="gSource" title="What the audio is. A full mix is experimental: the other instruments are modelled apart from the drums, but expect misses" aria-label="Audio source"><option value="drums">drums only</option><option value="mix">full mix</option></select>
-            <select id="gGrid" title="Grid each hit is placed on" aria-label="Grid"><option value="8">1/8</option><option value="16" selected>1/16</option><option value="8t">1/8T</option><option value="16t">1/16T</option></select>
-            <select id="gRef" title="What the pocket is measured against, bar by bar. Auto: the hats when they keep time, else the tempo map's grid" aria-label="Measured against"><option value="auto">vs auto</option><option value="hat">vs hats</option><option value="kick">vs kick</option><option value="snare">vs snare</option><option value="kit">vs whole kit</option><option value="grid">vs grid</option></select>
-            <button class="btn on" id="gExag" title="Draw the offsets in the bar three times their size (X)" aria-label="Exaggerate offsets" aria-pressed="true">×3</button>
-            <span class="sep"></span>
-            <span class="seg" role="group" aria-label="Chart"><button class="btn on" id="gChartPocket" title="Chart: the pocket and the typical bar (C)" aria-pressed="true">POCKET</button><button class="btn" id="gChartMidi" title="Chart: the hits as a MIDI transcript, following the playhead (C)" aria-pressed="false">MIDI</button></span>
-            <span class="cluster">
-              <button class="btn" id="gDel" title="Delete selected hit (Del)" aria-label="Delete hit"><svg class="ic"><use href="#i-del"/></svg></button>
+        <div class="col flow">
+          <div class="row2">
+            <span class="cap" title="Kick, snare and hats found in the audio">Find</span><span class="items">
+              <select id="gSource" title="What the audio is. A full mix is experimental: the other instruments are modelled apart from the drums, but expect misses" aria-label="Audio source"><option value="drums">drums only</option><option value="mix">full mix</option></select>
+              <span class="voices">
+                <label class="sl vs" title="Kick sensitivity"><b class="kick">K</b><input type="range" id="gSens-kick" min="0" max="100" value="55" aria-label="Kick sensitivity"><output id="gN-kick"></output></label>
+                <label class="sl vs" title="Snare sensitivity: raise it for ghost notes"><b class="snare">S</b><input type="range" id="gSens-snare" min="0" max="100" value="55" aria-label="Snare sensitivity"><output id="gN-snare"></output></label>
+                <label class="sl vs" title="Hats sensitivity"><b class="hat">H</b><input type="range" id="gSens-hat" min="0" max="100" value="55" aria-label="Hats sensitivity"><output id="gN-hat"></output></label>
+              </span>
             </span>
-            <span class="cluster">
-              <button class="btn" id="gReset" title="Reset Groove: the hits as found at the starting sensitivities. Undo brings your hit edits back" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
+          </div>
+          <div class="row2">
+            <span class="cap" title="What each hit is measured against">Grid</span><span class="items">
+              <select id="gGrid" title="Grid each hit is placed on" aria-label="Grid"><option value="8">1/8</option><option value="16" selected>1/16</option><option value="8t">1/8T</option><option value="16t">1/16T</option></select>
+              <select id="gRef" title="What the pocket is measured against, bar by bar. Auto: the hats when they keep time, else the tempo map's grid" aria-label="Measured against"><option value="auto">vs auto</option><option value="hat">vs hats</option><option value="kick">vs kick</option><option value="snare">vs snare</option><option value="kit">vs whole kit</option><option value="grid">vs grid</option></select>
+            </span>
+          </div>
+          <div class="row2">
+            <span class="cap" title="The chart beside these controls">Chart</span><span class="items">
+              <span class="seg" role="group" aria-label="Chart"><button class="btn on" id="gChartPocket" title="Chart: the pocket and the typical bar (C)" aria-pressed="true">Pocket</button><button class="btn" id="gChartMidi" title="Chart: the hits as a MIDI transcript, following the playhead (C)" aria-pressed="false">MIDI</button></span>
+              <button class="btn on" id="gExag" title="Draw the offsets in the bar three times their size (X)" aria-label="Exaggerate offsets" aria-pressed="true">×3</button>
+            </span>
+          </div>
+          <div class="row2">
+            <span class="cap" title="Fix single hits: drag, or double-tap a lane">Fix</span><span class="items">
+              <button class="btn" id="gDel" title="Delete the selected hit (Del)" aria-label="Delete hit"><svg class="ic"><use href="#i-del"/></svg>Delete</button>
+              <button class="btn end" id="gReset" title="Reset Groove: the hits as found, at the starting sensitivities" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
             </span>
           </div>
           <p id="gSum"></p>
@@ -323,6 +347,12 @@
       <div class="xfoot"><button class="btn" id="expCancel">Cancel</button><button class="btn primary" id="expSave"><svg class="ic"><use href="#i-export"/></svg><span id="expSaveL">Save</span></button></div>
     </div>
   </div>
+</dialog>
+
+<dialog id="confirmDlg" aria-labelledby="cfTitle">
+  <h2 id="cfTitle"></h2>
+  <p id="cfText"></p>
+  <div class="xfoot"><button class="btn" id="cfNo">Cancel</button><button class="btn primary" id="cfYes"><svg class="ic"><use href="#i-reset"/></svg>Reset</button></div>
 </dialog>
 
 <dialog id="help">

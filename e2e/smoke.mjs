@@ -123,6 +123,8 @@ try {
   });
   await step('Warp: Reset goes back to the average', async () => {
     await page.click('#resetW');
+    assert.equal(await page.isVisible('#confirmDlg'), true);
+    await page.click('#cfYes');
     assert.equal(await page.inputValue('#warpBpmB'), '');
     assert.equal(await page.inputValue('#warpModeB'), 'music');
     assert.equal(await page.isDisabled('#resetW'), true);
@@ -130,7 +132,15 @@ try {
   await step('Beats: Reset starts the map again, undo brings it back', async () => {
     await page.keyboard.press('2');
     assert.equal(await page.isDisabled('#resetB'), false);
+    // Cancel leaves everything as it was.
     await page.click('#resetB');
+    assert.match(await text('cfTitle'), /^Reset Beats\?/);
+    await page.click('#cfNo');
+    assert.equal(await page.isVisible('#confirmDlg'), false);
+    assert.equal(await text('aCount'), '64 pins');
+    await page.click('#resetB');
+    assert.equal(await page.isVisible('#confirmDlg'), true);
+    await page.click('#cfYes');
     assert.equal(await text('aCount'), '1 pin');
     assert.equal(await page.isDisabled('#resetB'), true);
     await page.keyboard.press('Control+z');
@@ -201,6 +211,8 @@ try {
     await page.keyboard.press('Control+z');
     assert.equal(await text('gN-kick'), '33');
     await page.click('#gReset');
+    assert.equal(await page.isVisible('#confirmDlg'), true);
+    await page.click('#cfYes');
     assert.equal(await text('gN-kick'), '32');
   });
   await step('Groove: hear the drums as MIDI, and chart them as a transcript', async () => {

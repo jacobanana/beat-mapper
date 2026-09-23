@@ -123,19 +123,22 @@ tbody tr{cursor:pointer}
 tbody tr:hover{background:color-mix(in srgb,var(--beat) 14%,transparent)}
 tbody tr.cur td:first-child{color:var(--beat);font-weight:600}
 td.up{color:var(--mark)} td.dn{color:var(--beat)}
-#sumP,#slSum,#wSum{color:var(--dim);margin:0 0 4px;font-size:14px}
-#p2 .col{flex:2 1 420px;min-width:0;display:flex;flex-direction:column;gap:6px}
-.row2{display:grid;grid-template-columns:52px minmax(0,1fr);align-items:center}
-.row2 .items{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
-.row2 .cap{align-self:start;padding-top:9px;color:var(--dim);font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+#sumP,#slSum,#wSum,#gSum{color:var(--dim);margin:0 0 4px;font-size:14px}
+/* Every step's controls: one captioned row per stage of the work, then Options folded below. */
+.col.flow{flex:2 1 420px;min-width:0;display:flex;flex-direction:column;gap:6px}
+#p1 .col.flow,#p3 .col.flow{flex:1 1 100%}
+.row2{display:grid;grid-template-columns:56px minmax(0,1fr);align-items:center}
+.row2 .items{display:flex;flex-wrap:wrap;align-items:center;gap:6px 5px}
+.row2 .cap{align-self:start;padding-top:10px;color:var(--dim);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.02em}
 .row2 .end{margin-left:auto}
+#confirmDlg{width:min(420px,92vw)}
+#confirmDlg p{margin:0 0 16px;color:var(--dim)}
 .more>summary{cursor:pointer;color:var(--dim);font-size:14px;padding:4px 0;list-style-position:inside}
 .more[open]>summary{margin-bottom:4px}
 .more .row2+.row2{margin-top:6px}
 .more .sl select,.more .sl input[type=number]{margin-left:4px}
 #loopBars{width:58px;margin-right:4px}
 #aCount:not(:empty)::after{content:' · '}
-#p3 .col{flex:1 1 100%;min-width:0;display:flex;flex-direction:column;gap:6px}
 #sliceRows tr.cur{background:color-mix(in srgb,var(--beat) 16%,transparent)}
 #sliceRows tr.off td{opacity:.45}
 #sliceRows td:first-child,#sliceRows th:first-child{padding-right:2px}
@@ -144,10 +147,10 @@ td.up{color:var(--mark)} td.dn{color:var(--beat)}
 .mini:hover{border-color:var(--dim);color:var(--ink)}
 #p4 input[type=number]{width:58px}
 #p4 .sl input[type=number]{width:52px} #slLen{width:68px}
-#p4 .col{flex:2 1 470px;min-width:0;display:flex;flex-direction:column;gap:6px}
+#p4 .col.flow{flex:2 1 470px}
 .sect{color:var(--dim);display:inline-flex;align-items:center;flex:none}
-#p5 .col{flex:1 1 380px;min-width:0;display:flex;flex-direction:column;gap:6px}
-#p5 .voices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 12px}
+#p5 .col.flow{flex:1 1 380px}
+#p5 .voices{flex:1 1 240px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 12px}
 #p5 .voices .sl{min-width:0}
 #p5 .voices input{width:auto;flex:1;min-width:0}
 .vs b{font-weight:600;width:12px;text-align:center}

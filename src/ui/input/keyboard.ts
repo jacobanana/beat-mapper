@@ -24,7 +24,7 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
   window.addEventListener('keydown', (e) => {
     const el = document.activeElement as HTMLElement | null, tag = el?.tagName;
     const typing = tag === 'TEXTAREA' || tag === 'SELECT' || (tag === 'INPUT' && !['range', 'checkbox', 'radio'].includes((el as HTMLInputElement).type));
-    if (($('help') as HTMLDialogElement).open || ($('exportDlg') as HTMLDialogElement).open) return;
+    if (['help', 'exportDlg', 'confirmDlg'].some((id) => ($(id) as HTMLDialogElement).open)) return;
     if (typing) { if (e.key === 'Escape' || e.key === 'Enter') { el!.blur(); hooks.refocus(); } return; }
     const mod = e.metaKey || e.ctrlKey, k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
 
