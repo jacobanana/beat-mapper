@@ -123,7 +123,18 @@ tbody tr{cursor:pointer}
 tbody tr:hover{background:color-mix(in srgb,var(--beat) 14%,transparent)}
 tbody tr.cur td:first-child{color:var(--beat);font-weight:600}
 td.up{color:var(--mark)} td.dn{color:var(--beat)}
-#sum,#slSum,#wSum{color:var(--dim);margin:0 0 4px;font-size:14px}
+#sumP,#slSum,#wSum{color:var(--dim);margin:0 0 4px;font-size:14px}
+#p2 .col{flex:2 1 420px;min-width:0;display:flex;flex-direction:column;gap:6px}
+.row2{display:grid;grid-template-columns:52px minmax(0,1fr);align-items:center}
+.row2 .items{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.row2 .cap{align-self:start;padding-top:9px;color:var(--dim);font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.row2 .end{margin-left:auto}
+.more>summary{cursor:pointer;color:var(--dim);font-size:14px;padding:4px 0;list-style-position:inside}
+.more[open]>summary{margin-bottom:4px}
+.more .row2+.row2{margin-top:6px}
+.more .sl select,.more .sl input[type=number]{margin-left:4px}
+#loopBars{width:58px;margin-right:4px}
+#aCount:not(:empty)::after{content:' · '}
 #p3 .col{flex:1 1 100%;min-width:0;display:flex;flex-direction:column;gap:6px}
 #sliceRows tr.cur{background:color-mix(in srgb,var(--beat) 16%,transparent)}
 #sliceRows tr.off td{opacity:.45}

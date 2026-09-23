@@ -31,6 +31,10 @@ moved down when Session joined the file group: ten 38 px buttons don't fit one r
   line.
 - Order within a bar: what is being measured, then navigation (previous and next), then edits (add,
   delete, pin), then anything destructive (reset, clear) last and on its own.
+- A panel with more than a few controls is laid out in the order the work goes, one captioned row per
+  stage (Beats: **Tempo**, then **Map**, then **Fix**), with what changes how a stage behaves folded
+  under **Options** below them. Buttons in these rows carry a text label, since the caption and the
+  label together say what a button does and what it changes.
 - Every step has a **Reset** with a text label, last in its bar: it starts that step again, as it was
   on arriving, and greys out while there is nothing to reset. What it discards from the document comes
   back with undo; the settings it puts back do not.

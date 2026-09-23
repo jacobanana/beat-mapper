@@ -93,11 +93,6 @@ export class Beats {
     app.notify.toast('Beats reset: bar 1 on the first transient, nothing else pinned. Undo brings your map back.');
   }
 
-  clearPins(): void {
-    if (this.app.doc.tempo.anchors.length < 2) return;
-    this.setAnchors(edit.clearPins(this.app.tempoMap));
-  }
-
   /** M: follows the beat from bar 1 and the user's pins. */
   autoMap(): void {
     const { app } = this;

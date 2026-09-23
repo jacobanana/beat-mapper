@@ -161,48 +161,47 @@
       </div>
 
       <div class="pane" id="p2" hidden>
-        <div class="bar groups" style="flex:2 1 420px">
-          <span class="cluster">
-            <input type="number" id="bpm" min="20" max="400" step="0.01" value="120" title="Starting tempo (BPM)" aria-label="Starting tempo"><span class="num" style="padding:0 4px 0 0">BPM</span>
-            <button class="btn" id="half" title="Half time">÷2</button><button class="btn" id="dbl" title="Double time">×2</button>
+        <!-- In the order the work goes: the tempo to start from, then the map, then fixing single beats. -->
+        <div class="col steps2">
+          <div class="row2">
+            <span class="cap" title="What the map starts from">Tempo</span><span class="items">
+            <input type="number" id="bpm" min="20" max="400" step="0.01" value="120" title="Starting tempo (BPM): seeds Auto-map, and holds after the last pin" aria-label="Starting tempo"><span class="num" style="padding:0 4px 0 0">BPM</span>
             <button class="btn" id="tap" title="Tap tempo (T)" aria-label="Tap tempo"><svg class="ic"><use href="#i-tap"/></svg></button>
-          </span>
-          <span class="cluster">
-            <input type="number" id="num" min="1" max="32" value="4" title="Beats per bar" aria-label="Beats per bar"><span class="num" style="padding:0">/</span>
-            <select id="den" title="Beat unit" aria-label="Beat unit"><option>2</option><option selected>4</option><option>8</option><option>16</option></select>
-          </span>
-          <span class="cluster">
-            <select id="grid" title="Grid (G)" aria-label="Grid"><option value="bar">Bar</option><option value="2">1/2</option><option value="4">1/4</option><option value="8">1/8</option><option value="16" selected>1/16</option><option value="32">1/32</option><option value="4t">1/4T</option><option value="8t">1/8T</option><option value="16t">1/16T</option></select>
-            <span class="sl" title="Magnet: what the playhead and dragging land on (S cycles)"><svg class="ic"><use href="#i-snap"/></svg><select id="snapTo" aria-label="Snap to"><option value="markers">transients</option><option value="grid">grid</option><option value="off">nothing</option></select></span>
-          </span>
-          <span class="cluster">
-            <button class="btn" id="prevM2" title="Previous transient (Shift+Tab)" aria-label="Previous transient"><svg class="ic"><use href="#i-prev"/></svg></button>
-            <button class="btn" id="nextM2" title="Next transient (Tab)" aria-label="Next transient"><svg class="ic"><use href="#i-next"/></svg></button>
-          </span>
-          <span class="cluster">
-            <button class="btn" id="setDown" title="Bar 1 starts at playhead (D)" aria-label="Set bar 1"><svg class="ic"><use href="#i-down"/></svg></button>
-            <button class="btn" id="pinHere" title="Pin nearest grid line to playhead (B)" aria-label="Pin here"><svg class="ic"><use href="#i-pin"/></svg></button>
-            <button class="btn" id="unpin" title="Unpin selected (Del)" aria-label="Unpin"><svg class="ic"><use href="#i-unpin"/></svg></button>
-            <button class="btn" id="clearPins" title="Clear all pins except bar 1" aria-label="Clear pins"><svg class="ic"><use href="#i-clear"/></svg></button>
-            <span class="num" id="aCount" title="Pins"></span>
-          </span>
-          <span class="cluster">
-            <button class="btn primary" id="derive" title="Derive from loop: keep the loop, rebuild the rest (F)" aria-label="Derive from loop"><svg class="ic"><use href="#i-derive"/></svg>Derive</button>
-            <input type="number" id="loopBars" min="1" max="64" placeholder="bars" title="Bars in the loop (blank = auto)" aria-label="Bars in the loop">
-          </span>
-          <span class="cluster">
-            <button class="btn" id="autoMap" title="Auto-map from bar 1 (M)" aria-label="Auto-map"><svg class="ic"><use href="#i-auto"/></svg>Auto-map</button>
-            <select id="mapEvery" title="Pin every" aria-label="Pin every"><option value="beat">beat</option><option value="bar">bar</option></select>
-          </span>
-          <span class="cluster">
-            <label class="sl" title="Search window around each beat"><svg class="ic"><use href="#i-tol"/></svg><input type="range" id="tol" min="5" max="45" value="20" aria-label="Search window"><output id="tolO">±20%</output></label>
-          </span>
-          <span class="cluster">
-            <button class="btn" id="resetB" title="Reset Beats: bar 1 on the first transient, nothing else pinned, 4/4 at the starting tempo. Undo brings your map back" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
-          </span>
+            <span class="cluster">
+              <input type="number" id="num" min="1" max="32" value="4" title="Beats per bar" aria-label="Beats per bar"><span class="num" style="padding:0">/</span>
+              <select id="den" title="Beat unit" aria-label="Beat unit"><option>2</option><option selected>4</option><option>8</option><option>16</option></select>
+            </span></span>
+          </div>
+          <div class="row2">
+            <span class="cap" title="Pin every beat to a transient">Map</span><span class="items">
+            <button class="btn primary" id="autoMap" title="Auto-map: follow the beat from bar 1 and pin every beat to a transient (M)" aria-label="Auto-map"><svg class="ic"><use href="#i-auto"/></svg>Auto-map</button>
+            <button class="btn" id="derive" title="From loop: keep the beats in the loop, rebuild the rest of the map to match (F)" aria-label="Map from the loop"><svg class="ic"><use href="#i-derive"/></svg>From loop</button></span>
+          </div>
+          <div class="row2">
+            <span class="cap" title="Move one beat by hand, at the playhead">Fix</span><span class="items">
+            <button class="btn" id="setDown" title="Bar 1 starts at the playhead (D)" aria-label="Set bar 1"><svg class="ic"><use href="#i-down"/></svg>Bar 1</button>
+            <button class="btn" id="pinHere" title="Pin the nearest grid line to the playhead (B)" aria-label="Pin here"><svg class="ic"><use href="#i-pin"/></svg>Pin</button>
+            <button class="btn" id="unpin" title="Unpin the selected pin (Del)" aria-label="Unpin"><svg class="ic"><use href="#i-unpin"/></svg>Unpin</button>
+            <button class="btn end" id="resetB" title="Reset Beats: bar 1 on the first transient, nothing else pinned, 4/4 at the starting tempo. Undo brings your map back" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button></span>
+          </div>
+          <details class="more" id="bOpts">
+            <summary>Options</summary>
+            <div class="row2">
+              <span class="cap">Map</span><span class="items">
+              <label class="sl" title="Auto-map pins every beat, or only the bars">pin every<select id="mapEvery" aria-label="Pin every"><option value="beat">beat</option><option value="bar">bar</option></select></label>
+              <label class="sl" title="How far from where the tempo expects it a beat may be found"><svg class="ic"><use href="#i-tol"/></svg><input type="range" id="tol" min="5" max="45" value="20" aria-label="Search window"><output id="tolO">±20%</output></label>
+              <label class="sl" title="Bars in the loop, for From loop (blank works it out)">loop<input type="number" id="loopBars" min="1" max="64" placeholder="auto" aria-label="Bars in the loop">bars</label>
+              <span class="cluster"><button class="btn" id="half" title="Half time: every beat of the map becomes two">÷2</button><button class="btn" id="dbl" title="Double time: every two beats of the map become one">×2</button></span></span>
+            </div>
+            <div class="row2">
+              <span class="cap">Fix</span><span class="items">
+              <label class="sl" title="Grid (G): the lines drawn, and which one Pin takes">grid<select id="grid" aria-label="Grid"><option value="bar">Bar</option><option value="2">1/2</option><option value="4">1/4</option><option value="8">1/8</option><option value="16" selected>1/16</option><option value="32">1/32</option><option value="4t">1/4T</option><option value="8t">1/8T</option><option value="16t">1/16T</option></select></label>
+              <label class="sl" title="Magnet (S): what the playhead and dragged pins land on"><svg class="ic"><use href="#i-snap"/></svg><select id="snapTo" aria-label="Snap to"><option value="markers">transients</option><option value="grid">grid</option><option value="off">nothing</option></select></label></span>
+            </div>
+          </details>
         </div>
         <div class="bars">
-          <p id="sum"></p>
+          <p id="sumP"><span id="aCount"></span><span id="sum"></span></p>
           <div class="wrap"><table><thead><tr><th>Bar</th><th>Start</th><th>BPM</th><th>±</th></tr></thead><tbody id="barRows"></tbody></table></div>
         </div>
       </div>
@@ -361,16 +360,14 @@
     <div><svg class="ic"><use href="#i-del"/></svg><span>Delete selected marker</span><span><kbd>Del</kbd></span></div>
     <div><svg class="ic"><use href="#i-reset"/></svg><span>Reset: start the step again, detection as it starts and markers as found. Every step has one, last in its bar; undo brings your edits back</span><span></span></div>
     <h3>Beats</h3>
-    <div><svg class="ic"><use href="#i-tap"/></svg><span>Tap tempo</span><span><kbd>T</kbd></span></div>
-    <div><svg class="ic"><use href="#i-down"/></svg><span>Bar 1 starts at playhead</span><span><kbd>D</kbd></span></div>
-    <div><svg class="ic"><use href="#i-pin"/></svg><span>Pin nearest grid line to playhead</span><span><kbd>B</kbd></span></div>
-    <div><svg class="ic"><use href="#i-unpin"/></svg><span>Unpin selected</span><span><kbd>Del</kbd></span></div>
-    <div><svg class="ic"><use href="#i-clear"/></svg><span>Clear all pins except bar 1</span><span></span></div>
-    <div><svg class="ic"><use href="#i-snap"/></svg><span>What the playhead and the loop land on: transients, or the grid at the resolution set here. Pins snap to transients but never to the grid – they are what makes it. Alt flips the magnet while you drag</span><span><kbd>S</kbd></span></div>
-    <div><svg class="ic"><use href="#i-derive"/></svg><span>Derive from loop: keep the loop, rebuild the rest</span><span><kbd>F</kbd></span></div>
-    <div><svg class="ic"><use href="#i-auto"/></svg><span>Auto-map from bar 1</span><span><kbd>M</kbd></span></div>
-    <div><svg class="ic"><use href="#i-tol"/></svg><span>Search window around each beat</span><span></span></div>
+    <div><span>Tempo</span><span>What the map starts from: the starting tempo (it seeds Auto-map and holds after the last pin), tap tempo, and the time signature</span><span><kbd>T</kbd></span></div>
+    <div><svg class="ic"><use href="#i-auto"/></svg><span>Map · Auto-map: follow the beat from bar 1 and pin every beat to a transient</span><span><kbd>M</kbd></span></div>
+    <div><svg class="ic"><use href="#i-derive"/></svg><span>Map · From loop: loop a part that is right, keep its beats, rebuild the rest of the map to match</span><span><kbd>F</kbd></span></div>
+    <div><svg class="ic"><use href="#i-down"/></svg><span>Fix · Bar 1 starts at the playhead</span><span><kbd>D</kbd></span></div>
+    <div><svg class="ic"><use href="#i-pin"/></svg><span>Fix · Pin the nearest grid line to the playhead. Or drag a pin or a bar line in the bar ruler</span><span><kbd>B</kbd></span></div>
+    <div><svg class="ic"><use href="#i-unpin"/></svg><span>Fix · Unpin the selected pin</span><span><kbd>Del</kbd></span></div>
     <div><svg class="ic"><use href="#i-reset"/></svg><span>Reset: bar 1 on the first transient, nothing else pinned, 4/4 at the starting tempo</span><span></span></div>
+    <div><span>Options</span><span>Map: pin every beat or bar, the search window around each beat, the bars in the loop for From loop, half or double time. Fix: the grid (the lines drawn, and which one Pin takes), and the magnet: what the playhead and dragged pins land on. Pins snap to transients but never to the grid – they are what makes it. Alt flips the magnet while you drag</span><span><kbd>G</kbd> <kbd>S</kbd></span></div>
     <h3>Warp</h3>
     <div><svg class="ic"><use href="#i-warp"/></svg><span>The audio re-timed so every beat of the map lands on a straight grid at one tempo. The tempo map is made in Beats; here it is only read. The tempo lane shows the grid's tempo dashed, and how far each bar moves to reach it</span><span></span></div>
     <div><span>Original · Warped</span><span>What plays. Warped plays it with the click on the grid; the playhead follows the original, so it sits on the hit you hear</span><span><kbd>W</kbd></span></div>
