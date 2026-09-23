@@ -74,7 +74,7 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
     let s = WARP_MODE_INFO[app.warp.mode].desc + ' ';
     s += `${p.loop ? 'The loop' : 'The file'}, ${fmtTime(p.srcDur)} → ${fmtTime(p.outDur)} at ${fmtBpm(p.bpm)} BPM, `;
     s += Math.abs(hi - lo) < 0.005 ? `stretched to ${pct(lo)}.` : `stretched ${pct(lo)}–${pct(hi)}.`;
-    if (lo < 0.75 || hi > 1.33) s += ' That is a lot of stretch: check the grid tempo, or halve or double the map in step 2.';
+    if (lo < 0.75 || hi > 1.33) s += ' That is a lot of stretch: check the grid tempo, or the map in step 2.';
     return { text: s, ok: true };
   };
   const drumsInfo = (what: () => string) => {

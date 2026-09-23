@@ -111,17 +111,6 @@ describe('beats', () => {
     expect(app.doc.tempo.anchors[0].q).toBe(0);
   });
 
-  it('halves and doubles the tempo', () => {
-    const { app, f } = t;
-    f.workflow.goTo(2);
-    f.beats.autoMap();
-    f.beats.scaleTempo(0.5);
-    expect(app.doc.tempo.baseBpm).toBe(48.25);
-    expect(app.bars.length).toBe(9);
-    f.beats.scaleTempo(2);
-    expect(app.bars.length).toBe(17);
-  });
-
   it('changes the meter as an undoable edit', () => {
     const { app, f } = t;
     f.beats.setMeter({ num: 3 });

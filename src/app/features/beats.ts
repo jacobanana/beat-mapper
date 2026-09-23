@@ -117,12 +117,6 @@ export class Beats {
     app.notify.toast(`${r.bpm.toFixed(2)} BPM · ${how} · ${r.anchors.length} pins`);
   }
 
-  /** ÷2 / ×2 */
-  scaleTempo(f: number): void {
-    const t = this.app.doc.tempo, r = edit.scaleTempo(t.anchors, t.baseBpm, f);
-    this.setAnchors(r.anchors, true, r.baseBpm);
-  }
-
   tap(): void {
     const r = this.taps.tap(performance.now(), this.app.doc.meter);
     if (!r) return this.app.notify.toast('Keep tapping…');
