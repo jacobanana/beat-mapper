@@ -84,14 +84,23 @@ try {
   await step('Groove: hear the drums as MIDI, and chart them as a transcript', async () => {
     await page.click('#mixBtn');
     assert.equal(await page.isVisible('#mixer'), true);
-    await page.selectOption('#gListen', 'midi');
+    assert.equal(await page.getAttribute('#mute-drums', 'aria-pressed'), 'false');
+    await page.click('#mute-drums');
+    assert.equal(await page.getAttribute('#mute-drums', 'aria-pressed'), 'true');
+    await page.click('#mute-audio');
+    assert.equal(await page.getAttribute('#mute-audio', 'aria-pressed'), 'false');
+    await page.click('#mute-audio');
     await page.fill('#mix-drums', '120');
     assert.equal(await text('mixO-drums'), '120%');
     await page.click('#gChartPocket');
     assert.equal(await page.isVisible('#mixer'), false);
     await page.click('#clickBtn');
     assert.equal(await page.getAttribute('#clickBtn', 'aria-pressed'), 'true');
-    await page.click('#clickBtn');
+    await page.click('#mixBtn');
+    assert.equal(await page.getAttribute('#mute-click', 'aria-pressed'), 'true');
+    await page.click('#mute-click');
+    assert.equal(await page.getAttribute('#clickBtn', 'aria-pressed'), 'false');
+    await page.keyboard.press('Escape');
     await page.click('#gChartMidi');
     assert.equal(await page.getAttribute('#gChartMidi', 'aria-pressed'), 'true');
     assert.equal(await page.isDisabled('#gExag'), true);

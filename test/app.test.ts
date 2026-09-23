@@ -234,6 +234,25 @@ describe('mixer', () => {
     expect(createTestApp(store).app.mix).toEqual(a.app.mix);
   });
 
+  it('mutes a channel for this visit, keeping its level; the click\'s mute is its on/off', () => {
+    const store = new MemoryStore();
+    const a = createTestApp(store);
+    a.f.mixer.setLevel('audio', 80);
+    expect(a.f.mixer.isOn('audio')).toBe(true);
+    expect(a.f.mixer.isOn('drums')).toBe(false);
+    a.f.mixer.toggleMute('audio');
+    expect(a.f.mixer.isOn('audio')).toBe(false);
+    expect(a.f.playback.audioLevel).toBe(0);
+    expect(a.app.mix.audio).toBe(80);
+    a.f.mixer.toggleMute('audio');
+    expect(a.f.playback.audioLevel).toBeCloseTo(0.72);
+    expect(a.f.mixer.isOn('click')).toBe(false);
+    a.f.mixer.toggleMute('click');
+    expect(a.app.transport.click).toBe(true);
+    a.f.mixer.toggleMute('audio');
+    expect(createTestApp(store).f.mixer.isOn('audio')).toBe(true);
+  });
+
   it('falls back to the defaults for anything unreadable it saved', () => {
     const store = new MemoryStore();
     store.setItem('beatmapper:mix', '{"audio":"loud","click":40.4}');
@@ -290,12 +309,11 @@ describe('groove', () => {
     // Same velocities as the pocket gives each hit.
     const g = app.pocket!;
     for (const p of g.hits.slice(0, 20)) expect(notes.find((n) => n.voice === p.voice && n.t === p.t)?.vel).toBe(p.vel);
-    expect(app.groove.listen).toBe('audio');
-    f.groove.cycleListen();
-    expect(app.groove.listen).toBe('midi');
-    f.groove.cycleListen();
-    f.groove.cycleListen();
-    expect(app.groove.listen).toBe('audio');
+    expect(f.mixer.isOn('drums')).toBe(false);
+    f.mixer.toggleMute('drums');
+    expect(f.mixer.isOn('drums')).toBe(true);
+    f.mixer.toggleMute('drums');
+    expect(f.mixer.isOn('drums')).toBe(false);
     f.groove.toggleChart();
     expect(app.groove.chart).toBe('midi');
   });

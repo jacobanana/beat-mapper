@@ -16,8 +16,6 @@ export class Playback {
   private scrub: { lastG: number; lastPos: number } | null = null;
 
   constructor(private readonly app: App) {
-    // The synth kit only plays in the Groove step, so the audio is never left muted elsewhere.
-    const listen = () => (app.step === 5 && app.drums ? app.groove.listen : 'audio');
     this.player = new Player({
       clicks: (a, b, emit) => this.clicksIn(a, b, emit),
       clicksOn: () => app.transport.click,
@@ -25,8 +23,9 @@ export class Playback {
         const N = app.drumNotes;
         for (let i = lowerBound(N, a); i < N.length && N[i].t < b; i++) emit(N[i].t, N[i].voice, N[i].vel);
       },
-      hitsOn: () => listen() !== 'audio',
-      audioLevel: () => (listen() === 'midi' ? 0 : this.audioLevel),
+      // The synth kit only plays in the Groove step, where its drums are drawn.
+      hitsOn: () => app.step === 5 && !!app.drums && !app.mute.drums,
+      audioLevel: () => this.audioLevel,
       clickLevel: () => app.mix.click / 100,
       hitLevel: () => app.mix.drums / 100,
     });
@@ -36,7 +35,7 @@ export class Playback {
   get playing(): boolean { return this.player.playing; }
 
   /** The audio's gain, from the mixer: scrub grains and slice previews play at it too. */
-  get audioLevel(): number { return 0.9 * this.app.mix.audio / 100; }
+  get audioLevel(): number { return this.app.mute.audio ? 0 : 0.9 * this.app.mix.audio / 100; }
 
   /** Where the sound is now: the player's position while playing, else the playhead. */
   now(): number {

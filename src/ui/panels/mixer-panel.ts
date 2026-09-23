@@ -1,9 +1,9 @@
-// The mixer: a popover under its button with a level for the audio, the click and the synth kit, and
-// what the Groove step plays. The click's on/off stays in the transport, where it is one tap away.
+// The mixer: a popover under its button with a level for the audio, the click and the synth kit. Each
+// channel's icon mutes it; the click's is the same on/off as the transport's, which stays one tap away.
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
-import { MIX_CHANNELS, type GrooveListen } from '../../state/settings';
-import { $, $in, $sel, setText, setValue } from '../dom';
+import { MIX_CHANNELS } from '../../state/settings';
+import { $, $in, setPressed, setText, setValue } from '../dom';
 
 export function bindMixerPanel(app: App, f: Features): void {
   const pop = $('mixer'), btn = $('mixBtn');
@@ -26,7 +26,7 @@ export function bindMixerPanel(app: App, f: Features): void {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !pop.hidden) show(false); });
 
   for (const ch of MIX_CHANNELS) $in('mix-' + ch).oninput = (e) => f.mixer.setLevel(ch, +(e.target as HTMLInputElement).value);
-  $sel('gListen').onchange = (e) => f.groove.setListen((e.target as HTMLSelectElement).value as GrooveListen);
+  for (const ch of MIX_CHANNELS) $('mute-' + ch).onclick = () => f.mixer.toggleMute(ch);
 
   const syncLevels = () => {
     for (const ch of MIX_CHANNELS) {
@@ -34,15 +34,17 @@ export function bindMixerPanel(app: App, f: Features): void {
       setText($('mixO-' + ch), app.mix[ch] + '%');
     }
   };
+  const syncMutes = () => { for (const ch of MIX_CHANNELS) setPressed($('mute-' + ch), f.mixer.isOn(ch)); };
   // The kit only plays in the Groove step, once the drums are found; elsewhere its row says so.
   const syncDrums = () => {
     const live = app.step === 5 && !!app.drums;
-    setValue($sel('gListen'), app.groove.listen);
     $('mixDrums').classList.toggle('idle', !live);
     $('mixHint').hidden = live;
   };
   app.bus.on('mix', syncLevels);
-  app.bus.on(['groove', 'step', 'drums'], syncDrums);
+  app.bus.on(['mute', 'transport'], syncMutes);
+  app.bus.on(['step', 'drums'], syncDrums);
   syncLevels();
+  syncMutes();
   syncDrums();
 }

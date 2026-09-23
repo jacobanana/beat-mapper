@@ -88,17 +88,16 @@
     <button class="btn" id="helpBtn" title="Help and shortcuts (?)" aria-label="Help">?</button>
     <div class="pop" id="mixer" role="group" aria-label="Mixer" hidden>
       <div class="ch">
-        <span class="chn"><svg class="ic"><use href="#i-wave"/></svg>Audio</span>
+        <span class="chn"><button class="btn mute" id="mute-audio" title="Mute or unmute the audio" aria-label="Audio on" aria-pressed="false"><svg class="ic"><use href="#i-wave"/></svg></button>Audio</span>
         <input type="range" id="mix-audio" min="0" max="150" step="5" value="100" aria-label="Audio level"><output id="mixO-audio">100%</output>
       </div>
       <div class="ch">
-        <span class="chn"><svg class="ic"><use href="#i-click"/></svg>Click</span>
+        <span class="chn"><button class="btn mute" id="mute-click" title="Click on or off (K)" aria-label="Click on" aria-pressed="false"><svg class="ic"><use href="#i-click"/></svg></button>Click</span>
         <input type="range" id="mix-click" min="0" max="150" step="5" value="100" aria-label="Click level"><output id="mixO-click">100%</output>
       </div>
       <div class="ch" id="mixDrums">
-        <span class="chn"><svg class="ic"><use href="#i-groove"/></svg>Drums</span>
+        <span class="chn"><button class="btn mute" id="mute-drums" title="Mute or unmute the synth kit playing the drums (M)" aria-label="Drums on" aria-pressed="false"><svg class="ic"><use href="#i-groove"/></svg></button>Drums</span>
         <input type="range" id="mix-drums" min="0" max="150" step="5" value="100" aria-label="Drums level"><output id="mixO-drums">100%</output>
-        <select id="gListen" title="What play sounds like in the Groove step: the audio, the drums found in it as MIDI on a synth kit, or both (M)" aria-label="Hear"><option value="audio">hear audio</option><option value="midi">hear MIDI</option><option value="both">hear both</option></select>
         <p class="hint" id="mixHint">The synth kit plays the drums found in the Groove step.</p>
       </div>
     </div>
@@ -298,7 +297,7 @@
     <div><svg class="ic"><use href="#i-scrub"/></svg><span>Scrub: drag the waveform to listen</span><span><kbd>R</kbd></span></div>
     <div><svg class="ic"><use href="#i-stay"/></svg><span>Stop leaves the playhead in place (on the closest transient or grid line, whichever the magnet is set to)</span><span><kbd>H</kbd></span></div>
     <div><svg class="ic"><use href="#i-click"/></svg><span>Click on markers / beats</span><span><kbd>K</kbd></span></div>
-    <div><svg class="ic"><use href="#i-mix"/></svg><span>Mixer: audio, click and drums levels</span><span></span></div>
+    <div><svg class="ic"><use href="#i-mix"/></svg><span>Mixer: audio, click and drums levels; tap a channel's icon to mute it</span><span></span></div>
     <div><svg class="ic"><use href="#i-zout"/></svg><span>Zoom out</span><span><kbd>−</kbd></span></div>
     <div><svg class="ic"><use href="#i-zin"/></svg><span>Zoom in</span><span><kbd>+</kbd></span></div>
     <div><svg class="ic"><use href="#i-fit"/></svg><span>Fit whole file</span><span><kbd>Z</kbd></span></div>
@@ -338,7 +337,7 @@
     <div><span>Source</span><span>Drums only, or a full mix (experimental: the other instruments are modelled apart from the drums, but expect misses)</span></div>
     <div><span>K S H</span><span>Sensitivity per voice, with how many hits each has. Raise the snare's for ghost notes</span></div>
     <div><span>vs</span><span>What the pocket is measured against, bar by bar: the hats (the timekeeper), one of the others, the whole kit, or the tempo map's grid. Measuring against a grid found from the same hits is circular, so auto takes the hats when they keep time</span></div>
-    <div><svg class="ic"><use href="#i-mix"/></svg><span>Hear the audio, the drums as MIDI on a synth kit, or both: in the mixer, with the kit's level</span><span><kbd>M</kbd></span></div>
+    <div><svg class="ic"><use href="#i-mix"/></svg><span>Hear the drums as MIDI on a synth kit: in the mixer, tap its icon to unmute it, and the audio's to hear the kit alone</span><span><kbd>M</kbd></span></div>
     <div><span>Chart</span><span>Left: where each voice sits, ahead or behind – every hit, its middle half, and its median. Right: the typical bar – dot size is velocity, faint dots are steps played in only some bars, tails show the lean</span></div>
     <div><svg class="ic"><use href="#i-export"/></svg><span>Save the drums as MIDI (every hit where it was played, on the tempo map), or the typical bar as a Pocket Science groove file: in Export</span><span><kbd>3</kbd></span></div>
   </div>
@@ -386,7 +385,7 @@
     <div><span>Loop</span><span>With the loop on, only what is inside it is sliced and exported, and every file saved is named with the loop's bars and BPM</span></div>
     <h3>Step 5 – Groove</h3>
     <div><span><kbd>X</kbd></span><span>Offsets in the bar drawn three times their size, or true to size</span></div>
-    <div><span><kbd>M</kbd></span><span>Hear the audio, the drums as MIDI on a synth kit, or both</span></div>
+    <div><span><kbd>M</kbd></span><span>Mute or unmute the synth kit playing the drums as MIDI</span></div>
     <div><span><kbd>C</kbd></span><span>Chart: the pocket, or the MIDI transcript</span></div>
     <div><span>Loop</span><span>With the loop on, only the bars inside it are measured</span></div>
     <h3>Where you touch decides what happens</h3>
