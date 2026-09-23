@@ -112,6 +112,27 @@ export function velocities(hits: readonly DrumHit[]): number[] {
   return hits.map((h) => Math.max(1, Math.min(127, Math.round(112 + 70 * Math.log10(Math.max(1e-6, h.a) / ref)))));
 }
 
+/** A hit as a note to hear or draw. */
+export interface VoiceNote {
+  readonly voice: Voice;
+  readonly t: number;
+  readonly vel: number;
+}
+
+/**
+ * Every hit of every voice as a note, sorted by time: the drums as the MIDI export writes them, but
+ * for the whole take and with no tempo map needed, so they can be heard before the beats are mapped.
+ * The velocities are the pocket's, taken over each voice's hits.
+ */
+export function transcribe(hits: PerVoice<readonly DrumHit[]>): VoiceNote[] {
+  const out: VoiceNote[] = [];
+  for (const v of VOICES) {
+    const vel = velocities(hits[v]);
+    hits[v].forEach((h, i) => out.push({ voice: v, t: h.t, vel: vel[i] }));
+  }
+  return out.sort((a, b) => a.t - b.t);
+}
+
 /** The reference `auto` stands for: the hats when they keep time through the take, else the grid. */
 export function autoReference(hits: readonly PlacedHit[], every: number, bars: number): Reference {
   const n = hits.filter((h) => h.voice === 'hat' && h.step % every === 0).length;

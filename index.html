@@ -215,12 +215,16 @@
             <select id="gRef" title="What the pocket is measured against, bar by bar. Auto: the hats when they keep time, else the tempo map's grid" aria-label="Measured against"><option value="auto">vs auto</option><option value="hat">vs hats</option><option value="kick">vs kick</option><option value="snare">vs snare</option><option value="kit">vs whole kit</option><option value="grid">vs grid</option></select>
             <button class="btn on" id="gExag" title="Draw the offsets in the bar three times their size (X)" aria-label="Exaggerate offsets" aria-pressed="true">×3</button>
             <span class="sep"></span>
+            <select id="gListen" title="What play sounds like: the audio, the drums found in it as MIDI on a synth kit, or both (M)" aria-label="Hear"><option value="audio">hear audio</option><option value="midi">hear MIDI</option><option value="both">hear both</option></select>
+            <span class="seg" role="group" aria-label="Chart"><button class="btn on" id="gChartPocket" title="Chart: the pocket and the typical bar (C)" aria-pressed="true">POCKET</button><button class="btn" id="gChartMidi" title="Chart: the hits as a MIDI transcript, following the playhead (C)" aria-pressed="false">MIDI</button></span>
+          </div>
+          <div class="bar">
             <button class="btn primary" id="gMidi" title="Save the drums as MIDI: every hit where it was played, on the tempo map"><svg class="ic"><use href="#i-export"/></svg>MIDI</button>
             <button class="btn" id="gJson" title="Save the typical bar as a Pocket Science groove file (.json)"><svg class="ic"><use href="#i-export"/></svg>GROOVE</button>
           </div>
           <p id="gSum"></p>
         </div>
-        <div class="groove"><canvas id="grooveCv" role="img" aria-label="Pocket chart and the typical bar"></canvas></div>
+        <div class="groove"><canvas id="grooveCv" role="img" aria-label="Pocket chart and the typical bar, or the MIDI transcript"></canvas></div>
       </div>
     </section>
   </main>
@@ -330,6 +334,8 @@
     <div><span>Loop</span><span>With the loop on, only what is inside it is sliced and exported, and every file saved is named with the loop's bars and BPM</span></div>
     <h3>Step 5 – Groove</h3>
     <div><span><kbd>X</kbd></span><span>Offsets in the bar drawn three times their size, or true to size</span></div>
+    <div><span><kbd>M</kbd></span><span>Hear the audio, the drums as MIDI on a synth kit, or both</span></div>
+    <div><span><kbd>C</kbd></span><span>Chart: the pocket, or the MIDI transcript</span></div>
     <div><span>Loop</span><span>With the loop on, only the bars inside it are measured</span></div>
     <h3>Where you touch decides what happens</h3>
     <div><span>Top strip</span><span>Loop: drag to draw, drag edges or middle to adjust, tap it to switch on/off, double-tap to loop a bar</span></div>

@@ -4,8 +4,9 @@ import type { Features } from '../../app/features';
 import type { DrumSource } from '../../core/drums/detect';
 import { VOICES } from '../../core/drums/voices';
 import type { GrooveGrid, Reference } from '../../core/groove/pocket';
+import type { GrooveListen } from '../../state/settings';
 import { GrooveChart } from '../canvas/groove-chart';
-import { $, $in, $sel, setPressed, setText, setValue } from '../dom';
+import { $, $btn, $in, $sel, setPressed, setText, setValue } from '../dom';
 
 export function bindGroovePanel(app: App, f: Features): GrooveChart {
   const gr = f.groove;
@@ -14,6 +15,9 @@ export function bindGroovePanel(app: App, f: Features): GrooveChart {
   $sel('gGrid').onchange = (e) => gr.setGrid((e.target as HTMLSelectElement).value as GrooveGrid);
   $sel('gRef').onchange = (e) => gr.setReference((e.target as HTMLSelectElement).value as Reference | 'auto');
   $('gExag').onclick = () => gr.toggleExaggerate();
+  $sel('gListen').onchange = (e) => gr.setListen((e.target as HTMLSelectElement).value as GrooveListen);
+  $('gChartPocket').onclick = () => gr.setChart('pocket');
+  $('gChartMidi').onclick = () => gr.setChart('midi');
   $('gMidi').onclick = () => void gr.saveMidi();
   $('gJson').onclick = () => void gr.saveGroove();
 
@@ -25,6 +29,10 @@ export function bindGroovePanel(app: App, f: Features): GrooveChart {
     setValue($sel('gGrid'), s.grid);
     setValue($sel('gRef'), s.ref);
     setPressed($('gExag'), s.exaggerate);
+    $btn('gExag').disabled = s.chart !== 'pocket';
+    setValue($sel('gListen'), s.listen);
+    setPressed($('gChartPocket'), s.chart === 'pocket');
+    setPressed($('gChartMidi'), s.chart === 'midi');
   };
   const counts = () => {
     const h = app.drumHits;

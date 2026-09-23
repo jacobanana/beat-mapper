@@ -88,6 +88,8 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
       else if (k === 'x') f.slicer.toggleSelected();
     } else if (app.step === 5) {
       if (k === 'x') f.groove.toggleExaggerate();
+      else if (k === 'm') f.groove.cycleListen();
+      else if (k === 'c') f.groove.toggleChart();
     }
   });
 

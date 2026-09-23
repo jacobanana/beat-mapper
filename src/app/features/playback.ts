@@ -16,7 +16,18 @@ export class Playback {
   private scrub: { lastG: number; lastPos: number } | null = null;
 
   constructor(private readonly app: App) {
-    this.player = new Player((a, b, emit) => this.clicksIn(a, b, emit), () => app.transport.click);
+    // The synth kit only plays in the Groove step, so the audio is never left muted elsewhere.
+    const listen = () => (app.step === 5 && app.drums ? app.groove.listen : 'audio');
+    this.player = new Player({
+      clicks: (a, b, emit) => this.clicksIn(a, b, emit),
+      clicksOn: () => app.transport.click,
+      hits: (a, b, emit) => {
+        const N = app.drumNotes;
+        for (let i = lowerBound(N, a); i < N.length && N[i].t < b; i++) emit(N[i].t, N[i].voice, N[i].vel);
+      },
+      hitsOn: () => listen() !== 'audio',
+      audioLevel: () => (listen() === 'midi' ? 0 : 0.9),
+    });
     this.player.onEnded = () => { app.setPlayhead(app.dur, false); app.bus.emit('transport'); };
   }
 
