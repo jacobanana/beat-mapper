@@ -131,6 +131,21 @@ describe('beats', () => {
   });
 });
 
+describe('loop', () => {
+  it('loops the whole file when switched on with nothing drawn, and keeps a drawn loop', () => {
+    const { app, f } = t;
+    f.playback.toggleLoop();
+    expect(app.transport.loopOn).toBe(true);
+    expect(app.transport.loop).toEqual({ a: 0, b: app.dur });
+    f.playback.toggleLoop();
+    expect(app.transport.loopOn).toBe(false);
+    f.playback.setLoop({ a: 2, b: 4 }, false);
+    f.playback.toggleLoop();
+    expect(app.transport.loop).toEqual({ a: 2, b: 4 });
+    expect(app.transport.loopOn).toBe(true);
+  });
+});
+
 describe('slices', () => {
   it('slices at every marker, inside the loop when it is on', () => {
     const { app, f } = t;
@@ -316,5 +331,45 @@ describe('groove', () => {
     expect(f.mixer.isOn('drums')).toBe(false);
     f.groove.toggleChart();
     expect(app.groove.chart).toBe('midi');
+  });
+
+  it('adds, moves and deletes hits by hand, on the transients, with undo', async () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.workflow.goTo(5);
+    await f.groove.ensureDrums();
+    const n = app.drumHits!.kick.length, notes = app.drumNotes.length;
+    // A kick where the detector heard none, aimed 10 ms off a transient: it lands on the transient.
+    const m = app.markers.find((k) => !app.drumHits!.kick.some((h) => Math.abs(h.t - k.t) < 0.05))!;
+    f.groove.addHit('kick', f.groove.alignToTransient(m.t + 0.01, 0.03));
+    expect(app.drumHits!.kick.length).toBe(n + 1);
+    expect(app.selectedHit()).toMatchObject({ voice: 'kick', t: m.t, id: 1 });
+    expect(app.drumNotes.length).toBe(notes + 1);
+    expect(app.pocket!.hits.some((h) => h.voice === 'kick' && h.t === m.t)).toBe(true);
+    // One within 30 ms of it is the same hit.
+    f.groove.addHit('kick', m.t + 0.02);
+    expect(app.drumHits!.kick.length).toBe(n + 1);
+    // Moving a detected hit makes it a placed one; the drag is one undo step.
+    const first = app.drumHits!.snare[0];
+    app.checkpoint();
+    const id = f.groove.toManual('snare', first.t);
+    f.groove.moveHitTo(id, first.t + 0.004);
+    f.groove.moveHitTo(id, first.t + 0.008);
+    expect(app.drumHits!.snare[0]).toMatchObject({ t: first.t + 0.008, id, a: first.a });
+    expect(app.selectedHit()?.t).toBe(first.t + 0.008);
+    app.undo();
+    expect(app.drumHits!.snare[0]).toEqual(first);
+    // Deleting a detected hit survives a change of sensitivity.
+    const hat = app.drumHits!.hat[3];
+    f.groove.removeHit('hat', hat.t);
+    expect(app.drumHits!.hat.some((h) => h.t === hat.t)).toBe(false);
+    f.groove.setSensitivity('hat', 80);
+    expect(app.drumHits!.hat.some((h) => h.t === hat.t)).toBe(false);
+    f.groove.resetHits();
+    expect(app.drumHits!.hat.some((h) => h.t === hat.t)).toBe(true);
+    expect(app.drumHits!.kick.length).toBe(n);
+    app.undo();
+    expect(app.drumHits!.kick.length).toBe(n + 1);
   });
 });

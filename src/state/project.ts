@@ -1,5 +1,6 @@
 // The project document: everything the user edits that undo covers. It is immutable; every edit
 // produces a new document, and the undo history keeps the old ones.
+import { type HitEdits, noHitEdits } from '../core/drums/edit';
 import type { ManualMarker } from '../core/markers/detect';
 import type { Meter } from '../core/tempo/meter';
 import type { Anchor } from '../core/types';
@@ -24,12 +25,15 @@ export interface ProjectDoc {
   readonly meter: Meter;
   readonly tempo: TempoDoc;
   readonly markers: MarkerEdits;
+  /** Drum hits added, moved and deleted by hand in the Groove step. */
+  readonly drums: HitEdits;
 }
 
 export const emptyDoc = (baseBpm = 120): ProjectDoc => ({
   meter: { num: 4, den: 4 },
   tempo: { anchors: [], baseBpm },
   markers: { manual: [], removed: [], nextId: 1 },
+  drums: noHitEdits(),
 });
 
 export const withAnchors = (d: ProjectDoc, anchors: readonly Anchor[], baseBpm = d.tempo.baseBpm): ProjectDoc => ({
@@ -53,3 +57,5 @@ export const sortManual = (d: ProjectDoc): ProjectDoc =>
 
 export const removeCandidate = (d: ProjectDoc, t: number): ProjectDoc =>
   d.markers.removed.includes(t) ? d : withMarkers(d, { removed: [...d.markers.removed, t] });
+
+export const withHits = (d: ProjectDoc, e: Partial<HitEdits>): ProjectDoc => ({ ...d, drums: { ...d.drums, ...e } });

@@ -17,6 +17,8 @@ export function bindGroovePanel(app: App, f: Features): GrooveChart {
   $('gExag').onclick = () => gr.toggleExaggerate();
   $('gChartPocket').onclick = () => gr.setChart('pocket');
   $('gChartMidi').onclick = () => gr.setChart('midi');
+  $('gDel').onclick = () => gr.removeSelected();
+  $('gReset').onclick = () => gr.resetHits();
 
   const chart = new GrooveChart($('grooveCv') as HTMLCanvasElement, app);
   const sync = () => {
@@ -30,13 +32,20 @@ export function bindGroovePanel(app: App, f: Features): GrooveChart {
     setPressed($('gChartPocket'), s.chart === 'pocket');
     setPressed($('gChartMidi'), s.chart === 'midi');
   };
+  const edits = () => {
+    const e = app.doc.drums;
+    $btn('gDel').disabled = !app.selectedHit();
+    $btn('gReset').disabled = !e.manual.length && !e.removed.length;
+  };
   const counts = () => {
     const h = app.drumHits;
     for (const v of VOICES) setText($('gN-' + v), h ? String(h[v].length) : '');
     setText($('gSum'), gr.summary());
   };
   app.bus.on('groove', sync);
+  app.bus.on(['doc', 'selection', 'drums', 'groove'], edits);
   app.bus.on(['groove', 'drums', 'doc', 'transport', 'audio'], counts);
   sync();
+  edits();
   return chart;
 }

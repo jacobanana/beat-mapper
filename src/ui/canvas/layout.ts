@@ -31,10 +31,20 @@ export function layout(w: number, h: number, hasMap: boolean): Layout {
 
 export type Zone = 'loop' | 'bars' | 'edit' | 'nav' | 'time';
 
-/** What a touch at height y does. */
+/** What a touch at height y does. In the Groove step the whole waveform is the drum lanes, all editable. */
 export function zoneAt(L: Layout, y: number, step: number): Zone {
   if (y < LOOPH) return 'loop';
   if (y < RUL) return 'bars';
   if (y > L.h - TIME) return 'time';
+  if (step === 5) return y < L.ly ? 'edit' : 'nav';
   return step < 3 && y < RUL + L.wh * EDIT ? 'edit' : 'nav';
+}
+
+/** The Groove step's drum lanes, top to bottom. */
+export const LANES = ['hat', 'snare', 'kick'] as const;
+
+/** The drum lane at height y, if any. */
+export function laneAt(L: Layout, y: number): (typeof LANES)[number] | null {
+  const i = Math.floor(((y - L.wy) / L.wh) * 3);
+  return y < L.ly && i >= 0 && i < 3 ? LANES[i] : null;
 }

@@ -2,8 +2,9 @@
 // it through the methods here; the UI listens for the topics they emit and redraws.
 import type { Analysis } from '../core/dsp/onset';
 import type { DrumAnalysis } from '../core/drums/detect';
+import { type EditedHit, type HitEdits, applyHitEdits } from '../core/drums/edit';
 import { selectHits } from '../core/drums/select';
-import type { DrumHit, PerVoice } from '../core/drums/voices';
+import type { DrumHit, PerVoice, Voice } from '../core/drums/voices';
 import { type Groove, type VoiceNote, analyseGroove, transcribe } from '../core/groove/pocket';
 import { detectMarkers, filterMarkers, sensToThr } from '../core/markers/detect';
 import { type Slice, isExcluded, loopInfo, planSlices, sliceKey } from '../core/slices/slices';
@@ -27,7 +28,7 @@ export type Topic =
   | 'audio' | 'doc' | 'candidates' | 'detection' | 'beats' | 'export' | 'slicer' | 'slices'
   | 'transport' | 'playhead' | 'view' | 'step' | 'selection' | 'hover' | 'display' | 'drums' | 'groove' | 'mix' | 'mute';
 
-export type Selection = { kind: 'marker'; id: string } | { kind: 'anchor'; q: number } | null;
+export type Selection = { kind: 'marker'; id: string } | { kind: 'anchor'; q: number } | { kind: 'hit'; voice: Voice; t: number } | null;
 /** What the pointer is over: a marker, a pin, or a grid line that could become a pin. */
 export type Hover = Selection | { kind: 'grid'; q: number };
 
@@ -126,15 +127,19 @@ export class App {
     return bd < 0.05 ? bi : null;
   }
 
-  private readonly _drumHits = memo((d: DrumAnalysis | null, sens: GrooveSettings['sens']) => (d ? selectHits(d.hits, sens) : null));
-  /** The drum hits the sensitivities let through. */
-  get drumHits(): PerVoice<DrumHit[]> | null { return this._drumHits(this.drums, this.groove.sens); }
+  private readonly _selected = memo((d: DrumAnalysis | null, sens: GrooveSettings['sens']) => (d ? selectHits(d.hits, sens) : null));
+  /** The drum hits the sensitivities let through, before any edits by hand. */
+  get detectedHits(): PerVoice<DrumHit[]> | null { return this._selected(this.drums, this.groove.sens); }
 
-  private readonly _drumNotes = memo((hits: PerVoice<DrumHit[]> | null) => (hits ? transcribe(hits) : []));
+  private readonly _drumHits = memo((sel: PerVoice<DrumHit[]> | null, e: HitEdits) => (sel ? applyHitEdits(sel, e) : null));
+  /** The drum hits the sensitivities let through, with the ones added, moved and deleted by hand. */
+  get drumHits(): PerVoice<EditedHit[]> | null { return this._drumHits(this.detectedHits, this.doc.drums); }
+
+  private readonly _drumNotes = memo((hits: PerVoice<EditedHit[]> | null) => (hits ? transcribe(hits) : []));
   /** The drum hits as notes over the whole take, sorted by time: what the synth kit plays. */
   get drumNotes(): readonly VoiceNote[] { return this._drumNotes(this.drumHits); }
 
-  private readonly _groove = memo((hits: PerVoice<DrumHit[]> | null, map: TempoMap, meter: ProjectDoc['meter'], grid: GrooveSettings['grid'], ref: GrooveSettings['ref'], range: TimeRange) =>
+  private readonly _groove = memo((hits: PerVoice<EditedHit[]> | null, map: TempoMap, meter: ProjectDoc['meter'], grid: GrooveSettings['grid'], ref: GrooveSettings['ref'], range: TimeRange) =>
     hits && !map.isEmpty ? analyseGroove(hits, { map, meter, grid, ref, range }) : null);
   /** Where each voice sits against the beat, inside the loop when it is on. */
   get pocket(): Groove | null {
@@ -166,6 +171,13 @@ export class App {
   selectedAnchor(): Anchor | null {
     const s = this.sel;
     return s && s.kind === 'anchor' ? (this.doc.tempo.anchors.find((a) => a.q === s.q) ?? null) : null;
+  }
+
+  selectedHit(): (EditedHit & { voice: Voice }) | null {
+    const s = this.sel;
+    if (!s || s.kind !== 'hit') return null;
+    const h = this.drumHits?.[s.voice].find((k) => k.t === s.t);
+    return h ? { ...h, voice: s.voice } : null;
   }
 
   // ---------- changes ----------

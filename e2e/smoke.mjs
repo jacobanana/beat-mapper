@@ -81,6 +81,25 @@ try {
     const [d] = await Promise.all([page.waitForEvent('download'), page.click('#expSave')]);
     assert.equal(d.suggestedFilename(), 'drifting-drum-loop-drums.mid');
   });
+  await step('Groove: a double-click in a lane adds a hit, Delete takes it away', async () => {
+    const b = await (await page.$('#cv')).boundingBox();
+    // The kick lane is the bottom third of the waveform (loop strip and bar ruler above, tempo lane and time ruler below).
+    const wy = 42, wh = b.height - wy - 50 - 22, y = wy + wh * (5 / 6);
+    let x = 300;
+    for (; x < 1200; x += 3) {
+      await page.mouse.move(b.x + x, b.y + y);
+      if ((await page.$eval('#cv', (e) => e.style.cursor)) === 'default') break;
+    }
+    await page.mouse.dblclick(b.x + x, b.y + y);
+    assert.equal(await text('gN-kick'), '33');
+    assert.equal(await page.isDisabled('#gReset'), false);
+    await page.keyboard.press('Delete');
+    assert.equal(await text('gN-kick'), '32');
+    await page.keyboard.press('Control+z');
+    assert.equal(await text('gN-kick'), '33');
+    await page.click('#gReset');
+    assert.equal(await text('gN-kick'), '32');
+  });
   await step('Groove: hear the drums as MIDI, and chart them as a transcript', async () => {
     await page.click('#mixBtn');
     assert.equal(await page.isVisible('#mixer'), true);

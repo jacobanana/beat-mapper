@@ -165,11 +165,10 @@ export class Playback {
   toggleLoop(): void {
     const { app } = this, L = app.transport.loop;
     if (!app.audio) return;
+    // With nothing selected to loop, the whole file loops; the loop strip shows it, ready to narrow.
     if (!L || L.b - L.a < 0.01) {
-      const bar = app.tempoMap.barRangeAt(app.transport.playhead, app.doc.meter, app.dur);
-      const t = app.transport.playhead;
-      this.setLoop(bar ? { a: bar.a, b: bar.b } : { a: t, b: Math.min(app.dur, t + 2) }, true);
-      app.notify.toast(app.hasMap ? 'Looping this bar. Drag in the bar ruler to change it.' : 'Looping 2 seconds. Drag in the top ruler to change it.');
+      this.setLoop({ a: 0, b: app.dur }, true);
+      app.notify.toast('Looping the whole file. Drag in the top ruler to loop less.');
     } else this.setLoop(L, !app.transport.loopOn);
   }
 
