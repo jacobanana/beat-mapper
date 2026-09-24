@@ -19,6 +19,7 @@ export function bindBeatsPanel(app: App, f: Features, refocus: () => void): void
   $('unpin').onclick = () => b.unpinSelected();
   $sel('snapTo').onchange = (e) => b.setSnap((e.target as HTMLSelectElement).value as SnapMode, true);
   $('derive').onclick = () => b.deriveFromLoop();
+  $('steady').onclick = () => b.steadyFromLoop();
   $in('loopBars').onchange = (e) => { const n = Math.round(+(e.target as HTMLInputElement).value); app.set('beats', { loopBars: n >= 1 ? n : null }); };
   $('autoMap').onclick = () => b.autoMap();
   $sel('mapEvery').onchange = (e) => app.set('beats', { mapEvery: (e.target as HTMLSelectElement).value === 'bar' ? 'bar' : 'beat' });
@@ -51,6 +52,10 @@ export function bindBeatsPanel(app: App, f: Features, refocus: () => void): void
     setValue($sel('mapEvery'), app.beats.mapEvery);
     setValue($in('tol'), app.beats.tol);
     $('tolO').textContent = '±' + app.beats.tol + '%';
+    // Blank takes the loop's nearest whole number of bars, shown greyed until one is typed.
+    const lb = $in('loopBars');
+    if (document.activeElement !== lb) lb.value = app.beats.loopBars == null ? '' : String(app.beats.loopBars);
+    lb.placeholder = app.loopInfo ? String(app.loopInfo.bars) : 'auto';
     $('aCount').textContent = app.doc.tempo.anchors.length ? plural(app.doc.tempo.anchors.length, 'pin') : '';
   };
 
@@ -86,7 +91,7 @@ export function bindBeatsPanel(app: App, f: Features, refocus: () => void): void
     rows.querySelector(`tr[data-b="${cur}"]`)?.classList.add('cur');
   };
 
-  app.bus.on(['doc', 'beats', 'audio'], syncInputs);
+  app.bus.on(['doc', 'beats', 'audio', 'transport'], syncInputs);
   app.bus.on(['doc', 'audio', 'step'], renderTable);
   app.bus.on('playhead', highlight);
   syncInputs();

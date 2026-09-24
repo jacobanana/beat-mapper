@@ -1,5 +1,6 @@
 // Step 2: the tempo map. Bar 1, pins, auto-mapping, deriving from a loop, meter and tempo.
 import * as edit from '../../core/beats/edit';
+import { fmtTime } from '../../core/format';
 import { GRID_STEPS, type GridDivision } from '../../core/tempo/meter';
 import type { Anchor } from '../../core/types';
 import { type ProjectDoc, emptyDoc, withAnchors } from '../../state/project';
@@ -115,6 +116,24 @@ export class Beats {
     app.select(null);
     const how = r.how.kind === 'loop' ? `loop taken as ${r.how.bars} bar${r.how.bars > 1 ? 's' : ''}` : `${r.how.count} pins in the loop kept`;
     app.notify.toast(`${r.bpm.toFixed(2)} BPM · ${how} · ${r.anchors.length} pins`);
+  }
+
+  /** Bars in the loop: as typed, or the whole number its length comes closest to on the map. */
+  loopBars(): number | null { return this.app.beats.loopBars ?? this.app.loopInfo?.bars ?? null; }
+
+  /**
+   * Shift+F: one steady tempo for the whole take from the loop, fitted to the transients, for a part
+   * played to a click. Bar 1 goes a whole number of bars before the loop.
+   */
+  steadyFromLoop(): void {
+    const { app } = this, L = app.activeLoop, n = this.loopBars();
+    if (!app.audio) return;
+    if (!L || !n) return app.notify.toast('Loop a stretch you trust first (drag in the top ruler), and say how many bars it is.');
+    const r = edit.steadyFromLoop(app.markers, L, app.doc.meter, n, { downbeat: app.tempoMap.downbeat?.t ?? null, fit: true, dur: app.dur });
+    this.setAnchors(r.anchors, true, r.bpm);
+    app.select(null);
+    const moved = r.fitted ? ` · fitted to ${r.fitted} transients, ${r.bpm - r.loopBpm >= 0 ? '+' : ''}${(r.bpm - r.loopBpm).toFixed(2)} from the loop's` : ' · too few transients near the beats to fit: the loop\'s tempo';
+    app.notify.toast(`Steady ${r.bpm.toFixed(2)} BPM · ${n} bar${n > 1 ? 's' : ''} from the loop${moved} · bar 1 at ${fmtTime(r.anchors[0].t)}`);
   }
 
   tap(): void {

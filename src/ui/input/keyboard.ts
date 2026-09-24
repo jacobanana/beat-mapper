@@ -83,7 +83,7 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
       if (k === 'd') f.beats.setDownbeat(app.transport.playhead);
       else if (k === 'b') f.beats.pinAt(app.transport.playhead);
       else if (k === 'm') f.beats.autoMap();
-      else if (k === 'f') f.beats.deriveFromLoop();
+      else if (k === 'f') { if (e.shiftKey) f.beats.steadyFromLoop(); else f.beats.deriveFromLoop(); }
       else if (k === 'g') f.beats.cycleGrid(e.shiftKey ? -1 : 1);
       else if (k === 't') f.beats.tap();
       else if (k === 's') f.beats.cycleSnap(e.shiftKey ? -1 : 1);
