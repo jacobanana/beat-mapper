@@ -196,11 +196,11 @@ kbd{font:inherit;font-size:13px;color:var(--dim);border:1px solid var(--line);bo
 /* The options are titled groups, in two columns filled top to bottom where there is room, each a
    label/value grid. The label column is one fixed width for every group and every format, so the
    controls line up from screen to screen; every row is a subgrid of its group, and a control fills
-   the value column. */
+   the value column. Scoped to .fields: the header's button groups are .grp too. */
 .fields{--lbl:100px;columns:2 260px;column-gap:24px}
-.grp{display:grid;grid-template-columns:var(--lbl) 1fr;align-items:center;gap:8px 12px;margin:0 0 14px;break-inside:avoid}
-.grp:last-child{margin-bottom:0}
-.grp h4{grid-column:1/-1;margin:0 0 2px;padding-bottom:5px;border-bottom:1px solid var(--line);font-size:12px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+.fields .grp{display:grid;grid-template-columns:var(--lbl) 1fr;align-items:center;gap:8px 12px;margin:0 0 14px;break-inside:avoid}
+.fields .grp:last-child{margin-bottom:0}
+.fields .grp h4{grid-column:1/-1;margin:0 0 2px;padding-bottom:5px;border-bottom:1px solid var(--line);font-size:12px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
 .fld{display:grid;grid-column:1/-1;grid-template-columns:subgrid;align-items:center;min-height:32px}
 .fld>span:first-child{color:var(--dim);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fld select{width:100%}
