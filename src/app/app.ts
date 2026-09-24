@@ -5,13 +5,13 @@ import type { DrumAnalysis } from '../core/drums/detect';
 import { type EditedHit, type HitEdits, applyHitEdits } from '../core/drums/edit';
 import { selectHits } from '../core/drums/select';
 import type { DrumHit, PerVoice, Voice } from '../core/drums/voices';
-import { type Groove, type VoiceNote, analyseGroove, quantizeNotes, transcribe } from '../core/groove/pocket';
+import { type Groove, type VoiceNote, analyseGroove, transcribe } from '../core/groove/pocket';
 import { detectMarkers, filterMarkers, sensToThr } from '../core/markers/detect';
 import { type Slice, isExcluded, loopInfo, planSlices, sliceKey } from '../core/slices/slices';
 import { Grid, barQ } from '../core/tempo/meter';
 import { type Bar, TempoMap } from '../core/tempo/tempo-map';
 import type { Anchor, Candidate, Marker, TimeRange } from '../core/types';
-import { type WarpMap, averageBpm, planWarp, warpRange } from '../core/warp/map';
+import { type WarpMap, averageBpm, gridMap, planWarp, warpRange } from '../core/warp/map';
 import { Timeline } from '../core/timeline';
 import { Alignment, type WarpMarker } from '../core/warp/markers';
 import type { Step } from '../io/session';
@@ -53,6 +53,25 @@ export interface WarpPlan {
   /** The least and most anything is stretched: above 1 is slowed down. */
   ratios: [number, number];
   loop: boolean;
+}
+
+/**
+ * The warp as Slice and Groove hear it: the file it makes, on its own steady grid, and where each moment
+ * of the original lands in it. Transients, slices and hits keep their original times; this places them.
+ */
+export interface WarpOut {
+  plan: WarpPlan;
+  /** The warped file's tempo map: one steady tempo, quarter note `plan.q0` at its start. */
+  map: TempoMap;
+  /**
+   * The tempo map a DAW gets with the warped file: its own, but for a loop, which starts the file, bar 1
+   * is at its start.
+   */
+  exportMap: TempoMap;
+  /** The part of the original that is warped, in its own seconds. */
+  range: TimeRange;
+  /** Where the moment at original time t is in the warped file. */
+  at(t: number): number;
 }
 
 export interface SliceView extends Slice {
@@ -146,9 +165,12 @@ export class App {
   private readonly _range = memo((loop: TimeRange | null, on: boolean, dur: number): TimeRange => (on && loop && loop.b - loop.a > 0.01 ? loop : { a: 0, b: dur }));
   /** With the loop on, only what is inside it is sliced – and so only that is exported. */
   get sliceRange(): TimeRange { return this._range(this.transport.loop, this.transport.loopOn, this.dur); }
+  private readonly _cutRange = memo((r: TimeRange, out: WarpOut | null): TimeRange =>
+    (out ? { a: Math.max(r.a, out.range.a), b: Math.min(r.b, out.range.b) } : r));
+  /** Slices are cut at the transients, from what is heard: only the part the warp makes when it is. */
   get slices(): readonly SliceView[] {
     if (!this.audio) return [];
-    return this._slices(this.markers, this.slicer, this.sliceRange, this.dur, this.excluded);
+    return this._slices(this.markers, this.slicer, this._cutRange(this.sliceRange, this.warpOut), this.dur, this.excluded);
   }
   /** Index of the selected slice: the one starting within 50 ms of where the selection was. */
   get sliceIndex(): number | null {
@@ -166,20 +188,25 @@ export class App {
   /** The drum hits the sensitivities let through, with the ones added, moved and deleted by hand. */
   get drumHits(): PerVoice<EditedHit[]> | null { return this._drumHits(this.detectedHits, this.doc.drums); }
 
-  private readonly _playedNotes = memo((hits: PerVoice<EditedHit[]> | null) => (hits ? transcribe(hits) : []));
-  private readonly _drumNotes = memo((notes: readonly VoiceNote[], map: TempoMap, meter: ProjectDoc['meter'], grid: GrooveSettings['grid'], pct: number) =>
-    quantizeNotes(notes, map, meter, grid, pct / 100));
-  /** The drum hits as notes over the whole take, sorted by time, quantized as far as asked: what the synth kit plays. */
-  get drumNotes(): readonly VoiceNote[] {
-    return this._drumNotes(this._playedNotes(this.drumHits), this.tempoMap, this.doc.meter, this.groove.grid, this.groove.quantize);
-  }
+  private readonly _drumNotes = memo((hits: PerVoice<EditedHit[]> | null) => (hits ? transcribe(hits) : []));
+  /**
+   * The drum hits as notes over the whole take, at their times in the original, sorted by time: what the
+   * synth kit plays. The warp is the only quantize, so it plays them where what is heard has them.
+   */
+  get drumNotes(): readonly VoiceNote[] { return this._drumNotes(this.drumHits); }
 
-  // Always against the grid: the tempo map the user set is the beat the drums are heard against.
-  private readonly _groove = memo((hits: PerVoice<EditedHit[]> | null, map: TempoMap, meter: ProjectDoc['meter'], grid: GrooveSettings['grid'], range: TimeRange) =>
-    hits && !map.isEmpty ? analyseGroove(hits, { map, meter, grid, ref: 'grid', range }) : null);
+  // Always against the grid: the tempo map the user set is the beat the drums are heard against. When
+  // the warp is heard, that grid is its straight one and the hits are where it puts them, quantized or
+  // not: the pocket is the pocket of what is heard.
+  private readonly _groove = memo((hits: PerVoice<EditedHit[]> | null, map: TempoMap, meter: ProjectDoc['meter'], grid: GrooveSettings['grid'], range: TimeRange, out: WarpOut | null) => {
+    if (!hits || map.isEmpty) return null;
+    if (!out) return analyseGroove(hits, { map, meter, grid, ref: 'grid', range });
+    const r = this._cutRange(range, out);
+    return analyseGroove(hits, { map: out.map, meter, grid, ref: 'grid', range: { a: out.at(r.a), b: out.at(r.b) }, at: out.at });
+  });
   /** Where each voice sits against the grid, inside the loop when it is on. */
   get pocket(): Groove | null {
-    return this._groove(this.drumHits, this.tempoMap, this.doc.meter, this.groove.grid, this.sliceRange);
+    return this._groove(this.drumHits, this.tempoMap, this.doc.meter, this.groove.grid, this.sliceRange, this.warpOut);
   }
 
   private readonly _alignment = memo((map: TempoMap, wm: readonly WarpMarker[]) => Alignment.of(map, wm));
@@ -208,8 +235,19 @@ export class App {
     return this._warp(this.alignment, this.tempoMap, this.doc.meter, this.dur, this.exportSettings.lead, loop, this.warp.bpm);
   }
 
-  /** What plays is the warp: in the Warp step, heard warped, with something to warp. */
-  get hearingWarp(): boolean { return this.step === 3 && this.warp.listen && !!this.warpPlan; }
+  /**
+   * What plays is the warp: from the Warp step on, heard warped, with something to warp. Transients and
+   * Beats always hear the original, since the warp is made from what they find.
+   */
+  get hearingWarp(): boolean { return this.step >= 3 && this.warp.listen && !!this.warpPlan; }
+
+  private readonly _out = memo((plan: WarpPlan): WarpOut => {
+    const m = plan.map;
+    const map = gridMap(plan.q0, plan.bpm);
+    return { plan, map, exportMap: plan.loop ? gridMap(0, plan.bpm) : map, range: { a: m.src[0], b: m.src[m.src.length - 1] }, at: (t) => m.dstAt(t) };
+  });
+  /** The warp as Slice and Groove hear it, or null when they hear the original. */
+  get warpOut(): WarpOut | null { return this.hearingWarp ? this._out(this.warpPlan!) : null; }
 
   private readonly _timeline = memo((map: TempoMap, moved: Alignment | null, bpm: number | null) => new Timeline(map, moved, bpm));
   /**

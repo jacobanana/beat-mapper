@@ -79,6 +79,7 @@
       <button class="btn" id="loopBtn" title="Loop (L)" aria-label="Loop" aria-pressed="false"><svg class="ic"><use href="#i-loop"/></svg></button>
       <button class="btn" id="scrubBtn" title="Scrub: drag the waveform to listen (R)" aria-label="Scrub" aria-pressed="false"><svg class="ic"><use href="#i-scrub"/></svg></button>
       <button class="btn" id="stayBtn" title="Stop leaves the playhead where it stopped; with the magnet on it sticks to the closest transient (H)" aria-label="Playhead stays on stop" aria-pressed="false"><svg class="ic"><use href="#i-stay"/></svg></button>
+      <button class="btn" id="warpBtn" title="Warped: Warp, Slice and Groove hear, cut, measure and export the audio moved onto the grid; off, the original (W)" aria-label="Hear it warped" aria-pressed="true" hidden><svg class="ic"><use href="#i-warp"/></svg></button>
       <button class="btn" id="clickBtn" title="Click on markers / beats (K)" aria-label="Click" aria-pressed="false"><svg class="ic"><use href="#i-click"/></svg></button>
       <button class="btn" id="mixBtn" title="Mixer: audio, click and drums levels" aria-label="Mixer" aria-expanded="false" aria-controls="mixer"><svg class="ic"><use href="#i-mix"/></svg></button>
     </div>
@@ -232,11 +233,6 @@
             <span class="cap" title="What is warped, and how it is stretched">Warp</span><span class="items">
               <select id="warpRange" title="What is warped, heard and saved" aria-label="What is warped"><option value="file">whole file</option><option value="loop">just the loop</option></select>
               <select id="warpModeB" title="Material: sets how the audio is stretched" aria-label="Material, which sets the warp algorithm"><option value="beats">Drums</option><option value="mono">Mono</option><option value="vocal">Vocal</option><option value="poly">Poly</option><option value="music">Full mix</option><option value="repitch">Re-pitch</option></select>
-            </span>
-          </div>
-          <div class="row2">
-            <span class="cap" title="What plays">Listen</span><span class="items">
-              <span class="seg" role="group" aria-label="What plays"><button class="btn" id="wOrig" title="Play the original (W)" aria-pressed="false">Original</button><button class="btn on" id="wWarped" title="Play it warped onto the grid, with the click on the grid (W)" aria-pressed="true">Warped</button></span>
               <button class="btn end" id="resetW" title="Reset Warp: the whole file at the tempo it averages, Full mix, no warp markers, no shuffle, full quantize strength" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
             </span>
           </div>
@@ -293,7 +289,6 @@
           <div class="row2">
             <span class="cap" title="The grid each hit is measured against">Grid</span><span class="items">
               <select id="gGrid" title="Grid each hit is placed on" aria-label="Grid"><option value="8">1/8</option><option value="16" selected>1/16</option><option value="8t">1/8T</option><option value="16t">1/16T</option></select>
-              <label class="sl" title="Quantize: the drums the kit plays, the MIDI chart and the MIDI export moved onto this grid, 0% as played, 100% on it. The pocket is always measured as played">quantize<input type="range" id="gQuant" min="0" max="100" step="5" value="0" aria-label="Quantize the drums"><output id="gQuantO">0%</output></label>
             </span>
           </div>
           <div class="row2">
@@ -383,6 +378,7 @@
     <div><svg class="ic"><use href="#i-loop"/></svg><span>Loop on/off</span><span><kbd>L</kbd></span></div>
     <div><svg class="ic"><use href="#i-scrub"/></svg><span>Scrub: drag the waveform to listen</span><span><kbd>R</kbd></span></div>
     <div><svg class="ic"><use href="#i-stay"/></svg><span>Stop leaves the playhead in place (on the closest transient or grid line, whichever the magnet is set to)</span><span><kbd>H</kbd></span></div>
+    <div><svg class="ic"><use href="#i-warp"/></svg><span>Warped (from step 3): Warp, Slice and Groove hear the audio moved onto the grid, and cut, measure and export that; off, the original. Transients and Beats always use the original, since the warp is made from them</span><span><kbd>W</kbd></span></div>
     <div><svg class="ic"><use href="#i-click"/></svg><span>Click on markers / beats</span><span><kbd>K</kbd></span></div>
     <div><svg class="ic"><use href="#i-mix"/></svg><span>Mixer: audio, click and drums levels; tap a channel's icon to mute it</span><span></span></div>
     <div><svg class="ic"><use href="#i-zout"/></svg><span>Zoom out</span><span><kbd>−</kbd></span></div>
@@ -409,10 +405,10 @@
     <div><span>Options</span><span>Map: pin every beat or bar, the search window around each beat, the bars in the loop for From loop. Fix: the grid (the lines drawn, and which one Pin takes), and the magnet: what the playhead and dragged pins land on. Pins snap to transients but never to the grid – they are what makes it. Alt flips the magnet while you drag</span><span><kbd>G</kbd> <kbd>S</kbd></span></div>
     <h3>Warp</h3>
     <div><svg class="ic"><use href="#i-warp"/></svg><span>The audio re-timed so every beat of the map lands on a straight grid at one tempo. The tempo map is made in Beats; here it is only read. The tempo lane shows the grid's tempo dashed, and how far each bar moves to reach it</span><span></span></div>
-    <div><span>Original · Warped</span><span>What plays. Warped plays it with the click on the grid; the playhead follows the original, so it sits on the hit you hear</span><span><kbd>W</kbd></span></div>
+    <div><svg class="ic"><use href="#i-warp"/></svg><span>Warped, in the top bar: what plays. Warped plays it with the click on the grid, and the waveform is drawn where the warp puts it. Slice and Groove follow the same switch</span><span><kbd>W</kbd></span></div>
     <div><svg class="ic"><use href="#i-loop"/></svg><span>From loop: loop a section that is played right, and the grid takes the tempo it averages, to the nearest BPM. Or type a tempo; empty takes the average of what is warped</span><span><kbd>F</kbd></span></div>
     <div><span>Align: drag a transient in the upper half onto a grid line, and the warp puts that hit exactly on it, stretching the audio either side to fit. Double-tap a transient to put it on the nearest line, or a warp marker to let it go. Alt drops it off the grid</span><span></span></div>
-    <div><span>Quantize (a switch): every transient of what is warped towards the grid line nearest it, as far as the strength beside the shuffle says (100% by default); off puts the warp markers back. Clear takes the warp markers off; undo brings them back</span><span><kbd>Q</kbd></span></div>
+    <div><span>Quantize (a switch): every transient of what is warped towards the grid line nearest it, as far as the strength beside the shuffle says (100% by default); off puts the warp markers back. Clear takes the warp markers off; undo brings them back. The only quantize: the slices, the pocket and the drum MIDI follow it</span><span><kbd>Q</kbd></span></div>
     <div><span>whole file · just the loop</span><span>What is warped, heard and saved. Drawing a loop to take its tempo doesn't make it the loop alone</span><span></span></div>
     <div><span>Material</span><span>How it is stretched: Drums cut at the transients, Mono and Vocal overlap-add, Poly a phase vocoder, Full mix both, Re-pitch like a turntable</span><span></span></div>
     <div><svg class="ic"><use href="#i-reset"/></svg><span>Reset: the whole file at the tempo it averages, Full mix</span><span></span></div>
@@ -421,7 +417,7 @@
     <div><svg class="ic"><use href="#i-export"/></svg><span>One window for every file BeatMapper saves: the tempo map as MIDI or a REAPER project, the warped audio, the slices, the selected slice or the loop as .wav, the drums as MIDI, the groove, and the session. Each format shows only its own options, and what the file will hold</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
     <div><svg class="ic"><use href="#i-import"/></svg><span>Open a session file (Session, in Export), then the same audio</span><span></span></div>
     <h3>Slice samples</h3>
-    <div><svg class="ic"><use href="#i-slice"/></svg><span>Every transient from step 1 starts a slice, running to the next transient (plus a tail) or for a fixed length. Switch the loop on and only what is inside it is sliced</span><span></span></div>
+    <div><svg class="ic"><use href="#i-slice"/></svg><span>Every transient from step 1 starts a slice, running to the next transient (plus a tail) or for a fixed length. Switch the loop on and only what is inside it is sliced. Heard warped, each slice is cut from the warped audio, so it is what you hear, on the grid</span><span></span></div>
     <div><svg class="ic"><use href="#i-gap"/></svg><span>Transients closer together than this are skipped, so the slice before them keeps running</span><span></span></div>
     <div><svg class="ic"><use href="#i-wave"/></svg><span>What each .wav gets: click-free fades, per-slice normalizing to the target dBFS, source channels or a mono mix, 16 or 24-bit at the file's sample rate. Set in Export</span><span></span></div>
     <div><svg class="ic"><use href="#i-play"/></svg><span>Play the selected slice on its own, exactly as it will be written · a slice you click or step onto plays too</span><span><kbd>E</kbd></span></div>
@@ -436,7 +432,8 @@
     <div><svg class="ic"><use href="#i-reset"/></svg><span>Reset: the hits as found at the starting sensitivities, measured as they start</span><span></span></div>
     <div><svg class="ic"><use href="#i-mix"/></svg><span>Hear the drums as MIDI on a synth kit: in the mixer, tap its icon to unmute it, and the audio's to hear the kit alone</span><span><kbd>M</kbd></span></div>
     <div><span>Chart</span><span>Left: where each voice sits, ahead or behind – every hit, its middle half, and its median. Right: the typical bar – dot size is velocity, faint dots are steps played in only some bars, tails show the lean</span></div>
-    <div><svg class="ic"><use href="#i-export"/></svg><span>Save the drums as MIDI (on the tempo map, as heard: where they were played, or quantized as far as the Groove step's quantize says), or the typical bar as a Pocket Science groove file: in Export</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
+    <div><svg class="ic"><use href="#i-warp"/></svg><span>Heard warped, the hits are measured, heard on the kit and exported where the warp puts them: quantized in the Warp step, they sit on the grid. Heard as the original, where they were played</span><span><kbd>W</kbd></span></div>
+    <div><svg class="ic"><use href="#i-export"/></svg><span>Save the drums as MIDI (as heard: warped, at the grid's one tempo and lined up with the warped .wav; the original, on the tempo map), or the typical bar as a Pocket Science groove file: in Export</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
   </div>
   <h2 style="margin-top:18px">Keyboard shortcuts</h2>
   <div class="keys">
@@ -456,6 +453,7 @@
     <div><span><kbd>+</kbd> <kbd>−</kbd> <kbd>Z</kbd></span><span>Zoom in, out, fit whole file</span></div>
     <div><span><kbd>Home</kbd> <kbd>End</kbd></span><span>Go to start / end</span></div>
     <div><span><kbd>K</kbd></span><span>Click on markers or beats</span></div>
+    <div><span><kbd>W</kbd></span><span>Warped or the original, for Warp, Slice and Groove</span></div>
     <div><span><kbd>1</kbd> … <kbd>5</kbd></span><span>Transients, Beats, Warp, Slice, Groove</span></div>
     <div><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span><span>Export</span></div>
     <div><span><kbd>Ctrl/⌘</kbd><kbd>Z</kbd></span><span>Undo (add ⇧ to redo)</span></div>
@@ -475,7 +473,6 @@
     <div><span><kbd>S</kbd></span><span>Magnet: transients, grid, or nothing (⇧ the other way)</span></div>
     <div><span><kbd>Del</kbd></span><span>Unpin selected</span></div>
     <h3>Step 3 – Warp</h3>
-    <div><span><kbd>W</kbd></span><span>Warped or the original</span></div>
     <div><span><kbd>Q</kbd></span><span>Quantize every transient to the grid, on or off</span></div>
     <div><span><kbd>G</kbd></span><span>Finer grid (<kbd>Shift</kbd> coarser)</span></div>
     <div><span><kbd>Del</kbd></span><span>Remove the selected warp marker</span></div>

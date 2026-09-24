@@ -41,6 +41,7 @@ export function bindHeader(app: App, f: Features, openHelp: () => void, openExpo
   $('loopBtn').onclick = () => f.playback.toggleLoop();
   $('scrubBtn').onclick = () => f.playback.toggleScrub();
   $('clickBtn').onclick = () => f.playback.toggleClick();
+  $('warpBtn').onclick = () => f.warp.toggleListen();
   // Each step's Reset, last in its panel: it starts that step again, once confirmed.
   const RESETS = ['resetM', 'resetB', 'resetW', 'resetS', 'gReset'];
   for (const id of RESETS) {
@@ -55,6 +56,8 @@ export function bindHeader(app: App, f: Features, openHelp: () => void, openExpo
       $('t' + i).setAttribute('aria-selected', String(i === app.step));
       $('p' + i).hidden = i !== app.step;
     }
+    // Warped or not is for the steps after the warp is made; Transients and Beats hear the original.
+    $('warpBtn').hidden = app.step < 3;
     // Export follows the step: off where the step makes nothing to export.
     const none = !STEP_FORMATS[app.step].length, ex = $btn('exportBtn');
     ex.disabled = none;
@@ -98,13 +101,17 @@ export function bindHeader(app: App, f: Features, openHelp: () => void, openExpo
 
   const syncReset = () => { for (const id of RESETS) $btn(id).disabled = !f.workflow.canReset; };
 
+  const syncWarp = () => setPressed($('warpBtn'), app.warp.listen);
+
   app.bus.on('step', syncSteps);
+  app.bus.on('warp', syncWarp);
   app.bus.on(['step', 'doc', 'detection', 'candidates', 'beats', 'warp', 'slicer', 'slices', 'groove', 'drums', 'audio'], syncReset);
   app.bus.on(['doc', 'audio'], syncHistory);
   app.bus.on(['transport', 'playhead'], syncTransport);
   app.bus.on(['playhead', 'doc', 'audio', 'step', 'warp', 'transport'], syncReadout);
   app.bus.on('audio', syncFile);
   syncSteps();
+  syncWarp();
   syncTransport();
   syncReset();
 }

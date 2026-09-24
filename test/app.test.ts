@@ -1,7 +1,7 @@
 // The app and its features end to end, without a browser: demo audio in, the same numbers the UI
 // shows out. Playback is the only part not covered (it needs Web Audio).
 import { beforeEach, describe, expect, it } from 'vitest';
-import { quantizedTime } from '../src/core/groove/pocket';
+import { barQ } from '../src/core/tempo/meter';
 import { buildMidi } from '../src/io/formats/midi';
 import { MemoryStore, type TestApp, createTestApp, openDemo } from './helpers';
 
@@ -154,6 +154,34 @@ describe('slices', () => {
     expect(app.slices[3].off).toBe(true);
     f.slicer.keepAll();
     expect(app.slices.some((s) => s.off)).toBe(false);
+  });
+
+  it('cuts the slices from the warp when it is heard, and from the original when not', async () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.workflow.goTo(4);
+    expect(app.hearingWarp).toBe(true);
+    // Only what the warp makes is cut: with bar 1 a few transients in and the file trimmed to it, the
+    // lead-in goes, while the original is still cut whole.
+    f.beats.setDownbeat(app.markers[4].t);
+    app.set('export', { lead: 'trim' });
+    const bar1 = app.tempoMap.posToTime(0);
+    expect(app.slices[0].t0).toBeCloseTo(bar1, 9);
+    f.warp.setListen(false);
+    expect(app.slices.length).toBe(app.markers.length);
+    f.warp.setListen(true);
+    expect(app.slices.length).toBe(app.markers.length - 4);
+    // Cut from the render, each slice where the warp puts it.
+    const c = (await f.slicer['cut']())!, out = app.warpOut!, sl = app.slices[5];
+    expect(c.out).toBe(out);
+    expect(c.chans[0].length).toBe(Math.max(1, Math.round(out.plan.outDur * c.sr)));
+    expect(c.at(sl.t0)).toBeCloseTo(out.plan.map.dstAt(sl.t0), 12);
+    f.warp.setListen(false);
+    const o = (await f.slicer['cut']())!;
+    expect(o.out).toBeNull();
+    expect(o.chans).toBe(app.audio!.chans);
+    expect(o.at(sl.t0)).toBe(sl.t0);
   });
 
   it('remembers the selected slice across a re-plan', () => {
@@ -406,8 +434,9 @@ describe('the Warp step', () => {
     const r2 = (await f.warp.render())!;
     expect(r2).not.toBe(r);
     expect(r2.plan).toBe(app.warpPlan);
-    f.workflow.goTo(4);
-    expect(f.warp.wanted()).toBe(false);
+    // Slice and Groove hear it too; Transients and Beats, the original the warp is made from.
+    for (const step of [4, 5] as const) { f.workflow.goTo(step); expect(f.warp.wanted()).toBe(true); }
+    for (const step of [1, 2] as const) { f.workflow.goTo(step); expect(f.warp.wanted()).toBe(false); }
   });
 
   it('takes the grid tempo from a looped section and warps the whole file to it', () => {
@@ -627,32 +656,53 @@ describe('groove', () => {
     expect(app.pocket!.bars).toBe(2);
   });
 
-  it('quantizes the drums heard and charted onto the groove grid, leaving the pocket as played', async () => {
+  it('measures the drums where the warp puts them: quantized in Warp, on the grid; the original, as played', async () => {
     const { app, f } = t;
     f.workflow.goTo(2);
     f.beats.autoMap();
     f.workflow.goTo(5);
     await f.groove.ensureDrums();
-    const played = app.drumNotes, pocket = app.pocket;
-    expect(app.groove.quantize).toBe(0);
-    f.groove.setQuantize(100);
-    const map = app.tempoMap, onGrid = app.drumNotes;
-    expect(onGrid.length).toBe(played.length);
-    // Every note on a sixteenth of the map, in time order.
-    for (const n of onGrid) { const x = map.timeToPos(n.t) / 0.25; expect(x - Math.round(x)).toBeCloseTo(0, 5); }
-    for (let i = 1; i < onGrid.length; i++) expect(onGrid[i].t).toBeGreaterThanOrEqual(onGrid[i - 1].t);
-    // Part of the way: each hit 40 % of its way to the step its pocket measured it from.
-    f.groove.setQuantize(40);
-    for (const h of app.pocket!.hits) {
-      const grid = h.t - h.gridMs / 1000, n = app.drumNotes.find((k) => k.voice === h.voice && Math.abs(k.t - (h.t + 0.4 * (grid - h.t))) < 1e-6);
-      expect(n, `${h.voice} at ${h.t}`).toBeTruthy();
-      expect(quantizedTime(h, 0.4)).toBeCloseTo(n!.t, 6);
+    f.workflow.goTo(3);
+    f.beats.setGrid('16');
+    f.warp.toggleQuantize();
+    f.workflow.goTo(5);
+    expect(app.hearingWarp).toBe(true);
+    const out = app.warpOut!, g = app.pocket!, bq = barQ(app.doc.meter);
+    expect(g.bpm).toBeCloseTo(out.plan.bpm, 6);
+    // Each hit is measured on the warp's straight grid, where the warp puts it, and keeps its own time.
+    for (const h of g.hits) {
+      const heard = out.at(h.t), step = out.map.posToTime(h.bar * bq + h.step * 0.25);
+      expect(h.gridMs).toBeCloseTo((heard - step) * 1000, 6);
+      expect(app.drumHits![h.voice].some((k) => k.t === h.t)).toBe(true);
     }
-    // The pocket is measured as played.
-    expect(app.pocket).toBe(pocket);
-    f.groove.reset();
-    expect(app.groove.quantize).toBe(0);
-    expect(app.drumNotes).toEqual(played);
+    // A hit on a transient that Quantize lined up sits on its step.
+    const lined = g.hits.filter((h) => app.doc.warpMarkers.some((w) => Math.abs(w.t - h.t) < 1e-4));
+    expect(lined.length).toBeGreaterThan(20);
+    for (const h of lined) expect(Math.abs(h.gridMs)).toBeLessThan(0.2);
+    // The original: the hits as played, on the tempo map, and the pocket is measured again.
+    f.warp.setListen(false);
+    expect(app.warpOut).toBeNull();
+    const played = app.pocket!;
+    expect(played).not.toBe(g);
+    for (const h of played.hits.slice(0, 40)) expect(h.gridMs).toBeCloseTo((h.t - app.tempoMap.posToTime(h.bar * bq + h.step * 0.25)) * 1000, 6);
+  });
+
+  it('writes the drum MIDI as heard: warped at the grid tempo and lined up with the warped audio', async () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.workflow.goTo(5);
+    await f.groove.ensureDrums();
+    const out = app.warpOut!, midi = f.groove.drumMidi()!;
+    expect(midi.notes.length).toBe(app.pocket!.hits.length);
+    app.pocket!.hits.forEach((h, i) => expect(midi.notes[i].t).toBeCloseTo(out.at(h.t), 9));
+    // One tempo in the file: the grid's.
+    expect(tempos(midi.bytes)).toEqual([Math.round(60e6 / out.plan.bpm)]);
+    // Heard as the original, the notes are where they were played, on the tempo map's tempos.
+    f.warp.setListen(false);
+    const orig = f.groove.drumMidi()!;
+    app.pocket!.hits.forEach((h, i) => expect(orig.notes[i].t).toBe(h.t));
+    expect(tempos(orig.bytes).length).toBeGreaterThan(1);
   });
 
   it('turns the hits into notes to hear, and switches what is heard and charted', async () => {
@@ -714,3 +764,11 @@ describe('groove', () => {
     expect(app.drumHits!.kick.length).toBe(n + 1);
   });
 });
+
+/** The tempos a MIDI file sets, in microseconds per quarter note, in order. */
+function tempos(bytes: Uint8Array): number[] {
+  const out: number[] = [];
+  for (let i = 0; i + 5 < bytes.length; i++)
+    if (bytes[i] === 0xff && bytes[i + 1] === 0x51 && bytes[i + 2] === 3) out.push((bytes[i + 3] << 16) | (bytes[i + 4] << 8) | bytes[i + 5]);
+  return out;
+}

@@ -26,16 +26,21 @@ describe('session files', () => {
     const s = parseSession(legacy, legacy.audio.duration, fb);
     expect(s.beats.shuffle).toBe(0);
     expect(s.warpQuantize).toBe(100);
-    expect(s.grooveQuantize).toBe(0);
-    const set = { ...s, beats: { ...s.beats, shuffle: 60 }, warpQuantize: 40, grooveQuantize: 75 };
+    const set = { ...s, beats: { ...s.beats, shuffle: 60 }, warpQuantize: 40 };
     const json = toSessionJson(set) as { warp: object };
     expect(json.warp).toEqual({ quantize: 40 });
     const back = parseSession(JSON.parse(JSON.stringify(json)), legacy.audio.duration, fb);
     expect(back.beats.shuffle).toBe(60);
     expect(back.warpQuantize).toBe(40);
-    expect(back.grooveQuantize).toBe(75);
-    const odd = parseSession({ ...legacy, beats: { ...legacy.beats, shuffle: 400 }, warp: { quantize: 'x' }, groove: { quantize: -5 } }, legacy.audio.duration, fb);
-    expect([odd.beats.shuffle, odd.warpQuantize, odd.grooveQuantize]).toEqual([100, 100, 0]);
+    const odd = parseSession({ ...legacy, beats: { ...legacy.beats, shuffle: 400 }, warp: { quantize: 'x' } }, legacy.audio.duration, fb);
+    expect([odd.beats.shuffle, odd.warpQuantize]).toEqual([100, 100]);
+  });
+
+  it("still opens a session with the Groove step's old quantize, and saves it without", () => {
+    const old = { ...legacy, groove: { quantize: 75 } };
+    const s = parseSession(old, legacy.audio.duration, fb);
+    expect('groove' in toSessionJson(s)).toBe(false);
+    expect(toSessionJson(s)).toEqual(toSessionJson(parseSession(legacy, legacy.audio.duration, fb)));
   });
 
   it('recognises only BeatMapper sessions', () => {

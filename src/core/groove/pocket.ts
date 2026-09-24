@@ -86,8 +86,13 @@ export interface GrooveOptions {
   grid: GrooveGrid;
   ref: Reference | 'auto';
   /** Only hits whose grid step is inside this range count, so a kick pushed ahead of the loop's first
-   * downbeat still belongs to the loop. */
+   * downbeat still belongs to the loop. In `map`'s time. */
   range?: TimeRange;
+  /**
+   * When each hit is heard on `map`'s timeline, if not at its own time: the warp moves the audio onto
+   * a straight grid, so its hits are measured where it puts them. Each hit keeps its own time.
+   */
+  at?: (t: number) => number;
 }
 
 const quantile = (s: readonly number[], p: number): number => {
@@ -133,32 +138,6 @@ export function transcribe(hits: PerVoice<readonly DrumHit[]>): VoiceNote[] {
   return out.sort((a, b) => a.t - b.t);
 }
 
-/**
- * When a hit sounds once quantized `strength` (0..1) of the way onto its grid step: 1 is on the step,
- * 0 where it was played. Measured in time against the step, so a drifting take stays on its own map.
- */
-export const quantizedTime = (h: Pick<PlacedHit, 't' | 'gridMs'>, strength: number): number =>
-  h.t - Math.max(0, Math.min(1, strength)) * h.gridMs / 1000;
-
-/**
- * The notes moved `strength` (0..1) of the way onto their nearest step of the groove grid on the tempo
- * map, and sorted by time again: what the kit plays and the transcript shows once quantized. Each step
- * is found as the pocket finds a hit's, and the move is measured in time, so the notes keep following
- * the map.
- */
-export function quantizeNotes(notes: readonly VoiceNote[], map: TempoMap, meter: Meter, grid: GrooveGrid, strength: number): readonly VoiceNote[] {
-  const s = Math.max(0, Math.min(1, strength));
-  if (!s || map.isEmpty) return notes;
-  const sq = GROOVE_GRID_Q[grid], bq = barQ(meter), stepsPerBar = Math.max(1, Math.round(bq / sq));
-  return notes.map((n) => {
-    const q = map.timeToPos(n.t);
-    let bar = Math.floor(q / bq), step = Math.round((q - bar * bq) / sq);
-    if (step >= stepsPerBar) { bar++; step = 0; }
-    const gt = map.posToTime(bar * bq + step * sq);
-    return { ...n, t: n.t + s * (gt - n.t) };
-  }).sort((a, b) => a.t - b.t);
-}
-
 /** The reference `auto` stands for: the hats when they keep time through the take, else the grid. */
 export function autoReference(hits: readonly PlacedHit[], every: number, bars: number): Reference {
   const n = hits.filter((h) => h.voice === 'hat' && h.step % every === 0).length;
@@ -174,13 +153,13 @@ export function analyseGroove(input: PerVoice<readonly DrumHit[]>, o: GrooveOpti
     for (const v of VOICES) {
       const hs = input[v], vel = velocities(hs);
       hs.forEach((h, i) => {
-        const q = map.timeToPos(h.t);
+        const th = o.at ? o.at(h.t) : h.t, q = map.timeToPos(th);
         let bar = Math.floor(q / bq), step = Math.round((q - bar * bq) / sq);
         if (step >= stepsPerBar) { bar++; step = 0; }
         if (bar < 0) return;
         const gq = bar * bq + step * sq, gt = map.posToTime(gq);
         if (!inRange(gt)) return;
-        placed.push({ voice: v, t: h.t, vel: vel[i], bar, step, gridMs: (h.t - gt) * 1000 });
+        placed.push({ voice: v, t: h.t, vel: vel[i], bar, step, gridMs: (th - gt) * 1000 });
         spq.push(map.posToTime(gq + 0.01) - gt);
       });
     }

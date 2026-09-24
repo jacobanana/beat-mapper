@@ -8,8 +8,10 @@ with no tempo map at all.
 
 ## The step
 
-- **Original · Warped** (<kbd>W</kbd>): what plays. Warped plays the warped audio with the click on
-  the straight grid, so what you hear is the file Export saves.
+- **Warped** (<kbd>W</kbd>, in the top bar from this step on): what plays. Warped plays the warped
+  audio with the click on the straight grid, so what you hear is the file Export saves. Slice and Groove
+  follow the same switch: they cut and measure what the warp makes (see
+  [architecture.md](architecture.md#the-flow)). Transients and Beats always use the original.
 - **Grid tempo**: empty takes the tempo of what is warped, to the nearest whole BPM. **From loop**
   (<kbd>F</kbd>) takes it from a section instead: loop the part that is played right, and the grid
   gets the tempo that section averages, to the nearest BPM. The whole file is then warped to it.
@@ -27,6 +29,7 @@ with no tempo map at all.
   the feel. While Quantize is on, moving the slider, the shuffle or the grid quantizes again from where it
   started, as the same undo step; turning it off (the button or <kbd>Q</kbd>) puts the warp markers
   back as they were. Any other edit, or leaving the step, keeps the quantize and turns the switch off.
+  It is the app's only quantize: the slices, the pocket, the synth kit and the drum MIDI follow it.
   **shuffle**, beside the grid (and beside it in Beats, since it is the same grid), swings every
   second line of a 1/8, 1/16 or 1/32 grid late: 100% puts it two thirds of the way through its pair,
   a triplet shuffle. What is drawn, snapped, pinned and quantized follows it. Triplet grids and grids

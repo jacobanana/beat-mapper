@@ -61,7 +61,6 @@ export class Sessions {
       excluded: app.excluded,
       warpMarkers: [...app.doc.warpMarkers],
       warpQuantize: app.warp.quantize,
-      grooveQuantize: app.groove.quantize,
     };
   }
 
@@ -126,7 +125,6 @@ export class Sessions {
     app.set('export', s.export);
     app.set('slicer', s.slicer);
     app.set('warp', { quantize: s.warpQuantize });
-    app.set('groove', { quantize: s.grooveQuantize });
     app.excluded = s.excluded;
     app.sliceSel = null;
     app.select(null);

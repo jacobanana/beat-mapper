@@ -3,8 +3,8 @@ import type { Analyzer } from '../../analysis/analyzer';
 import type { DrumSource } from '../../core/drums/detect';
 import { loudnessAt } from '../../core/drums/edit';
 import { GM_NOTE, VOICES, type Voice } from '../../core/drums/voices';
-import { safeName } from '../../core/format';
-import { type GrooveGrid, describeGroove, quantizedTime } from '../../core/groove/pocket';
+import { fmtBpm, safeName } from '../../core/format';
+import { type GrooveGrid, describeGroove } from '../../core/groove/pocket';
 import { nearest } from '../../core/search';
 import { hasBridge, saveError, saveFile } from '../../io/download';
 import { grooveJson } from '../../io/formats/groove';
@@ -69,8 +69,6 @@ export class Groove {
   setGrid(grid: GrooveGrid): void { this.app.set('groove', { grid }); }
   toggleExaggerate(): void { this.app.set('groove', { exaggerate: !this.app.groove.exaggerate }); }
   setChart(chart: GrooveChartMode): void { this.app.set('groove', { chart }); }
-  /** Moves the drums heard, charted and exported `pct` percent of the way onto the grid. */
-  setQuantize(pct: number): void { this.app.set('groove', { quantize: clamp(Math.round(pct), 0, 100) }); }
   toggleChart(): void { this.setChart(this.app.groove.chart === 'pocket' ? 'midi' : 'pocket'); }
 
   // ---------- editing hits ----------
@@ -125,7 +123,7 @@ export class Groove {
   /** Something in this step differs from how it starts: a hit edited, or a sensitivity or measure changed. */
   get changed(): boolean {
     const { app } = this, g = app.groove, g0 = defaultGroove(), e = app.doc.drums;
-    return !!app.audio && (e.manual.length > 0 || e.removed.length > 0 || g.grid !== g0.grid || g.quantize !== g0.quantize || VOICES.some((v) => g.sens[v] !== g0.sens[v]));
+    return !!app.audio && (e.manual.length > 0 || e.removed.length > 0 || g.grid !== g0.grid || VOICES.some((v) => g.sens[v] !== g0.sens[v]));
   }
 
   /**
@@ -136,8 +134,8 @@ export class Groove {
     const { app } = this;
     if (!this.changed) return;
     this.resetHits();
-    const { sens, grid, quantize } = defaultGroove();
-    app.set('groove', { sens, grid, quantize });
+    const { sens, grid } = defaultGroove();
+    app.set('groove', { sens, grid });
     app.select(null);
     app.notify.toast('Groove reset: the hits as found. Undo brings your hit edits back.');
   }
@@ -184,23 +182,32 @@ export class Groove {
   private base(): string { return safeName(this.app.audio?.name || 'audio'); }
 
   /**
-   * Every hit as a note with the tempo map: the take as MIDI, as it is heard here, where it was played
-   * or moved onto the grid as far as the quantize says.
+   * Every hit as a note: the take as MIDI, as it is heard here. Warped, that is where the warp puts
+   * each hit (quantized as far as the Warp step says), at the grid's one tempo, so the notes line up
+   * with the warped .wav; otherwise where it was played, on the tempo map. Null with nothing to write.
    */
+  drumMidi(): { bytes: Uint8Array; notes: readonly DrumNote[] } | null {
+    const { app } = this, g = app.pocket, out = app.warpOut;
+    if (!app.audio || !g) return null;
+    const notes: DrumNote[] = g.hits.map((h) => ({ t: out ? out.at(h.t) : h.t, note: GM_NOTE[h.voice], vel: h.vel }));
+    const on = out ? { map: out.exportMap, dur: out.plan.outDur, trimmed: false } : {};
+    return { bytes: buildMidi({ ...this.exports.options(), ...on, clicks: false, notes }).bytes, notes };
+  }
+
   async saveMidi(): Promise<void> {
-    const { app } = this, g = app.pocket;
+    const { app } = this, g = app.pocket, out = app.warpOut;
     if (!app.audio || !g) return app.notify.toast('Nothing to export yet – find the drums and map the beats first.');
-    const k = app.groove.quantize / 100;
-    const notes: DrumNote[] = g.hits.map((h) => ({ t: quantizedTime(h, k), note: GM_NOTE[h.voice], vel: h.vel }));
-    let bytes: Uint8Array;
-    try { bytes = buildMidi({ ...this.exports.options(), clicks: false, notes }).bytes; } catch (e) { console.error(e); return app.notify.toast('Nothing to export yet – map the beats first.'); }
-    const base = this.base() + '-drums';
+    let midi: ReturnType<Groove['drumMidi']>;
+    try { midi = this.drumMidi(); } catch (e) { console.error(e); midi = null; }
+    if (!midi) return app.notify.toast('Nothing to export yet – map the beats first.');
+    const { bytes, notes } = midi;
+    const base = this.base() + (out ? '-drums-warped' : '-drums');
     if (await hasBridge()) {
       const r = await saveFile(base + '.zip', zipFiles([{ name: base + '.mid', data: bytes }]) as BlobPart, 'application/zip');
       return app.notify.toast(r.ok ? 'Saved. Unzip it to get the .mid file.' : saveError(r.code, "This viewer couldn't save the file."));
     }
     await saveFile(base + '.mid', bytes as BlobPart, 'audio/midi');
-    app.notify.toast(`Drum MIDI saved: ${notes.length} notes on ${VOICES.filter((v) => g.hits.some((h) => h.voice === v)).length} voices${k ? `, quantized ${Math.round(k * 100)} %` : ''}.`);
+    app.notify.toast(`Drum MIDI saved: ${notes.length} notes on ${VOICES.filter((v) => g.hits.some((h) => h.voice === v)).length} voices${out ? `, warped to ${fmtBpm(out.plan.bpm)} BPM` : ''}.`);
   }
 
   /** The typical bar as a Pocket Science groove file. */

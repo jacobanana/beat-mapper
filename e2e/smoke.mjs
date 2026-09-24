@@ -50,6 +50,8 @@ try {
   await step('Beats: bar 1, then auto-map', async () => {
     await page.keyboard.press('2');
     assert.equal(await text('aCount'), '1 pin');
+    // Beats works on the original, which the warp is made from: no Warped switch here.
+    assert.equal(await page.isVisible('#warpBtn'), false);
     await page.keyboard.press('m');
     assert.equal(await text('aCount'), '64 pins');
     assert.match(await text('sum'), /^17 bars · avg 98\.16/);
@@ -73,7 +75,9 @@ try {
     await page.keyboard.press('3');
     assert.equal(await page.isVisible('#p3'), true);
     assert.equal(await page.isVisible('#warpListen'), false);
-    assert.equal(await page.getAttribute('#wWarped', 'aria-pressed'), 'true');
+    // The Warped switch shows from this step on, since Slice and Groove follow it too.
+    assert.equal(await page.isVisible('#warpBtn'), true);
+    assert.equal(await page.getAttribute('#warpBtn', 'aria-pressed'), 'true');
     assert.match(await text('wSum'), /^The file averages 97\.87 BPM · warped to 98 BPM, stretched \d+ %–\d+ %/);
     assert.equal(await page.getAttribute('#warpBpmB', 'placeholder'), '98');
     assert.equal(await page.isDisabled('#wFromLoop'), true);
@@ -101,7 +105,7 @@ try {
     await page.waitForTimeout(700);
     assert.notEqual(await text('rTime'), '0:00.000');
     await page.keyboard.press('w');
-    assert.equal(await page.getAttribute('#wOrig', 'aria-pressed'), 'true');
+    assert.equal(await page.getAttribute('#warpBtn', 'aria-pressed'), 'false');
     await page.waitForTimeout(300);
     assert.equal(await page.$eval('#playBtn', (b) => b.dataset.state), 'true');
     await page.keyboard.press(' ');
@@ -214,8 +218,10 @@ try {
     assert.match(await text('gSum'), /^16 bars · 9\d\.\d BPM · Against the grid/);
     await page.keyboard.press('Control+e');
     assert.equal(await page.getAttribute('[data-fmt=drumsMidi]', 'aria-pressed'), 'true');
+    // Heard warped, the drums are written as the warp puts them, at the grid's tempo.
+    assert.match(await text('expInfo'), / · warped to 98 BPM$/);
     const [d] = await Promise.all([page.waitForEvent('download'), page.click('#expSave')]);
-    assert.equal(d.suggestedFilename(), 'drifting-drum-loop-drums.mid');
+    assert.equal(d.suggestedFilename(), 'drifting-drum-loop-drums-warped.mid');
   });
   await step('Groove: a double-click in a lane adds a hit, Delete takes it away', async () => {
     const b = await (await page.$('#cv')).boundingBox();

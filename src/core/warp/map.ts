@@ -2,7 +2,7 @@
 // straight lines between pins, so a straight grid is reached by moving every pin to where a steady
 // tempo would put it: the warp is exact between pins with one point per pin.
 import { barQ, beatQ, type Meter } from '../tempo/meter';
-import type { PositionMap, TempoMap } from '../tempo/tempo-map';
+import { type PositionMap, TempoMap } from '../tempo/tempo-map';
 import type { TimeRange } from '../types';
 
 /**
@@ -82,6 +82,15 @@ export function planWarp(map: PositionMap, r: WarpRange, bpm: number): WarpMap {
   for (const p of map.anchors) if (p.t > r.a + 1e-6 && p.t < r.b - 1e-6) ts.push(p.t);
   ts.push(r.b);
   return new WarpMap(ts, ts.map((t) => ((map.timeToPos(t) - r.q0) * 60) / bpm));
+}
+
+/**
+ * The straight grid the warp puts the audio on, as a tempo map of the warped file: quarter note `q0`
+ * at its start and one steady tempo. Its bars are the tempo map's, laid end to end at `bpm`. Pinned at
+ * bar 1, wherever that falls, since the MIDI and REAPER writers start from the pin there.
+ */
+export function gridMap(q0: number, bpm: number): TempoMap {
+  return new TempoMap([{ q: 0, t: (-q0 * 60) / bpm, manual: true }], bpm);
 }
 
 /**

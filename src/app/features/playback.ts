@@ -7,8 +7,8 @@ import { type ClickSource, OneShot, Player, grain } from '../../engine/player';
 import type { App } from '../app';
 
 /**
- * Another take of the audio, played in its place on its own timeline: the warp preview. The editor
- * stays on the original's timeline, so positions are mapped both ways.
+ * Another take of the audio, played in its place on its own timeline: the warp, from the Warp step on.
+ * The editor stays on the original's timeline, so positions are mapped both ways.
  */
 export interface Take {
   buffer: AudioBuffer;
@@ -47,12 +47,13 @@ export class Playback {
     this.player = new Player({
       clicks: (a, b, emit) => this.clicksIn(a, b, emit),
       clicksOn: () => app.transport.click,
+      // The notes are timed on the original; under the warp each plays where the warp puts its hit.
       hits: (a, b, emit) => {
-        const N = app.drumNotes;
-        for (let i = lowerBound(N, a); i < N.length && N[i].t < b; i++) emit(N[i].t, N[i].voice, N[i].vel);
+        const N = app.drumNotes, k = this.take, s0 = k ? k.toSource(a) : a, s1 = k ? k.toSource(b) : b;
+        for (let i = lowerBound(N, s0); i < N.length && N[i].t < s1; i++) emit(k ? k.toTake(N[i].t) : N[i].t, N[i].voice, N[i].vel);
       },
       // The synth kit only plays in the Groove step, where its drums are drawn.
-      hitsOn: () => app.step === 5 && !!app.drums && !app.mute.drums && !this.take,
+      hitsOn: () => app.step === 5 && !!app.drums && !app.mute.drums,
       audioLevel: () => this.audioLevel,
       clickLevel: () => app.mix.click / 100,
       hitLevel: () => app.mix.drums / 100,
