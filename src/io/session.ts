@@ -7,6 +7,7 @@ import { DENOMINATORS, GRID_DIVISIONS, type GridDivision, type Meter } from '../
 import type { Anchor, TimeRange } from '../core/types';
 import { type WarpMarker, placeWarpMarker } from '../core/warp/markers';
 import { WARP_MODES, type WarpMode } from '../core/warp/modes';
+import { WAV_RATES } from './formats/wav';
 import {
   type BeatSettings, type DetectionSettings, type ExportSettings, SNAP_MODES, type SlicerSettings, type SnapMode, type TransportState, type WarpSettings,
   defaultWarp,
@@ -90,10 +91,11 @@ function hitsJson(s: SessionContent): object {
   return { drums: { manual: manual.map((h) => ({ voice: h.voice, t: h.t, a: h.a })), removed: removed.map((h) => ({ voice: h.voice, t: h.t })) } };
 }
 
-// Key order as version 1 files have always had it, so an unchanged session saves byte-identical.
+// Key order as version 1 files have always had it, so an unchanged session saves byte-identical. The
+// sample rate and the dither came later and are written only when set, like the warp's settings.
 function slicerJson(s: SessionContent): object {
-  const { csv, ...rest } = s.slicer;
-  return { ...rest, excluded: s.excluded, csv };
+  const { csv, rate, dither, ...rest } = s.slicer;
+  return { ...rest, excluded: s.excluded, csv, ...(rate != null ? { rate } : {}), ...(dither ? { dither } : {}) };
 }
 
 export const isSessionJson = (d: unknown): boolean => !!d && typeof d === 'object' && (d as { format?: unknown }).format === SESSION_FORMAT;
@@ -180,7 +182,9 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
       fadeOut: clamp(fin(sl.fadeOut, 8), 0, 2000),
       min: clamp(fin(sl.min, 40), 0, 5000),
       mono: !!sl.mono,
-      bits: +sl.bits === 24 ? 24 : 16,
+      bits: +sl.bits === 16 ? 16 : 24,
+      rate: oneOf<number | null>(WAV_RATES, +sl.rate, null),
+      dither: sl.dither === true,
       norm: !!sl.norm,
       target: clamp(fin(sl.target, -1), -24, 0),
       naming: sl.naming === 'time' ? 'time' : 'num',

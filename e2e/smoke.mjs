@@ -112,18 +112,20 @@ try {
     await page.keyboard.press('w');
   });
   await step('Export: the audio warped onto a straight grid downloads as a .wav', async () => {
+    // The tempo and the material are the Warp step's; the window only says how the file is written.
+    await page.fill('#warpBpmB', '100');
+    await page.dispatchEvent('#warpBpmB', 'change');
     await page.keyboard.press('Control+e');
     assert.equal(await page.getAttribute('[data-fmt=warpWav]', 'aria-pressed'), 'true');
     assert.equal(await page.isVisible('[data-fmt=midi]'), false);
-    assert.equal(await page.inputValue('#warpMode'), 'beats');
+    assert.equal(await page.$('#warpMode'), null);
     assert.equal(await page.isVisible('#clicks'), false);
-    assert.match(await text('expInfo'), /^Cut at the transients.* at \d+ BPM, stretched \d+ %–\d+ %\./);
-    await page.fill('#warpBpm', '100');
-    await page.dispatchEvent('#warpBpm', 'change');
-    assert.match(await text('expInfo'), / at 100 BPM/);
+    assert.equal(await page.isVisible('#slBits'), true);
+    assert.equal(await page.inputValue('#slBits'), '24');
+    assert.equal(await page.inputValue('#slRate'), 'src');
+    assert.match(await text('expInfo'), /^Cut at the transients.* at 100 BPM, stretched \d+ %–\d+ %\./);
     const [d] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#expSave')]);
     assert.equal(d.suggestedFilename(), 'drifting-drum-loop_warped_100bpm.wav');
-    assert.equal(await page.inputValue('#warpBpmB'), '100');
   });
   await step('Warp: a transient dragged onto the grid is lined up there, undo lets it go', async () => {
     const b = await (await page.$('#cv')).boundingBox();

@@ -6,9 +6,9 @@ import { type LoopInfo, type RenderOptions, type Slice, renderSlice, sliceKey } 
 import { bufferFrom } from '../../engine/audio-context';
 import { saveError, saveFile } from '../../io/download';
 import { buildRppSlices } from '../../io/formats/rpp';
-import { wavEncode, wavSize } from '../../io/formats/wav';
+import { wavFile, wavSize } from '../../io/formats/wav';
 import { type ZipEntry, zipFiles } from '../../io/formats/zip';
-import { type SlicerSettings, defaultSlicer, sliceRenderOptions } from '../../state/settings';
+import { type SlicerSettings, defaultSlicer, sliceRenderOptions, wavOptions } from '../../state/settings';
 import type { App, SliceView, WarpOut } from '../app';
 import type { Exports } from './exports';
 import type { Playback } from './playback';
@@ -33,6 +33,9 @@ export class Slicer {
 
   /** What every rendered slice gets. */
   renderOptions(): RenderOptions { return sliceRenderOptions(this.app.slicer); }
+
+  /** A rendered slice as the .wav it is saved as: at the depth and rate set in Export, dithered or not. */
+  private wav(chans: readonly Float32Array[], sr: number): Uint8Array { return wavFile(chans, sr, wavOptions(this.app.slicer)); }
 
   // What the samples are cut from: the warp when it is heard, rendered first unless it already is,
   // else the audio itself. Null, having said why, if the warp couldn't be rendered.
@@ -148,10 +151,10 @@ export class Slicer {
 
   /** Rough size of the zip of every kept slice. */
   zipEstimate(): number {
-    const { app } = this, o = app.slicer, ch = o.mono ? 1 : (app.audio?.chans.length ?? 1);
+    const { app } = this, o = app.slicer, ch = o.mono ? 1 : (app.audio?.chans.length ?? 1), sr = o.rate ?? app.audio?.sr ?? 44100;
     const len = (sl: Slice) => app.placed(sl.t1) - app.placed(sl.t0);
     let n = 0;
-    for (const sl of this.app.slices) if (!sl.off) n += wavSize(Math.round(len(sl) * (this.app.audio?.sr ?? 44100)), ch, o.bits) + 180;
+    for (const sl of this.app.slices) if (!sl.off) n += wavSize(Math.round(len(sl) * sr), ch, o.bits) + 180;
     return n;
   }
 
@@ -171,7 +174,7 @@ export class Slicer {
     const c = await this.cut(), sl = app.slices[i];
     if (!c || !sl) return;
     const at = Slicer.placed(sl, c), r = renderSlice(c.chans, c.sr, at.t0, at.t1, this.renderOptions());
-    await this.save(sliceName(this.base(), i, String(app.slices.length).length, at, app.slicer.naming), wavEncode(r.chans, c.sr, app.slicer.bits), 'audio/wav', 'Slice ' + (i + 1) + ' saved');
+    await this.save(sliceName(this.base(), i, String(app.slices.length).length, at, app.slicer.naming), this.wav(r.chans, c.sr), 'audio/wav', 'Slice ' + (i + 1) + ' saved');
   }
 
   // The loop itself, untouched apart from the channel, level and depth settings: fades would dip the
@@ -185,7 +188,7 @@ export class Slicer {
     if (!c || !L) return;
     const r = renderSlice(c.chans, c.sr, c.at(Math.max(L.a, c.out?.range.a ?? 0)), c.at(Math.min(L.b, c.out?.range.b ?? app.dur)), { ...this.renderOptions(), fadeIn: 0, fadeOut: 0 });
     const name = this.base() + loopTag(L) + (c.out ? '_warped' : '') + '.wav';
-    await this.save(name, wavEncode(r.chans, c.sr, app.slicer.bits), 'audio/wav', `Loop saved · ${plural(L.bars, 'bar')} at ${fmtBpm(L.bpm)} BPM${c.out ? ', warped' : ''}`);
+    await this.save(name, this.wav(r.chans, c.sr), 'audio/wav', `Loop saved · ${plural(L.bars, 'bar')} at ${fmtBpm(L.bpm)} BPM${c.out ? ', warped' : ''}`);
   }
 
   private kept(): SliceView[] | null {
@@ -216,7 +219,7 @@ export class Slicer {
       const files: ZipEntry[] = [];
       for (let i = 0; i < list.length; i++) {
         const r = renderSlice(c.chans, c.sr, list[i].t0, list[i].t1, o);
-        files.push({ name: sliceName(base, i, pad, list[i], naming), data: wavEncode(r.chans, c.sr, app.slicer.bits) });
+        files.push({ name: sliceName(base, i, pad, list[i], naming), data: this.wav(r.chans, c.sr) });
         if ((i & 3) === 0) { app.notify.busy('Rendering slices', 0.02 + (0.86 * (i + 1)) / list.length); await tick(); }
       }
       if (withRpp) {

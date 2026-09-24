@@ -335,8 +335,6 @@
     <div class="xopts">
       <p id="expDesc"></p>
       <div class="fields">
-        <label class="fld" data-for="warpWav"><span>Material</span><select id="warpMode" aria-label="Material, which sets the warp algorithm"><option value="beats">Drums</option><option value="mono">Mono (bass, lead)</option><option value="vocal">Vocal</option><option value="poly">Poly (chords, pads, keys)</option><option value="music">Full mix</option><option value="repitch">Re-pitch (like a turntable)</option></select></label>
-        <div class="fld" data-for="warpWav"><span>Grid tempo (BPM)</span><span class="pair"><input type="number" id="warpBpm" min="20" max="400" step="0.01" aria-label="Grid tempo in BPM; empty follows the audio"><span class="num" id="warpAvg"></span></span></div>
         <label class="fld" data-for="midi rpp warpWav"><span>Audio</span><select id="lead" aria-label="Audio placement"><option value="full">Whole file + lead-in</option><option value="trim">Trim to bar 1</option></select></label>
         <label class="fld" data-for="midi rpp slicesRpp"><span>Tempo change at</span><select id="res" aria-label="Tempo change at"><option value="pins">every pin</option><option value="bar">every bar</option><option value="beat">every beat</option></select></label>
         <label class="fld chk" data-for="midi"><input type="checkbox" id="clicks" checked><span>Click track of MIDI notes</span></label>
@@ -344,7 +342,9 @@
         <div class="fld" data-for="slices slicesRpp sliceWav"><span>Fade in / out (ms)</span><span class="pair"><input type="number" id="slFadeIn" data-slicer min="0" max="500" step="1" value="1" aria-label="Fade in, ms"><input type="number" id="slFadeOut" data-slicer min="0" max="2000" step="1" value="8" aria-label="Fade out, ms"></span></div>
         <div class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Normalize</span><span class="pair"><label class="chk"><input type="checkbox" id="slNorm" data-slicer>to</label><input type="number" id="slTarget" data-slicer min="-24" max="0" step="0.5" value="-1" aria-label="Normalize target in dBFS"><span class="num">dBFS</span></span></div>
         <label class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Channels</span><select id="slMono" data-slicer aria-label="Channels"><option value="src">as source</option><option value="mono">mono</option></select></label>
-        <label class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Bit depth</span><select id="slBits" data-slicer aria-label="Bit depth"><option value="16">16-bit</option><option value="24">24-bit</option></select></label>
+        <label class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Bit depth</span><select id="slBits" data-slicer aria-label="Bit depth"><option value="16">16-bit</option><option value="24" selected>24-bit</option></select></label>
+        <label class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Sample rate</span><select id="slRate" data-slicer aria-label="Sample rate"><option value="src">as source</option><option value="44100">44.1 kHz</option><option value="48000">48 kHz</option><option value="88200">88.2 kHz</option><option value="96000">96 kHz</option></select></label>
+        <label class="fld chk" data-for="slices slicesRpp sliceWav loopWav warpWav" title="Triangular dither: a little noise before the rounding to the bit depth, so quiet tails fade smoothly instead of in steps"><input type="checkbox" id="slDither" data-slicer><span>Dither</span></label>
         <label class="fld" data-for="slices slicesRpp sliceWav"><span>File names</span><select id="slName" data-slicer aria-label="File names"><option value="num">name_01.wav</option><option value="time">name_01 + start time</option></select></label>
         <label class="fld chk" data-for="slices slicesRpp"><input type="checkbox" id="slCsv" checked><span>Add a .csv list of the slices</span></label>
       </div>
@@ -416,17 +416,17 @@
     <div><svg class="ic"><use href="#i-reset"/></svg><span>Reset: the whole file at the tempo it averages, Full mix, no quantize, and no warp markers (undo brings them back)</span><span></span></div>
     <div><svg class="ic"><use href="#i-export"/></svg><span>Save the warped audio as a .wav: in Export</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
     <h3>Export</h3>
-    <div><svg class="ic"><use href="#i-export"/></svg><span>One window for every file BeatMapper saves: the tempo map as MIDI or a REAPER project, the warped audio, the slices, the selected slice or the loop as .wav, the drums as MIDI, the groove, and the session. Each format shows only its own options, and what the file will hold</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
+    <div><svg class="ic"><use href="#i-export"/></svg><span>One window for every file BeatMapper saves: the tempo map as MIDI or a REAPER project, the warped audio, the slices, the selected slice or the loop as .wav, the drums as MIDI, the groove, and the session. Each format shows only how its file is written, and what it will hold; what goes in it is set in the step</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
     <div><svg class="ic"><use href="#i-import"/></svg><span>Open a session file (Session, in Export), then the same audio</span><span></span></div>
     <h3>Slice samples</h3>
     <div><svg class="ic"><use href="#i-slice"/></svg><span>Every transient from step 1 starts a slice, running to the next transient (plus a tail) or for a fixed length. Switch the loop on and only what is inside it is sliced. Heard warped, each slice is cut from the warped audio, so it is what you hear, on the grid</span><span></span></div>
     <div><svg class="ic"><use href="#i-gap"/></svg><span>Transients closer together than this are skipped, so the slice before them keeps running</span><span></span></div>
-    <div><svg class="ic"><use href="#i-wave"/></svg><span>What each .wav gets: click-free fades, per-slice normalizing to the target dBFS, source channels or a mono mix, 16 or 24-bit at the file's sample rate. Set in Export</span><span></span></div>
+    <div><svg class="ic"><use href="#i-wave"/></svg><span>What each .wav gets: click-free fades, per-slice normalizing to the target dBFS, source channels or a mono mix, 16 or 24-bit, at the file's sample rate or another, dithered or not. Set in Export</span><span></span></div>
     <div><svg class="ic"><use href="#i-play"/></svg><span>Play the selected slice on its own, exactly as it will be written · a slice you click or step onto plays too</span><span><kbd>E</kbd></span></div>
     <div><svg class="ic"><use href="#i-clear"/></svg><span>Keep or drop the selected slice</span><span><kbd>X</kbd></span></div>
     <div><svg class="ic"><use href="#i-reset"/></svg><span>Reset: every transient starts a slice, and all are kept</span><span></span></div>
     <div><svg class="ic"><use href="#i-loop"/></svg><span>Save the whole loop as one .wav, named with the bars and BPM it works out at – written without fades so it loops seamlessly</span><span></span></div>
-    <div><svg class="ic"><use href="#i-export"/></svg><span>Save the selected slice, every kept slice as a .zip of .wav files, or a REAPER project with the slices in place: in Export, with the fades, level, channels and bit depth</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
+    <div><svg class="ic"><use href="#i-export"/></svg><span>Save the selected slice, every kept slice as a .zip of .wav files, or a REAPER project with the slices in place: in Export, with the fades, level, channels, bit depth and sample rate</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
     <h3>Groove</h3>
     <div><svg class="ic"><use href="#i-groove"/></svg><span>Kick, snare and hats are found in the audio, and each hit is measured against the beat. The waveform shows them in three lanes, each with a tail back to its grid line. Map the beats first (step 2) if the take drifts</span><span></span></div>
     <div><span>Source</span><span>Drums only, or a full mix (experimental: the other instruments are modelled apart from the drums, but expect misses)</span></div>
@@ -503,7 +503,7 @@
     <div><span>MIDI</span><span>Saved inside a .zip here. Logic, Pro Tools, Cubase, Studio One and Reaper import its tempo map; Ableton Live ignores it</span></div>
     <div><span>Session</span><span>Your work is kept in this browser per audio file and comes back when you open the same file. The session file carries it to another device; it holds no audio</span></div>
     <div><span>REAPER</span><span>.rpp with the tempo map in place. Keep it in the same folder as the audio</span></div>
-    <div><span>Slices</span><span>One .wav per slice in a .zip, at the file's own sample rate, plus a .csv listing where each one came from. The REAPER zip adds a .rpp holding every slice at the time it was cut from, with the tempo map when there is one</span></div>
+    <div><span>Slices</span><span>One .wav per slice in a .zip, at the file's own sample rate unless another is set, plus a .csv listing where each one came from. The REAPER zip adds a .rpp holding every slice at the time it was cut from, with the tempo map when there is one</span></div>
     <div><span>Loop</span><span>name_8bars_96.31bpm.wav – the bar count the loop comes closest to, and the tempo that bar count implies for its exact length</span></div>
   </div>
   <div style="margin-top:14px;text-align:right"><button class="btn" id="helpClose">Close</button></div>

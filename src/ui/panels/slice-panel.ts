@@ -1,8 +1,10 @@
 // Step 4 – Slice samples: where the cuts go and the list of slices. What each .wav gets (fades, level,
-// channels, depth, names) is set in the Export window, but bound here with the rest of the slicer.
+// channels, depth, rate, dither, names) is set in the Export window, but bound here with the rest of
+// the slicer.
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { fmtBpm, fmtTime } from '../../core/format';
+import { WAV_RATES } from '../../io/formats/wav';
 import type { SlicerSettings } from '../../state/settings';
 import { $, $in, $sel, clampNum, icon, setText, setValue } from '../dom';
 
@@ -22,7 +24,9 @@ export function bindSlicePanel(app: App, f: Features): void {
       fadeOut: clampNum($in('slFadeOut').value, 0, 0, 2000),
       min: clampNum($in('slMin').value, 0, 0, 5000),
       mono: $sel('slMono').value === 'mono',
-      bits: +$sel('slBits').value === 24 ? 24 : 16,
+      bits: +$sel('slBits').value === 16 ? 16 : 24,
+      rate: (WAV_RATES as readonly number[]).includes(+$sel('slRate').value) ? +$sel('slRate').value : null,
+      dither: $in('slDither').checked,
       norm: $in('slNorm').checked,
       target: clampNum($in('slTarget').value, -1, -24, 0),
       naming: $sel('slName').value === 'time' ? 'time' : 'num',
@@ -60,6 +64,7 @@ export function bindSlicePanel(app: App, f: Features): void {
     setValue($sel('slMode'), o.mode); setValue($in('slLen'), o.len); setValue($in('slTail'), o.tail);
     setValue($in('slFadeIn'), o.fadeIn); setValue($in('slFadeOut'), o.fadeOut); setValue($in('slMin'), o.min);
     setValue($sel('slMono'), o.mono ? 'mono' : 'src'); setValue($sel('slBits'), o.bits); $in('slNorm').checked = o.norm;
+    setValue($sel('slRate'), o.rate ?? 'src'); $in('slDither').checked = o.dither;
     setValue($in('slTarget'), o.target); setValue($sel('slName'), o.naming); $in('slCsv').checked = o.csv;
     // Only the length that applies: a fixed length, or the tail past the next transient.
     $('slLenL').hidden = o.mode !== 'fixed';

@@ -9,6 +9,7 @@ import type { GridDivision } from '../core/tempo/meter';
 import type { TimeRange } from '../core/types';
 import type { WarpMode } from '../core/warp/modes';
 import type { TempoResolution } from '../io/formats/midi';
+import type { WavOptions } from '../io/formats/wav';
 
 export interface DetectionSettings {
   /** 0..100 */
@@ -74,6 +75,10 @@ export interface SlicerSettings {
   min: number;
   mono: boolean;
   bits: 16 | 24;
+  /** The sample rate the .wav files are written at; null keeps the audio's own. */
+  rate: number | null;
+  /** Dither the rounding to the bit depth. */
+  dither: boolean;
   norm: boolean;
   /** dBFS */
   target: number;
@@ -135,7 +140,7 @@ export const defaultBeats = (): BeatSettings => ({ grid: '16', mapEvery: 'beat',
 export const defaultExport = (): ExportSettings => ({ lead: 'full', res: 'pins', clicks: true, rppAudio: true });
 export const defaultWarp = (): WarpSettings => ({ mode: 'music', bpm: null, range: 'file', listen: true, quantize: 0, fill: false });
 export const defaultSlicer = (): SlicerSettings => ({
-  mode: 'gap', len: 500, tail: 0, fadeIn: 1, fadeOut: 8, min: 40, mono: false, bits: 16, norm: false, target: -1, naming: 'num', csv: true,
+  mode: 'gap', len: 500, tail: 0, fadeIn: 1, fadeOut: 8, min: 40, mono: false, bits: 24, rate: null, dither: false, norm: false, target: -1, naming: 'num', csv: true,
 });
 export const defaultTransport = (): TransportState => ({ loop: null, loopOn: false, start: 0, playhead: 0, stay: false, click: false, scrubMode: false });
 export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', exaggerate: true, chart: 'pocket' });
@@ -143,6 +148,8 @@ export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { k
 export function sliceRenderOptions(o: SlicerSettings): RenderOptions {
   return { fadeIn: o.fadeIn / 1000, fadeOut: o.fadeOut / 1000, mono: o.mono, normalize: o.norm, target: Math.pow(10, o.target / 20) };
 }
+/** How every .wav is written: its depth, its rate and whether the rounding is dithered. */
+export const wavOptions = (o: SlicerSettings): WavOptions => ({ bits: o.bits, rate: o.rate, dither: o.dither });
 
 export const defaultMix = (): MixSettings => ({ audio: 100, click: 100, drums: 100 });
 export const defaultMute = (): MuteSettings => ({ audio: false, drums: true });
