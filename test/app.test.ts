@@ -252,6 +252,29 @@ describe('the Warp step', () => {
     expect(app.doc.warpMarkers.length).toBe(n);
   });
 
+  it('draws the audio moved onto the grid in Warp, the grid staying put', () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.workflow.goTo(3);
+    f.beats.setGrid('8');
+    expect(app.warpView).toBeNull();
+    f.warp.quantize();
+    const map = app.tempoMap, wm = app.doc.warpMarkers;
+    expect(app.tempoMap).toBe(map);
+    for (const w of wm) {
+      expect(app.shownAt(w.t)).toBeCloseTo(map.posToTime(w.q), 9);
+      expect(app.sourceAt(map.posToTime(w.q))).toBeCloseTo(w.t, 9);
+    }
+    // A transient lined up and stopped on its grid line: the playhead lands on the transient.
+    const loose = wm.find((w) => Math.abs(map.posToTime(w.q) - w.t) > 0.002)!;
+    expect(f.playback.gridSnap(loose.t + 0.001)).toBeCloseTo(loose.t, 9);
+    // Other steps draw the audio where it is.
+    f.workflow.goTo(2);
+    expect(app.warpView).toBeNull();
+    expect(app.shownAt(loose.t)).toBe(loose.t);
+  });
+
   it('quantizes again as the strength moves, as one undo step', () => {
     const { app, f } = t;
     f.workflow.goTo(2);

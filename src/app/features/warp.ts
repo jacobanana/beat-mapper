@@ -119,7 +119,7 @@ export class Warp implements TakeSource {
 
   /** Where the pointer at time `at` would put the transient at t: a grid line, or anywhere when `free`. Null if it would cross another warp marker. */
   private target(t: number, at: number, free: boolean): number | null {
-    const { app } = this, map = app.warpGrid, pos = map.timeToPos(at);
+    const { app } = this, map = app.warpTempo, pos = map.timeToPos(at);
     const q = free ? pos : app.grid.nearest(pos);
     return placeWarpMarker(app.doc.warpMarkers, t, q).ok ? q : null;
   }

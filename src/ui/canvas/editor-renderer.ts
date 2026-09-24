@@ -1,4 +1,5 @@
 import type { App } from '../../app/app';
+import type { WarpView } from '../../core/warp/markers';
 import * as layers from './layers';
 import { type Layout, layout } from './layout';
 import { type Colors, readColors, rgba } from './theme';
@@ -14,6 +15,7 @@ export class EditorRenderer {
   private C: Colors = readColors();
   private dirty = true;
   private waveKey = '';
+  private waveView: WarpView | null = null;
   private readonly waveCache = document.createElement('canvas');
   private ovKey = '';
   private readonly ovCache = document.createElement('canvas');
@@ -66,15 +68,20 @@ export class EditorRenderer {
     const a = app.audio;
     if (!a) return;
     app.view.width = L.w || 1;
-    const f: layers.Frame = { g, app, L, C, xOf: (t) => app.view.xOf(t), beatsMode: app.step >= 2, editable: app.step <= 3 };
+    const v = app.view, wv = app.warpView, gx = (t: number) => v.xOf(t);
+    const f: layers.Frame = {
+      g, app, L, C, gx, xOf: wv ? (t) => v.xOf(wv.shown(t)) : gx, t0: app.sourceAt(v.t0), t1: app.sourceAt(v.t1),
+      beatsMode: app.step >= 2, editable: app.step <= 3,
+    };
 
     layers.background(f);
     if (app.hasMap) this.visLevel = layers.grid(f);
 
-    const v = app.view, key = [v.t0, v.t1, this.cv.width, L.wh, app.amp, C.wave].join('|');
-    if (key !== this.waveKey) {
-      renderWave(this.waveCache, a, v.t0, v.t1, this.cv.width, Math.round(L.wh * dpr), app.amp, C.wave, dpr);
+    const key = [v.t0, v.t1, this.cv.width, L.wh, app.amp, C.wave].join('|');
+    if (key !== this.waveKey || wv !== this.waveView) {
+      renderWave(this.waveCache, a, v.t0, v.t1, this.cv.width, Math.round(L.wh * dpr), app.amp, C.wave, dpr, wv);
       this.waveKey = key;
+      this.waveView = wv;
     }
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.drawImage(this.waveCache, 0, Math.round(L.wy * dpr));

@@ -12,7 +12,7 @@ import { Grid, barQ } from '../core/tempo/meter';
 import { type Bar, TempoMap } from '../core/tempo/tempo-map';
 import type { Anchor, Candidate, Marker, TimeRange } from '../core/types';
 import { type WarpMap, averageBpm, planWarp, warpRange } from '../core/warp/map';
-import { type WarpMarker, warpTempoMap } from '../core/warp/markers';
+import { type WarpMarker, type WarpView, warpTempoMap, warpView } from '../core/warp/markers';
 import type { Step } from '../io/session';
 import { Emitter } from '../state/emitter';
 import { History } from '../state/history';
@@ -185,13 +185,17 @@ export class App {
   /** The tempo map with the warp markers laid over the pins: what the warp puts on the straight grid. */
   get warpTempo(): TempoMap { return this._warpTempo(this.tempoMap, this.doc.warpMarkers); }
 
-  private readonly _warpGrid = memo((map: TempoMap, wm: readonly WarpMarker[], skip: number | null) =>
-    warpTempoMap(map, skip == null ? wm : wm.filter((w) => w.t !== skip)));
+  private readonly _warpView = memo((map: TempoMap, warped: TempoMap) => warpView(map, warped));
   /**
-   * The grid drawn in the Warp step, which a transient is dragged onto: the warp's own, less the warp
-   * marker being dragged, so its grid line stays still under the pointer.
+   * In the Warp step, where the editor draws the audio: moved onto the grid of the tempo map, which
+   * stays where it is. Null elsewhere, or with no warp markers, where the audio is drawn where it is.
    */
-  get warpGrid(): TempoMap { return this._warpGrid(this.tempoMap, this.doc.warpMarkers, this.warpDrag?.t ?? null); }
+  get warpView(): WarpView | null { return this.step === 3 ? this._warpView(this.tempoMap, this.warpTempo) : null; }
+
+  /** Where the editor draws the audio at time t. */
+  shownAt(t: number): number { return this.warpView?.shown(t) ?? t; }
+  /** Which moment of the audio the editor draws at time t. */
+  sourceAt(t: number): number { return this.warpView?.source(t) ?? t; }
 
   private readonly _warpBars = memo((map: TempoMap, meter: ProjectDoc['meter'], dur: number) => map.bars(meter, dur));
   /** Every bar's tempo as the warp sees it, warp markers included. */
@@ -309,7 +313,7 @@ export class App {
   }
 
   reveal(t: number): void {
-    this.view.reveal(t);
+    this.view.reveal(this.shownAt(t));
     this.bus.emit('view');
   }
 }

@@ -3,7 +3,7 @@ import { synthDemo } from '../src/core/demo';
 import { Grid } from '../src/core/tempo/meter';
 import { TempoMap } from '../src/core/tempo/tempo-map';
 import { planWarp, warpRange } from '../src/core/warp/map';
-import { placeWarpMarker, quantizeTransients, removeWarpMarker, warpTempoMap } from '../src/core/warp/markers';
+import { placeWarpMarker, quantizeTransients, removeWarpMarker, warpTempoMap, warpView } from '../src/core/warp/markers';
 import { renderWarp } from '../src/core/warp/modes';
 
 const sr = 22050;
@@ -101,5 +101,21 @@ describe('shuffle', () => {
     // Quantized onto the swung grid, the demo's off-beat hats land on the shuffle.
     const out = quantizeTransients(demoMap, g8, offBeats, { a: 0, b: demo.dur }, []);
     for (const w of out) expect(w.q % 1).toBeCloseTo(2 / 3, 9);
+  });
+});
+
+describe('the warp as it is drawn', () => {
+  it('keeps the grid where the tempo map has it and moves the audio onto it', () => {
+    const out = quantizeTransients(demoMap, new Grid(meter, '8'), offBeats, { a: 0, b: demo.dur }, []);
+    const v = warpView(demoMap, warpTempoMap(demoMap, out))!;
+    // Each hat lined up is drawn on its eighth of the unchanged grid, and that is the hat drawn there.
+    for (const w of out) {
+      expect(v.shown(w.t)).toBeCloseTo(demoMap.posToTime(w.q), 9);
+      expect(v.source(demoMap.posToTime(w.q))).toBeCloseTo(w.t, 9);
+    }
+    // The beats, pinned, stay put.
+    for (const b of demo.beats.slice(1, -1)) expect(v.shown(b)).toBeCloseTo(b, 9);
+    // With nothing lined up the audio is drawn where it is.
+    expect(warpView(demoMap, warpTempoMap(demoMap, []))).toBeNull();
   });
 });

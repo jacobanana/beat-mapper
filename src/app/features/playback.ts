@@ -147,9 +147,10 @@ export class Playback {
     return null;
   }
 
+  // Onto the grid line drawn nearest: in Warp the audio is drawn moved, so it is found where t is drawn.
   gridSnap(t: number): number {
     const { app } = this, map = app.tempoMap;
-    return map.isEmpty ? t : map.posToTime(app.grid.nearest(map.timeToPos(t)));
+    return map.isEmpty ? t : app.sourceAt(map.posToTime(app.grid.nearest(map.timeToPos(app.shownAt(t)))));
   }
 
   toggleStay(): void {
@@ -291,9 +292,9 @@ export class Playback {
   tick(followView: boolean): void {
     const { app } = this;
     if (this.player.playing) {
-      const p = clamp(this.position(), 0, app.dur), v = app.view, sp = v.span;
+      const p = clamp(this.position(), 0, app.dur), v = app.view, sp = v.span, x = app.shownAt(p);
       app.transport.playhead = p;
-      if (followView && (p > v.t0 + sp * 0.92 || p < v.t0)) app.setView(p - sp * 0.08, p + sp * 0.92);
+      if (followView && (x > v.t0 + sp * 0.92 || x < v.t0)) app.setView(x - sp * 0.08, x + sp * 0.92);
       app.bus.emit('playhead');
     }
     const pv = this.oneShot.position();

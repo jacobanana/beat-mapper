@@ -58,8 +58,9 @@ export class PointerInput {
     return [e.clientX - b.left, e.clientY - b.top];
   }
 
-  private tOf(x: number): number { return this.app.view.tOf(x); }
-  private xOf(t: number): number { return this.app.view.xOf(t); }
+  // The audio under x, and where the audio at t is: in Warp it is drawn moved onto the grid.
+  private tOf(x: number): number { return this.app.sourceAt(this.app.view.tOf(x)); }
+  private xOf(t: number): number { return this.app.view.xOf(this.app.shownAt(t)); }
 
   // ---------- hit testing ----------
   private hitTest(x: number, y: number, touch: boolean): Hit | null {
@@ -344,7 +345,7 @@ export class PointerInput {
     e.preventDefault();
     const [x] = this.local(e), sp = app.view.span, unit = e.deltaMode === 1 ? 16 : 1;
     if (!e.shiftKey && (e.ctrlKey || e.metaKey || Math.abs(e.deltaY) >= Math.abs(e.deltaX))) {
-      app.view.zoomAt(Math.exp(clamp(e.deltaY * unit, -120, 120) * (e.ctrlKey ? 0.01 : 0.0028)), this.tOf(x));
+      app.view.zoomAt(Math.exp(clamp(e.deltaY * unit, -120, 120) * (e.ctrlKey ? 0.01 : 0.0028)), app.view.tOf(x));
       app.bus.emit('view');
     } else {
       const d = (((Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) * unit) / app.view.width) * sp;
