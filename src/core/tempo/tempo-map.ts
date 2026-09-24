@@ -10,10 +10,24 @@ export interface Bar {
 }
 
 /**
- * Where every musical position falls in time: straight lines between pins, the tempo of the last
- * segment carried outwards, or `baseBpm` everywhere when there is a single pin. Immutable.
+ * Positions to times and back, and nothing more: what a warp follows. The tempo map is one; the
+ * warp's alignment (`core/warp/markers.ts`) is another, which says where the audio goes and so has no
+ * tempo, bars or beats to give.
  */
-export class TempoMap {
+export interface PositionMap {
+  readonly isEmpty: boolean;
+  /** Its points, sorted by q. */
+  readonly anchors: readonly Anchor[];
+  posToTime(q: number): number;
+  timeToPos(t: number): number;
+}
+
+/**
+ * Where every musical position falls in time: straight lines between pins, the tempo of the last
+ * segment carried outwards, or `baseBpm` everywhere when there is a single pin. Immutable. This is
+ * the music: bars, beats and tempo are only ever read from it.
+ */
+export class TempoMap implements PositionMap {
   /** Pins, sorted by q. */
   readonly anchors: readonly Anchor[];
 

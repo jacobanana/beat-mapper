@@ -258,21 +258,23 @@ describe('the Warp step', () => {
     f.beats.autoMap();
     f.workflow.goTo(3);
     f.beats.setGrid('8');
-    expect(app.warpView).toBeNull();
+    expect(app.timeline.movesAudio).toBe(false);
     f.warp.quantize();
-    const map = app.tempoMap, wm = app.doc.warpMarkers;
-    expect(app.tempoMap).toBe(map);
+    const map = app.tempoMap, wm = app.doc.warpMarkers, tl = app.timeline;
+    expect(tl.movesAudio).toBe(true);
     for (const w of wm) {
-      expect(app.shownAt(w.t)).toBeCloseTo(map.posToTime(w.q), 9);
-      expect(app.sourceAt(map.posToTime(w.q))).toBeCloseTo(w.t, 9);
+      expect(tl.axisAt(w.t)).toBeCloseTo(map.posToTime(w.q), 9);
+      expect(tl.sourceAt(map.posToTime(w.q))).toBeCloseTo(w.t, 9);
     }
     // A transient lined up and stopped on its grid line: the playhead lands on the transient.
     const loose = wm.find((w) => Math.abs(map.posToTime(w.q) - w.t) > 0.002)!;
     expect(f.playback.gridSnap(loose.t + 0.001)).toBeCloseTo(loose.t, 9);
-    // Other steps draw the audio where it is.
+    // Heard as it was played, the audio is drawn where it is; so it is in the other steps.
+    f.warp.setListen(false);
+    expect(app.timeline.axisAt(loose.t)).toBe(loose.t);
+    f.warp.setListen(true);
     f.workflow.goTo(2);
-    expect(app.warpView).toBeNull();
-    expect(app.shownAt(loose.t)).toBe(loose.t);
+    expect(app.timeline.axisAt(loose.t)).toBe(loose.t);
   });
 
   it('keeps the tempo while quantizing, its strength or the shuffle move', () => {

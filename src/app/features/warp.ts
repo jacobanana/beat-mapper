@@ -4,10 +4,9 @@
 import { fmtBpm, fmtTime, safeName } from '../../core/format';
 import { renderSlice } from '../../core/slices/slices';
 import { type Grid, type Meter, barQ, beatQ } from '../../core/tempo/meter';
-import type { TempoMap } from '../../core/tempo/tempo-map';
 import type { TimeRange } from '../../core/types';
 import { averageBpm, gridBeats } from '../../core/warp/map';
-import { placeWarpMarker, quantizeTransients, removeWarpMarker, warpMarkerAt } from '../../core/warp/markers';
+import { type Alignment, placeWarpMarker, quantizeTransients, removeWarpMarker, warpMarkerAt } from '../../core/warp/markers';
 import { WARP_MODE_INFO, type WarpMode } from '../../core/warp/modes';
 import type { Analyzer } from '../../analysis/analyzer';
 import { bufferFrom } from '../../engine/audio-context';
@@ -117,9 +116,12 @@ export class Warp implements TakeSource {
     this.app.edit((d) => ({ ...d, warpMarkers: markers }));
   }
 
-  /** Where the pointer at time `at` would put the transient at t: a grid line, or anywhere when `free`. Null if it would cross another warp marker. */
+  /**
+   * Where the pointer over the audio at time `at` would put the transient at t: the grid line drawn
+   * nearest there, or anywhere when `free`. Null if it would cross another warp marker.
+   */
   private target(t: number, at: number, free: boolean): number | null {
-    const { app } = this, map = app.warpTempo, pos = map.timeToPos(at);
+    const { app } = this, pos = app.timeline.posOf(at);
     const q = free ? pos : app.grid.nearest(pos);
     return placeWarpMarker(app.doc.warpMarkers, t, q).ok ? q : null;
   }
@@ -202,7 +204,7 @@ export class Warp implements TakeSource {
   // so each move of the slider quantizes again from the start as one undo step, and any other edit ends it.
   private quantizing: {
     base: ProjectDoc['warpMarkers'];
-    map: TempoMap;
+    map: Alignment;
     range: TimeRange;
     grid: Grid;
     doc: ProjectDoc;
@@ -218,7 +220,7 @@ export class Warp implements TakeSource {
     this.quantizing = null;
     if (!app.hasMap || !p) return this.say(app.hasMap ? 'Switch the loop on to warp just the loop.' : 'Map the beats first (step 2).');
     if (!app.markers.length) return this.say('No transients to line up. Raise the sensitivity in step 1.');
-    const base = app.doc.warpMarkers, map = app.warpTempo, range = { a: p.map.src[0], b: p.map.src[p.map.src.length - 1] };
+    const base = app.doc.warpMarkers, map = app.alignment, range = { a: p.map.src[0], b: p.map.src[p.map.src.length - 1] };
     if (quantizeTransients(map, app.grid, app.markers.map((m) => m.t), range, base).length === base.length) return this.say('Every transient is already lined up.');
     this.quantizing = { base, map, range, grid: app.grid, doc: app.doc, recorded: false };
     const n = this.requantize(), pct = app.warp.quantize;
@@ -308,8 +310,7 @@ export class Warp implements TakeSource {
 
   // ---------- the take heard in the Warp step ----------
   wanted(): boolean {
-    const { app } = this;
-    return app.step === 3 && app.warp.listen && !!this.plan();
+    return this.app.hearingWarp;
   }
 
   current(): Take | null {

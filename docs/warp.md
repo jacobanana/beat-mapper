@@ -51,10 +51,11 @@ once the changes settle, and playback carries on from the same place.
 The editor stays on the tempo map's timeline, so the playhead moves through the original: fast where a
 bar is being slowed down, slow where it is sped up, and always on the hit you are hearing (`Take` in
 `app/features/playback.ts` maps the two timelines both ways). The grid is drawn where the tempo map
-has it, and the warp markers move the audio drawn over it: the waveform, the transients and the
-playhead are drawn where the warp puts them against that grid (`warpView` in `core/warp/markers.ts`,
-`App.warpView`), so a quantized hit is drawn on its line, as it is heard. What the pointer lands on
-is looked up the same way back. The tempo lane draws the grid's tempo as
+has it. What is drawn over it follows what is heard (`App.timeline`, see
+[architecture.md](architecture.md#time-on-screen)): heard warped, the waveform, the transients and the
+playhead are drawn where the warp puts them, so a quantized hit is drawn on its line; heard as the
+original, they are drawn where they are, so A/B shows the difference. The readout names the bar and
+beat heard, and the tempo heard (the grid's, while warped). The tempo lane draws the grid's tempo as
 a dashed line, with the gap between each bar's tempo and it shaded: blue for a bar that is slowed
 down, red for one sped up. The bars and their tempo are the tempo map's: warp markers line hits up
 inside their bars, so quantizing, its strength and the shuffle change neither the tempo drawn nor the
@@ -64,7 +65,8 @@ The tempo map is straight lines between pins, so moving each pin to where a stea
 defines the warp exactly (`core/warp/map.ts`). Between pins the stretch is constant.
 
 Warp markers (`core/warp/markers.ts`) are laid over the pins to make the map the warp follows
-(`App.warpTempo`); the tempo map of Beats is left as it was, so its MIDI and bars don't change. A pin a
+(`Alignment`, `App.alignment`). It gives positions only, no bars or tempo, so nothing can read a tempo
+from it; the tempo map of Beats is left as it was, so its MIDI and bars don't change. A pin a
 marker contradicts gives way to it, markers can't cross each other, and the map past its ends keeps the
 pins' tempo, so a marker near bar 1 doesn't stretch the lead-in. They are in the undoable document and in
 the session file (`warp.markers`, written only when there are some), unlike the other Warp settings.

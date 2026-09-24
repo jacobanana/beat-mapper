@@ -3,6 +3,7 @@
 import type { App } from '../../app/app';
 import { fmtBpm } from '../../core/format';
 import { lowerBound } from '../../core/search';
+import { barQ } from '../../core/tempo/meter';
 import { odfOf, odfRef } from '../../core/dsp/onset';
 import { LANES, type Layout, LOOPH, RUL, RULH, TIME } from './layout';
 import { type Colors, FONT, rgba } from './theme';
@@ -12,11 +13,11 @@ export interface Frame {
   app: App;
   L: Layout;
   C: Colors;
-  /** Where the audio at time t is drawn: in the Warp step, moved onto the grid. */
+  /** Where the audio at source time t is drawn: transients, the playhead, the loop (`app.timeline`). */
   xOf: (t: number) => number;
-  /** Where time t of the tempo map is drawn: its grid, its pins. The same as xOf outside the Warp step. */
-  gx: (t: number) => number;
-  /** The audio in view, from t0 to t1. */
+  /** Where musical position q is drawn: grid lines, bars, pins. */
+  xAtPos: (q: number) => number;
+  /** The audio in view, from source time t0 to t1. */
   t0: number;
   t1: number;
   /** Beats and later: markers recede. */
@@ -43,9 +44,9 @@ export function background({ g, L, C, editable }: Frame): void {
  * the grid stays put and the audio is drawn moved onto it, so a transient lined up sits on its line.
  * Returns the finest level shown.
  */
-export function grid({ g, app, L, C, gx }: Frame): 0 | 1 | 2 {
-  const { w, wy, wh, ly, ty } = L, v = app.view, map = app.tempoMap, grid = app.grid;
-  const q0 = map.timeToPos(v.t0), q1 = map.timeToPos(v.t1), pxQ = w / (q1 - q0), bq = grid.barQ, gq = grid.stepQ, btq = grid.beatQ;
+export function grid({ g, app, L, C, xAtPos }: Frame): 0 | 1 | 2 {
+  const { w, wy, wh, ly, ty } = L, v = app.view, tl = app.timeline, grid = app.grid;
+  const q0 = tl.posAtAxis(v.t0), q1 = tl.posAtAxis(v.t1), pxQ = w / (q1 - q0), bq = grid.barQ, gq = grid.stepQ, btq = grid.beatQ;
   const gridHasBeats = gq <= btq + 1e-9;
   const showSub = gq * pxQ >= 7, showBeat = (gridHasBeats ? btq : gq) * pxQ >= 7, visLevel = showSub ? 2 : showBeat ? 1 : 0;
   let stride = 1;
@@ -61,7 +62,7 @@ export function grid({ g, app, L, C, gx }: Frame): 0 | 1 | 2 {
       const lv = grid.level(j);
       if (lv > visLevel) continue;
       if (!gridHasBeats && j > 0 && !showBeat) continue;
-      const q = b * bq + grid.at(j), x = Math.round(gx(map.posToTime(q))) + 0.5;
+      const q = b * bq + grid.at(j), x = Math.round(xAtPos(q)) + 0.5;
       if (x < -2 || x > w + 2) continue;
       // In Warp the subdivisions are what transients are dropped on, so they show more.
       g.strokeStyle = rgba(C.beat, (lv === 0 ? 0.75 : lv === 1 ? 0.4 : app.step === 3 ? 0.32 : 0.18) * a * (q < 0 ? 0.5 : 1));
@@ -71,7 +72,7 @@ export function grid({ g, app, L, C, gx }: Frame): 0 | 1 | 2 {
     }
   }
   // lead-in shade
-  const A = map.anchors, xd = gx(A[0].q === 0 ? A[0].t : map.posToTime(0));
+  const xd = xAtPos(0);
   if (xd > 0) {
     g.fillStyle = rgba(C.stage, 0.55); g.fillRect(0, wy + 1, Math.min(w, xd), wh - 1);
     if (xd > 60 && app.step === 2) { g.fillStyle = C.dim; g.font = '13px ' + FONT; g.fillText('lead-in', 6, wy + 12); }
@@ -89,7 +90,7 @@ export function odf({ g, app, L, C, xOf, t0, t1, beatsMode }: Frame): void {
   const pts: number[] = [];
   if ((t1 - t0) / dt > w) {
     for (let px = 0; px < w; px++) {
-      const i0 = Math.max(0, Math.ceil((app.sourceAt(v.t0 + (span * px) / w) - tf) / dt)), i1 = Math.min(f.length, Math.ceil((app.sourceAt(v.t0 + (span * (px + 1)) / w) - tf) / dt));
+      const tl = app.timeline, i0 = Math.max(0, Math.ceil((tl.sourceAt(v.t0 + (span * px) / w) - tf) / dt)), i1 = Math.min(f.length, Math.ceil((tl.sourceAt(v.t0 + (span * (px + 1)) / w) - tf) / dt));
       let m = 0;
       for (let n = i0; n < i1; n++) if (f[n] > m) m = f[n];
       pts.push(px, ly - Math.min(1, m / ref) * hh);
@@ -198,11 +199,11 @@ export function drums({ g, app, L, C, xOf }: Frame): void {
 }
 
 /** Pins: a diamond in the bar ruler, bar 1 in its own colour; plus the grid line under the pointer. */
-export function pins({ g, app, L, C, gx }: Frame): void {
+export function pins({ g, app, L, C, xAtPos }: Frame): void {
   const { w, ly, ty } = L, map = app.tempoMap;
   const sel = app.sel?.kind === 'anchor' ? app.sel.q : null, hov = app.hover?.kind === 'anchor' ? app.hover.q : null;
   for (const a of map.anchors) {
-    const x = Math.round(gx(a.t)) + 0.5;
+    const x = Math.round(xAtPos(a.q)) + 0.5;
     if (x < -8 || x > w + 8) continue;
     const isSel = a.q === sel, isHov = a.q === hov, col = a.q === 0 ? C.down : C.beat, al = app.step === 2 ? 1 : 0.4;
     g.strokeStyle = rgba(col, al); g.lineWidth = isSel || isHov ? 2 : 1.4;
@@ -213,7 +214,7 @@ export function pins({ g, app, L, C, gx }: Frame): void {
   }
   g.lineWidth = 1;
   if (app.hover?.kind === 'grid') {
-    const x = Math.round(gx(map.posToTime(app.hover.q))) + 0.5;
+    const x = Math.round(xAtPos(app.hover.q)) + 0.5;
     g.strokeStyle = C.beat; g.lineWidth = 2; g.beginPath(); g.moveTo(x, RUL - 2); g.lineTo(x, ly); g.stroke(); g.lineWidth = 1;
   }
 }
@@ -223,7 +224,7 @@ export function pins({ g, app, L, C, gx }: Frame): void {
  * tab in the bar ruler. While a transient is dragged, a ghost at the grid line it would land on, and
  * an arrow from where it is.
  */
-export function warpMarkers({ g, app, L, C, xOf, t0, t1 }: Frame): void {
+export function warpMarkers({ g, app, L, C, xOf, xAtPos, t0, t1 }: Frame): void {
   if (app.step !== 3) return;
   const { w, wy, ly } = L, sel = app.sel?.kind === 'warp' ? app.sel.t : null, drag = app.warpDrag;
   const tab = (x: number, fill: boolean) => {
@@ -239,7 +240,7 @@ export function warpMarkers({ g, app, L, C, xOf, t0, t1 }: Frame): void {
     if (isSel) { g.strokeStyle = C.ink; g.strokeRect(x - 8.5, RUL - 16.5, 17, 16); }
   }
   if (!drag) return;
-  const xs = xOf(drag.t), on = drag.q != null, xt = on ? xOf(app.warpTempo.posToTime(drag.q!)) : xOf(drag.at), y = wy + (ly - wy) * 0.25;
+  const xs = xOf(drag.t), on = drag.q != null, xt = on ? xAtPos(drag.q!) : xOf(drag.at), y = wy + (ly - wy) * 0.25;
   if (xt < -20 || xt > w + 20) { g.lineWidth = 1; return; }
   g.strokeStyle = rgba(C.mark, on ? 1 : 0.45); g.fillStyle = g.strokeStyle; g.lineWidth = 2;
   g.setLineDash([4, 3]); g.beginPath(); g.moveTo(xs, y); g.lineTo(xt, y); g.stroke(); g.setLineDash([]);
@@ -255,9 +256,10 @@ export function warpMarkers({ g, app, L, C, xOf, t0, t1 }: Frame): void {
  * line, and the gap each bar is moved across to reach it. The bars are the tempo map's, drawn on its
  * grid: warp markers move hits within their bars, not the bars' tempo.
  */
-export function tempoLane({ g, app, L, C, xOf, gx }: Frame): void {
-  const bars = app.bars;
+export function tempoLane({ g, app, L, C, xOf, xAtPos }: Frame): void {
+  const bars = app.bars, bq = barQ(app.doc.meter);
   if (!bars.length) return;
+  // The bars' times are the tempo map's, which is the axis: they are culled against the view as it is.
   const { w, ly, laneH } = L, v = app.view, t0 = v.t0, t1 = v.t1, warp = app.step === 3 ? app.warpPlan : null;
   let lo = Infinity, hi = -Infinity;
   for (const b of bars) { if (b.bpm < lo) lo = b.bpm; if (b.bpm > hi) hi = b.bpm; }
@@ -270,7 +272,7 @@ export function tempoLane({ g, app, L, C, xOf, gx }: Frame): void {
   let started = false, lastLab = -99;
   for (const b of bars) {
     if (b.te < t0 || b.ts > t1) continue;
-    const x0 = gx(b.ts), x1 = gx(b.te), y = yOf(b.bpm);
+    const x0 = xAtPos(b.b * bq), x1 = xAtPos((b.b + 1) * bq), y = yOf(b.bpm);
     if (!started) { g.moveTo(x0, y); started = true; } else g.lineTo(x0, y);
     g.lineTo(x1, y);
   }
@@ -278,7 +280,7 @@ export function tempoLane({ g, app, L, C, xOf, gx }: Frame): void {
   const yw = warp ? yOf(warp.bpm) : 0;
   for (const b of bars) {
     if (b.te < t0 || b.ts > t1) continue;
-    const x0 = gx(b.ts), x1 = gx(b.te), y = yOf(b.bpm);
+    const x0 = xAtPos(b.b * bq), x1 = xAtPos((b.b + 1) * bq), y = yOf(b.bpm);
     if (warp) {
       // What the warp does to the bar: the gap between its tempo and the grid's.
       g.fillStyle = rgba(b.bpm > warp.bpm ? C.start : C.down, 0.22); g.fillRect(x0, Math.min(y, yw), x1 - x0, Math.abs(y - yw));

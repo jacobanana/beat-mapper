@@ -12,7 +12,8 @@ import { Grid, barQ } from '../core/tempo/meter';
 import { type Bar, TempoMap } from '../core/tempo/tempo-map';
 import type { Anchor, Candidate, Marker, TimeRange } from '../core/types';
 import { type WarpMap, averageBpm, planWarp, warpRange } from '../core/warp/map';
-import { type WarpMarker, type WarpView, warpTempoMap, warpView } from '../core/warp/markers';
+import { Timeline } from '../core/timeline';
+import { Alignment, type WarpMarker } from '../core/warp/markers';
 import type { Step } from '../io/session';
 import { Emitter } from '../state/emitter';
 import { History } from '../state/history';
@@ -181,25 +182,13 @@ export class App {
     return this._groove(this.drumHits, this.tempoMap, this.doc.meter, this.groove.grid, this.sliceRange);
   }
 
-  private readonly _warpTempo = memo((map: TempoMap, wm: readonly WarpMarker[]) => warpTempoMap(map, wm));
-  /** The tempo map with the warp markers laid over the pins: what the warp puts on the straight grid. */
-  get warpTempo(): TempoMap { return this._warpTempo(this.tempoMap, this.doc.warpMarkers); }
-
-  private readonly _warpView = memo((map: TempoMap, warped: TempoMap) => warpView(map, warped));
-  /**
-   * In the Warp step, where the editor draws the audio: moved onto the grid of the tempo map, which
-   * stays where it is. Null elsewhere, or with no warp markers, where the audio is drawn where it is.
-   */
-  get warpView(): WarpView | null { return this.step === 3 ? this._warpView(this.tempoMap, this.warpTempo) : null; }
-
-  /** Where the editor draws the audio at time t. */
-  shownAt(t: number): number { return this.warpView?.shown(t) ?? t; }
-  /** Which moment of the audio the editor draws at time t. */
-  sourceAt(t: number): number { return this.warpView?.source(t) ?? t; }
+  private readonly _alignment = memo((map: TempoMap, wm: readonly WarpMarker[]) => Alignment.of(map, wm));
+  /** Where the warp puts each moment of the audio: the pins with the warp markers laid over. Not a tempo. */
+  get alignment(): Alignment { return this._alignment(this.tempoMap, this.doc.warpMarkers); }
 
   // The tempo is the tempo map's: warp markers line hits up inside it, so quantizing, its strength or
   // the shuffle never change the tempo shown or the grid it is warped to.
-  private readonly _warp = memo((map: TempoMap, tempo: TempoMap, meter: ProjectDoc['meter'], dur: number, lead: ExportSettings['lead'], loop: TimeRange | null, gridBpm: number | null): WarpPlan | null => {
+  private readonly _warp = memo((map: Alignment, tempo: TempoMap, meter: ProjectDoc['meter'], dur: number, lead: ExportSettings['lead'], loop: TimeRange | null, gridBpm: number | null): WarpPlan | null => {
     if (map.isEmpty) return null;
     const r = warpRange(map, meter, dur, { lead, loop });
     if (!(r.b - r.a > 0.01)) return null;
@@ -216,7 +205,20 @@ export class App {
     if (!this.audio || !this.hasMap) return null;
     const loop = this.warp.range === 'loop' ? this.activeLoop : null;
     if (this.warp.range === 'loop' && !loop) return null;
-    return this._warp(this.warpTempo, this.tempoMap, this.doc.meter, this.dur, this.exportSettings.lead, loop, this.warp.bpm);
+    return this._warp(this.alignment, this.tempoMap, this.doc.meter, this.dur, this.exportSettings.lead, loop, this.warp.bpm);
+  }
+
+  /** What plays is the warp: in the Warp step, heard warped, with something to warp. */
+  get hearingWarp(): boolean { return this.step === 3 && this.warp.listen && !!this.warpPlan; }
+
+  private readonly _timeline = memo((map: TempoMap, moved: Alignment | null, bpm: number | null) => new Timeline(map, moved, bpm));
+  /**
+   * Where everything is drawn and what the pointer lands on (`core/timeline.ts`). It follows what is
+   * heard: the warp draws the audio moved onto the grid, the original draws it where it is.
+   */
+  get timeline(): Timeline {
+    const warped = this.hearingWarp;
+    return this._timeline(this.tempoMap, warped ? this.alignment : null, warped ? this.warpPlan!.bpm : null);
   }
 
   get dur(): number { return this.audio?.dur ?? 0; }
@@ -311,7 +313,7 @@ export class App {
   }
 
   reveal(t: number): void {
-    this.view.reveal(this.shownAt(t));
+    this.view.reveal(this.timeline.axisAt(t));
     this.bus.emit('view');
   }
 }

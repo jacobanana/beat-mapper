@@ -9,6 +9,9 @@ Vite + TypeScript, no UI framework. Read `docs/architecture.md` before changing 
   `app.edit(fn, false)` after an `app.checkpoint()` (drags).
 - Derived data (markers, bars, slices, tempo map) is computed by getters on `App`; don't cache it
   elsewhere.
+- Where anything sits in time on screen, or which bar/beat/tempo a moment is heard at, comes from
+  `app.timeline` (see `docs/architecture.md`, Time on screen); bars and tempo come from the tempo map,
+  never the warp's alignment. `test/timeline.test.ts` must keep passing: what is drawn is what is heard.
 - `test/legacy/` is the original single-file app's code, kept verbatim for the parity tests. Don't
   edit it.
 - Session JSON (`io/session.ts`) and the `beatmapper:*` localStorage keys are shared with saved user

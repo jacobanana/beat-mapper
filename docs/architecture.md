@@ -37,7 +37,29 @@ from bar 1.
 | `dsp/filter.ts` | Zero-phase biquads (forwards then backwards), for timing a voice's attack in its own band. |
 | `drums/` | Kick, snare and hats: a log-frequency spectrogram (optionally percussive-only), NMF with semi-adaptive templates, per-voice hit picking and bleed cancelling, sensitivity. See [groove.md](groove.md). |
 | `warp/` | Warping onto a straight grid: the warp map from the tempo map (`map.ts`), warp markers that put single transients on the grid (`markers.ts`), and one algorithm per kind of material (drum slicing, WSOLA, phase-locked phase vocoder, harmonic-percussive split, re-pitch). See [warp.md](warp.md). |
+| `timeline.ts` | `Timeline`: where the audio and the grid are drawn on the editor, and what the pointer lands on, following what is heard. See [Time on screen](#time-on-screen). |
 | `groove/pocket.ts` | Every drum hit on its grid step, measured against the grid (or, in the core only, a reference voice bar by bar); per-voice and per-step statistics, swing. `transcribe` turns the hits into notes for the synth kit and the MIDI transcript. |
+
+## Time on screen
+
+Times are seconds of two kinds, easy to mix up because both are numbers: **source** time, a moment of
+the audio file (the playhead, transients, the loop, warp markers), and **axis** time, a point along the
+editor that the viewport turns into pixels. Musical **positions** (quarter notes) are the third kind.
+
+- The **tempo map** is the music: bars, beats and tempo are only read from it. The axis is its time,
+  so the grid is drawn where it puts it.
+- The **alignment** (`core/warp/markers.ts`) is where the warp puts the audio: the pins with the warp
+  markers laid over. It has positions only, no tempo, so a tempo can't be read from it by mistake.
+- **`App.timeline`** decides where the audio is drawn on the axis, from what is heard: the warp in
+  the Warp step draws it moved onto the grid, anything else draws it where it is. The canvas layers get
+  `xOf` (audio) and `xAtPos` (grid) from it; the pointer, the readout, grid snapping, looping a bar and
+  following the playhead go through it too.
+
+So what is drawn under the playhead is what is heard, and a click falls on a grid line drawn.
+`test/timeline.test.ts` checks exactly that for every way of hearing the Warp step, against what the
+audio engine plays; ESLint keeps the viewport's `xOf`/`tOf` to the renderer and the pointer, the
+alignment to where the warp is made, and the tempo map's time lookups in `app/` and `ui/` to the
+timeline.
 
 ## io/
 
@@ -58,7 +80,8 @@ bridge when the app runs inside one).
   undone.
 - **`App`** (`app/app.ts`) holds the document, settings, the audio and its analysis, and derives
   everything else on demand, memoised on the identity of its inputs: the visible markers, the tempo
-  map, the grid, the bars, the slices, the drum hits the sensitivities let through, the notes they make, the pocket, and the warp plan. Nothing derived is stored, so nothing can go stale.
+  map, the grid, the bars, the slices, the drum hits the sensitivities let through, the notes they make, the pocket, the warp plan, and the
+  timeline everything is drawn on. Nothing derived is stored, so nothing can go stale.
 - **Features** (`app/features/`) are the verbs: `Markers`, `Beats`, `Playback`, `Slicer`,
   `Exports`, `Warp`, `Groove`, `Mixer`, `Sessions`, `Loader`, `Workflow`. They change the App and emit topics (`'doc'`,
   `'transport'`, `'slices'`…). They talk to the user only through the `Notifier` interface.

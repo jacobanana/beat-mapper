@@ -58,9 +58,11 @@ export class PointerInput {
     return [e.clientX - b.left, e.clientY - b.top];
   }
 
-  // The audio under x, and where the audio at t is: in Warp it is drawn moved onto the grid.
-  private tOf(x: number): number { return this.app.sourceAt(this.app.view.tOf(x)); }
-  private xOf(t: number): number { return this.app.view.xOf(this.app.shownAt(t)); }
+  // The audio under x, and where the audio at t is, as the timeline draws it; and the same for the grid.
+  private tOf(x: number): number { return this.app.timeline.sourceAt(this.app.view.tOf(x)); }
+  private xOf(t: number): number { return this.app.view.xOf(this.app.timeline.axisAt(t)); }
+  private posOf(x: number): number { return this.app.timeline.posAtAxis(this.app.view.tOf(x)); }
+  private xAtPos(q: number): number { return this.app.view.xOf(this.app.timeline.axisOfPos(q)); }
 
   // ---------- hit testing ----------
   private hitTest(x: number, y: number, touch: boolean): Hit | null {
@@ -96,12 +98,11 @@ export class PointerInput {
       return best == null ? null : { kind: 'warp', t: best };
     }
     if (app.step === 2 && app.hasMap) {
-      const map = app.tempoMap;
       let best = null, bd = r + 1;
-      for (const a of map.anchors) { const d = Math.abs(this.xOf(a.t) - x); if (d < bd) { bd = d; best = a; } }
+      for (const a of app.tempoMap.anchors) { const d = Math.abs(this.xAtPos(a.q) - x); if (d < bd) { bd = d; best = a; } }
       if (best) return { kind: 'anchor', q: best.q };
-      const q = app.grid.nearest(map.timeToPos(this.tOf(x)), this.renderer.visLevel);
-      if (q > 1e-6 && Math.abs(this.xOf(map.posToTime(q)) - x) <= r) return { kind: 'grid', q };
+      const q = app.grid.nearest(this.posOf(x), this.renderer.visLevel);
+      if (q > 1e-6 && Math.abs(this.xAtPos(q) - x) <= r) return { kind: 'grid', q };
     }
     return null;
   }
@@ -319,7 +320,7 @@ export class PointerInput {
         if (h?.kind === 'warp') { if (f.warp.isMarker(h.t)) f.warp.remove(h.t); else f.warp.snap(h.t); }
       } else if (app.step === 2) {
         if (h?.kind === 'anchor') { const a = app.doc.tempo.anchors.find((k) => k.q === h.q); if (a) f.beats.unpin(a); }
-        else if (h?.kind === 'grid') f.beats.pinAt(app.tempoMap.posToTime(h.q), h.q);
+        else if (h?.kind === 'grid') f.beats.pinAt(app.timeline.sourceOfPos(h.q), h.q);
         else if (d.zone === 'edit') f.beats.pinAt(t);
       }
       return;
@@ -358,7 +359,8 @@ export class PointerInput {
     const { ov, app } = this;
     let on = false;
     const go = (e: PointerEvent) => {
-      const b = ov.getBoundingClientRect(), t = ((e.clientX - b.left) / b.width) * app.dur, sp = app.view.span;
+      // The overview is the audio as it is; the editor centres on where it draws that moment.
+      const b = ov.getBoundingClientRect(), t = app.timeline.axisAt(((e.clientX - b.left) / b.width) * app.dur), sp = app.view.span;
       app.setView(t - sp / 2, t + sp / 2);
     };
     ov.addEventListener('pointerdown', (e) => { if (!app.audio) return; ov.setPointerCapture(e.pointerId); on = true; go(e); });

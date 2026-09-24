@@ -1,5 +1,5 @@
 import type { App } from '../../app/app';
-import type { WarpView } from '../../core/warp/markers';
+import type { Timeline } from '../../core/timeline';
 import * as layers from './layers';
 import { type Layout, layout } from './layout';
 import { type Colors, readColors, rgba } from './theme';
@@ -15,7 +15,7 @@ export class EditorRenderer {
   private C: Colors = readColors();
   private dirty = true;
   private waveKey = '';
-  private waveView: WarpView | null = null;
+  private waveView: Timeline | null = null;
   private readonly waveCache = document.createElement('canvas');
   private ovKey = '';
   private readonly ovCache = document.createElement('canvas');
@@ -68,9 +68,10 @@ export class EditorRenderer {
     const a = app.audio;
     if (!a) return;
     app.view.width = L.w || 1;
-    const v = app.view, wv = app.warpView, gx = (t: number) => v.xOf(t);
+    // The only place the timeline meets pixels: layers get the audio's x and the grid's x, never the axis.
+    const v = app.view, tl = app.timeline, moved = tl.movesAudio ? tl : null;
     const f: layers.Frame = {
-      g, app, L, C, gx, xOf: wv ? (t) => v.xOf(wv.shown(t)) : gx, t0: app.sourceAt(v.t0), t1: app.sourceAt(v.t1),
+      g, app, L, C, xOf: (t) => v.xOf(tl.axisAt(t)), xAtPos: (q) => v.xOf(tl.axisOfPos(q)), t0: tl.sourceAt(v.t0), t1: tl.sourceAt(v.t1),
       beatsMode: app.step >= 2, editable: app.step <= 3,
     };
 
@@ -78,10 +79,10 @@ export class EditorRenderer {
     if (app.hasMap) this.visLevel = layers.grid(f);
 
     const key = [v.t0, v.t1, this.cv.width, L.wh, app.amp, C.wave].join('|');
-    if (key !== this.waveKey || wv !== this.waveView) {
-      renderWave(this.waveCache, a, v.t0, v.t1, this.cv.width, Math.round(L.wh * dpr), app.amp, C.wave, dpr, wv);
+    if (key !== this.waveKey || moved !== this.waveView) {
+      renderWave(this.waveCache, a, v.t0, v.t1, this.cv.width, Math.round(L.wh * dpr), app.amp, C.wave, dpr, moved);
       this.waveKey = key;
-      this.waveView = wv;
+      this.waveView = moved;
     }
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.drawImage(this.waveCache, 0, Math.round(L.wy * dpr));
@@ -113,7 +114,8 @@ export class EditorRenderer {
     const dur = a.dur, t = app.transport;
     og.fillStyle = rgba(C.beat, 0.7);
     for (const p of app.doc.tempo.anchors) og.fillRect((p.t / dur) * w, h - 4, 1, 4);
-    const x0 = (app.view.t0 / dur) * w, x1 = (app.view.t1 / dur) * w;
+    // The overview is the audio as it is: the stretch of it in view, wherever the editor draws it.
+    const tl = app.timeline, x0 = (tl.sourceAt(app.view.t0) / dur) * w, x1 = (tl.sourceAt(app.view.t1) / dur) * w;
     og.fillStyle = rgba(C.ink, 0.12); og.fillRect(x0, 0, Math.max(2, x1 - x0), h);
     og.strokeStyle = C.ink; og.lineWidth = 1; og.strokeRect(x0 + 0.5, 0.5, Math.max(2, x1 - x0) - 1, h - 1);
     if (t.loop) { og.fillStyle = rgba(t.loopOn ? C.start : C.dim, 0.35); og.fillRect((t.loop.a / dur) * w, 0, Math.max(1, ((t.loop.b - t.loop.a) / dur) * w), 4); }
