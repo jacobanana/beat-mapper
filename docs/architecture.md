@@ -32,7 +32,7 @@ from bar 1.
 | `tempo/meter.ts` | Meter and grid: bar/beat lengths, grid levels, nearest grid line. |
 | `tempo/tempo-map.ts` | `TempoMap`: pins → time↔position, BPM at a time, bars. |
 | `beats/track.ts` | Beat tracking outward from a known point, and auto-mapping between pins. |
-| `beats/edit.ts` | Every edit to the pins as a pure function: set bar 1, pin, unpin, drag, auto-map, derive from a loop, half/double time, tap tempo. |
+| `beats/edit.ts` | Every edit to the pins as a pure function: set bar 1, pin, unpin, drag, auto-map, derive from a loop, one steady tempo from a loop fitted to the take, half/double time, tap tempo. |
 | `slices/` | Slice planning, rendering (fades, mono, normalize), loop info, file naming. |
 | `dsp/filter.ts` | Zero-phase biquads (forwards then backwards), for timing a voice's attack in its own band. |
 | `drums/` | Kick, snare and hats: a log-frequency spectrogram (optionally percussive-only), NMF with semi-adaptive templates, per-voice hit picking and bleed cancelling, sensitivity. See [groove.md](groove.md). |

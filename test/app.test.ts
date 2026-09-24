@@ -112,6 +112,28 @@ describe('beats', () => {
     expect(app.doc.tempo.anchors[0].q).toBe(0);
   });
 
+  it('sets one steady tempo from the loop, bar 1 a whole number of bars before it, as one undo step', () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    const mapped = app.doc.tempo;
+    const a = app.markers[40].t, b = app.tempoMap.posToTime(app.tempoMap.timeToPos(a) + 16);
+    f.playback.setLoop({ a, b }, true);
+    expect(f.beats.loopBars()).toBe(4);
+    f.beats.steadyFromLoop();
+    const pins = app.doc.tempo.anchors;
+    expect(pins).toHaveLength(1);
+    expect(pins[0].q).toBe(0);
+    expect(app.doc.tempo.baseBpm).toBeGreaterThan(90);
+    expect(app.doc.tempo.baseBpm).toBeLessThan(106);
+    // The loop's start is on a bar line of the steady map.
+    const bars = app.timeline.posOf(a) / 4;
+    expect(Math.abs(bars - Math.round(bars))).toBeLessThan(0.02);
+    expect(t.toasts.at(-1)).toMatch(/^Steady \d+\.\d\d BPM · 4 bars from the loop/);
+    app.undo();
+    expect(app.doc.tempo).toBe(mapped);
+  });
+
   it('changes the meter as an undoable edit', () => {
     const { app, f } = t;
     f.beats.setMeter({ num: 3 });
