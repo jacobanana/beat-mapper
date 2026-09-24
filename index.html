@@ -334,19 +334,28 @@
     </nav>
     <div class="xopts">
       <p id="expDesc"></p>
+      <!-- Each group is one label/value grid, and shows only when a row in it applies to the format. -->
       <div class="fields">
-        <label class="fld" data-for="midi rpp warpWav"><span>Audio</span><select id="lead" aria-label="Audio placement"><option value="full">Whole file + lead-in</option><option value="trim">Trim to bar 1</option></select></label>
-        <label class="fld" data-for="midi rpp slicesRpp"><span>Tempo change at</span><select id="res" aria-label="Tempo change at"><option value="pins">every pin</option><option value="bar">every bar</option><option value="beat">every beat</option></select></label>
-        <label class="fld chk" data-for="midi"><input type="checkbox" id="clicks" checked><span>Click track of MIDI notes</span></label>
-        <label class="fld chk" data-for="rpp"><input type="checkbox" id="rppAudio" checked><span>Pack the audio file in the zip</span></label>
-        <div class="fld" data-for="slices slicesRpp sliceWav"><span>Fade in / out (ms)</span><span class="pair"><input type="number" id="slFadeIn" data-slicer min="0" max="500" step="1" value="1" aria-label="Fade in, ms"><input type="number" id="slFadeOut" data-slicer min="0" max="2000" step="1" value="8" aria-label="Fade out, ms"></span></div>
-        <div class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Normalize</span><span class="pair"><label class="chk"><input type="checkbox" id="slNorm" data-slicer>to</label><input type="number" id="slTarget" data-slicer min="-24" max="0" step="0.5" value="-1" aria-label="Normalize target in dBFS"><span class="num">dBFS</span></span></div>
-        <label class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Channels</span><select id="slMono" data-slicer aria-label="Channels"><option value="src">as source</option><option value="mono">mono</option></select></label>
-        <label class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Bit depth</span><select id="slBits" data-slicer aria-label="Bit depth"><option value="16">16-bit</option><option value="24" selected>24-bit</option></select></label>
-        <label class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Sample rate</span><select id="slRate" data-slicer aria-label="Sample rate"><option value="src">as source</option><option value="44100">44.1 kHz</option><option value="48000">48 kHz</option><option value="88200">88.2 kHz</option><option value="96000">96 kHz</option></select></label>
-        <label class="fld chk" data-for="slices slicesRpp sliceWav loopWav warpWav" title="Triangular dither: a little noise before the rounding to the bit depth, so quiet tails fade smoothly instead of in steps"><input type="checkbox" id="slDither" data-slicer><span>Dither</span></label>
-        <label class="fld" data-for="slices slicesRpp sliceWav"><span>File names</span><select id="slName" data-slicer aria-label="File names"><option value="num">name_01.wav</option><option value="time">name_01 + start time</option></select></label>
-        <label class="fld chk" data-for="slices slicesRpp"><input type="checkbox" id="slCsv" checked><span>Add a .csv list of the slices</span></label>
+        <section class="grp"><h4>In the DAW</h4>
+          <label class="fld" data-for="midi rpp warpWav"><span>Placement</span><select id="lead" aria-label="Audio placement"><option value="full">Whole file + lead-in</option><option value="trim">Trim to bar 1</option></select></label>
+          <label class="fld" data-for="midi rpp slicesRpp"><span>Tempo change</span><select id="res" aria-label="Tempo change at"><option value="pins">at every pin</option><option value="bar">at every bar</option><option value="beat">at every beat</option></select></label>
+          <label class="fld" data-for="midi"><span>Click track</span><span class="chk"><input type="checkbox" id="clicks" checked>MIDI notes on the beats</span></label>
+          <label class="fld" data-for="rpp"><span>Audio file</span><span class="chk"><input type="checkbox" id="rppAudio" checked>packed in the zip</span></label>
+        </section>
+        <section class="grp"><h4>Audio</h4>
+          <div class="fld" data-for="slices slicesRpp sliceWav"><span>Fades</span><span class="pair"><input type="number" id="slFadeIn" data-slicer min="0" max="500" step="1" value="1" aria-label="Fade in, ms"><input type="number" id="slFadeOut" data-slicer min="0" max="2000" step="1" value="8" aria-label="Fade out, ms"><span class="num">ms</span></span></div>
+          <div class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Normalize</span><span class="pair"><label class="chk"><input type="checkbox" id="slNorm" data-slicer>to</label><input type="number" id="slTarget" data-slicer min="-24" max="0" step="0.5" value="-1" aria-label="Normalize target in dBFS"><span class="num">dBFS</span></span></div>
+          <label class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Channels</span><select id="slMono" data-slicer aria-label="Channels"><option value="src">as source</option><option value="mono">mono</option></select></label>
+        </section>
+        <section class="grp"><h4>Format</h4>
+          <label class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Bit depth</span><select id="slBits" data-slicer aria-label="Bit depth"><option value="16">16-bit</option><option value="24" selected>24-bit</option></select></label>
+          <label class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav"><span>Sample rate</span><select id="slRate" data-slicer aria-label="Sample rate"><option value="src">as source</option><option value="44100">44.1 kHz</option><option value="48000">48 kHz</option><option value="88200">88.2 kHz</option><option value="96000">96 kHz</option></select></label>
+          <label class="fld" data-for="slices slicesRpp sliceWav loopWav warpWav" title="Triangular dither: a little noise before the rounding to the bit depth, so quiet tails fade smoothly instead of in steps"><span>Dither</span><span class="chk"><input type="checkbox" id="slDither" data-slicer>before the rounding</span></label>
+        </section>
+        <section class="grp"><h4>Files</h4>
+          <label class="fld" data-for="slices slicesRpp sliceWav"><span>Names</span><select id="slName" data-slicer aria-label="File names"><option value="num">name_01.wav</option><option value="time">name_01 + start time</option></select></label>
+          <label class="fld" data-for="slices slicesRpp"><span>Slice list</span><span class="chk"><input type="checkbox" id="slCsv" checked>as a .csv too</span></label>
+        </section>
       </div>
       <p id="expInfo"></p>
       <div class="xfoot"><button class="btn" id="expCancel">Cancel</button><button class="btn primary" id="expSave"><svg class="ic"><use href="#i-export"/></svg><span id="expSaveL">Save</span></button></div>

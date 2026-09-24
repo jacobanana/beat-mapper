@@ -201,6 +201,8 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
     setText($('fmtPickExt'), cur.querySelector('small')!.textContent!);
     setText($('fmtPickSub'), cur.querySelector('.sub')!.textContent!);
     dlg.querySelectorAll<HTMLElement>('.fld').forEach((el) => { el.hidden = !el.dataset.for!.split(' ').includes(fmt); });
+    // A group is there only while a row in it is.
+    dlg.querySelectorAll<HTMLElement>('.grp').forEach((g) => { g.hidden = !g.querySelector('.fld:not([hidden])'); });
     setText($('expDesc'), F.desc);
     setText($('expInfo'), i.text);
     setText($('expSaveL'), F.save);
