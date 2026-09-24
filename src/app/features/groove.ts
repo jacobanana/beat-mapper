@@ -70,8 +70,8 @@ export class Groove {
   setReference(ref: Reference | 'auto'): void { this.app.set('groove', { ref }); }
   toggleExaggerate(): void { this.app.set('groove', { exaggerate: !this.app.groove.exaggerate }); }
   setChart(chart: GrooveChartMode): void { this.app.set('groove', { chart }); }
-  setMidiQuantize(on: boolean): void { this.app.set('groove', { midiQuantize: on }); }
-  setMidiStrength(pct: number): void { this.app.set('groove', { midiStrength: clamp(Math.round(pct), 0, 100) }); }
+  /** Moves the drums heard, charted and exported `pct` percent of the way onto the grid. */
+  setQuantize(pct: number): void { this.app.set('groove', { quantize: clamp(Math.round(pct), 0, 100) }); }
   toggleChart(): void { this.setChart(this.app.groove.chart === 'pocket' ? 'midi' : 'pocket'); }
 
   // ---------- editing hits ----------
@@ -126,7 +126,7 @@ export class Groove {
   /** Something in this step differs from how it starts: a hit edited, or a sensitivity or measure changed. */
   get changed(): boolean {
     const { app } = this, g = app.groove, g0 = defaultGroove(), e = app.doc.drums;
-    return !!app.audio && (e.manual.length > 0 || e.removed.length > 0 || g.grid !== g0.grid || g.ref !== g0.ref || VOICES.some((v) => g.sens[v] !== g0.sens[v]));
+    return !!app.audio && (e.manual.length > 0 || e.removed.length > 0 || g.grid !== g0.grid || g.ref !== g0.ref || g.quantize !== g0.quantize || VOICES.some((v) => g.sens[v] !== g0.sens[v]));
   }
 
   /**
@@ -137,8 +137,8 @@ export class Groove {
     const { app } = this;
     if (!this.changed) return;
     this.resetHits();
-    const { sens, grid, ref } = defaultGroove();
-    app.set('groove', { sens, grid, ref });
+    const { sens, grid, ref, quantize } = defaultGroove();
+    app.set('groove', { sens, grid, ref, quantize });
     app.select(null);
     app.notify.toast('Groove reset: the hits as found. Undo brings your hit edits back.');
   }
@@ -184,20 +184,14 @@ export class Groove {
   // ---------- export ----------
   private base(): string { return safeName(this.app.audio?.name || 'audio'); }
 
-  /** How far the MIDI export moves each hit onto its grid step, 0..1: 0 unless Quantize is on. */
-  midiStrength(): number {
-    const s = this.app.groove;
-    return s.midiQuantize ? s.midiStrength / 100 : 0;
-  }
-
   /**
-   * Every hit as a note with the tempo map: the take as MIDI, each hit where it was played, or moved
-   * onto the groove's grid as far as the quantize says.
+   * Every hit as a note with the tempo map: the take as MIDI, as it is heard here, where it was played
+   * or moved onto the grid as far as the quantize says.
    */
   async saveMidi(): Promise<void> {
     const { app } = this, g = app.pocket;
     if (!app.audio || !g) return app.notify.toast('Nothing to export yet – find the drums and map the beats first.');
-    const k = this.midiStrength();
+    const k = app.groove.quantize / 100;
     const notes: DrumNote[] = g.hits.map((h) => ({ t: quantizedTime(h, k), note: GM_NOTE[h.voice], vel: h.vel }));
     let bytes: Uint8Array;
     try { bytes = buildMidi({ ...this.exports.options(), clicks: false, notes }).bytes; } catch (e) { console.error(e); return app.notify.toast('Nothing to export yet – map the beats first.'); }

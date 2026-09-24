@@ -131,10 +131,10 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
       run: () => f.slicer.saveLoopWav(),
     },
     drumsMidi: {
-      desc: 'The kick, snare and hats as MIDI on the tempo map: every hit where it was played, or quantized part or all of the way to the groove grid.',
+      desc: 'The kick, snare and hats as MIDI on the tempo map, as they are heard in the Groove step: where they were played, or quantized as far as its quantize says.',
       save: 'Save .mid',
       info: () => drumsInfo(() => {
-        const h = app.pocket!.hits, k = f.groove.midiStrength();
+        const h = app.pocket!.hits, k = app.groove.quantize / 100;
         return plural(h.length, 'note') + ' · ' + VOICES.map((v) => `${v} ${h.filter((x) => x.voice === v).length}`).join(', ')
           + (k ? ` · quantized ${Math.round(k * 100)}% to the ${GRID_NAMES[app.groove.grid]} grid` : ' · as played');
       }),
@@ -243,18 +243,6 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
     setText($('warpAvg'), p ? `averages ${fmtBpm(p.avgBpm)}` : '');
   };
 
-  // The drum MIDI's quantize: the Groove step's setting, since it is about the drums.
-  const drQuant = $in('drQuant'), drStrength = $in('drStrength');
-  drQuant.onchange = () => f.groove.setMidiQuantize(drQuant.checked);
-  drStrength.oninput = () => f.groove.setMidiStrength(+drStrength.value);
-  const syncDrums = () => {
-    const g = app.groove;
-    drQuant.checked = g.midiQuantize;
-    drStrength.disabled = !g.midiQuantize;
-    setValue(drStrength, g.midiStrength);
-    setText($('drStrengthO'), g.midiStrength + '%');
-  };
-
   const sync = () => {
     const s = app.exportSettings;
     setValue($sel('lead'), s.lead);
@@ -265,12 +253,10 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
 
 
   app.bus.on('export', sync);
-  app.bus.on('groove', syncDrums);
   app.bus.on(['warp', 'doc', 'transport', 'audio', 'export'], syncWarp);
   app.bus.on(['export', 'warp', 'slicer', 'slices', 'doc', 'drums', 'groove', 'transport', 'audio', 'candidates', 'selection'], render);
   sync();
   syncWarp();
-  syncDrums();
 
   return (next?: ExportFormat) => {
     const mine = STEP_FORMATS[app.step];

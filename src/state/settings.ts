@@ -103,10 +103,12 @@ export interface GrooveSettings {
   exaggerate: boolean;
   /** The chart under the controls: the pocket, or the hits as a MIDI transcript. */
   chart: GrooveChartMode;
-  /** The drum MIDI export moves each hit onto its grid step. Saved with the session, unlike the rest of this group. */
-  midiQuantize: boolean;
-  /** How far, in percent: 100 is onto the step. */
-  midiStrength: number;
+  /**
+   * How far the drums are moved onto the grid, in percent: 0 as played, 100 on the steps. What the kit
+   * plays, the transcript and the MIDI export follow it; the pocket is always measured as played.
+   * Saved with the session, unlike the rest of this group.
+   */
+  quantize: number;
 }
 
 /** How loud each thing that plays is, in percent of its natural level: 100 is as it always was. */
@@ -140,7 +142,7 @@ export const defaultSlicer = (): SlicerSettings => ({
   mode: 'gap', len: 500, tail: 0, fadeIn: 1, fadeOut: 8, min: 40, mono: false, bits: 16, norm: false, target: -1, naming: 'num', csv: true,
 });
 export const defaultTransport = (): TransportState => ({ loop: null, loopOn: false, start: 0, playhead: 0, stay: false, click: false, scrubMode: false });
-export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', ref: 'auto', exaggerate: true, chart: 'pocket', midiQuantize: false, midiStrength: 100 });
+export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', ref: 'auto', exaggerate: true, chart: 'pocket', quantize: 0 });
 export const defaultMix = (): MixSettings => ({ audio: 100, click: 100, drums: 100 });
 export const defaultMute = (): MuteSettings => ({ audio: false, drums: true });
 

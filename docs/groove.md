@@ -56,10 +56,12 @@ hits, so a ghost note 16 dB down lands in the 50s.
 ## 3. Out
 
 - **MIDI** (`io/formats/midi.ts`): the tempo map plus a drum track, every hit at the tick where
-  it was played. It's exact when the export writes a tempo change at every pin. **Quantize** in the
-  Export window moves each hit part or all of the way onto its step of the groove grid
-  (`quantizedTime` in `groove/pocket.ts`), measured in time against the step, so the notes follow
-  the tempo map. It is off by default, at 100% once on, and saved with the session.
+  it was played. It's exact when the export writes a tempo change at every pin. It writes the drums as
+  they are heard in the Groove step: **quantize**, beside the grid there, moves every hit part or all
+  of the way onto its step of the groove grid (`quantizeNotes` and `quantizedTime` in
+  `groove/pocket.ts`), measured in time against the step, so the notes follow the tempo map. The
+  synth kit, the MIDI transcript and this export follow it; the pocket is always measured as played.
+  It starts at 0% (as played) and is saved with the session.
 - **Groove file** (`io/formats/groove.ts`): the typical bar as a Pocket Science `groove-atlas-v2`
   pattern. It holds the steps played in at least half the bars, with offsets in ticks at 480 PPQ.
   `swing_16th` is null because the swing is already in the offsets.

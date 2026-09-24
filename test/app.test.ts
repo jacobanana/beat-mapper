@@ -523,23 +523,32 @@ describe('groove', () => {
     expect(app.pocket!.bars).toBe(2);
   });
 
-  it('quantizes the drum MIDI onto the groove grid as far as asked', async () => {
+  it('quantizes the drums heard and charted onto the groove grid, leaving the pocket as played', async () => {
     const { app, f } = t;
     f.workflow.goTo(2);
     f.beats.autoMap();
     f.workflow.goTo(5);
     await f.groove.ensureDrums();
-    expect(f.groove.midiStrength()).toBe(0);
-    f.groove.setMidiQuantize(true);
-    expect(f.groove.midiStrength()).toBe(1);
-    f.groove.setMidiStrength(40);
-    expect(f.groove.midiStrength()).toBeCloseTo(0.4, 9);
-    const map = app.tempoMap, sq = 0.25, bq = 4;
+    const played = app.drumNotes, pocket = app.pocket;
+    expect(app.groove.quantize).toBe(0);
+    f.groove.setQuantize(100);
+    const map = app.tempoMap, onGrid = app.drumNotes;
+    expect(onGrid.length).toBe(played.length);
+    // Every note on a sixteenth of the map, in time order.
+    for (const n of onGrid) { const x = map.timeToPos(n.t) / 0.25; expect(x - Math.round(x)).toBeCloseTo(0, 5); }
+    for (let i = 1; i < onGrid.length; i++) expect(onGrid[i].t).toBeGreaterThanOrEqual(onGrid[i - 1].t);
+    // Part of the way: each hit 40 % of its way to the step its pocket measured it from.
+    f.groove.setQuantize(40);
     for (const h of app.pocket!.hits) {
-      const grid = map.posToTime(h.bar * bq + h.step * sq);
-      expect(quantizedTime(h, 1)).toBeCloseTo(grid, 6);
-      expect(quantizedTime(h, 0.4) - grid).toBeCloseTo(0.6 * (h.t - grid), 6);
+      const grid = h.t - h.gridMs / 1000, n = app.drumNotes.find((k) => k.voice === h.voice && Math.abs(k.t - (h.t + 0.4 * (grid - h.t))) < 1e-6);
+      expect(n, `${h.voice} at ${h.t}`).toBeTruthy();
+      expect(quantizedTime(h, 0.4)).toBeCloseTo(n!.t, 6);
     }
+    // The pocket is measured as played.
+    expect(app.pocket).toBe(pocket);
+    f.groove.reset();
+    expect(app.groove.quantize).toBe(0);
+    expect(app.drumNotes).toEqual(played);
   });
 
   it('turns the hits into notes to hear, and switches what is heard and charted', async () => {

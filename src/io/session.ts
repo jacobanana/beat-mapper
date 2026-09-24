@@ -33,8 +33,8 @@ export interface SessionContent {
   warpMarkers: WarpMarker[];
   /** Quantize's strength in the Warp step, percent. */
   warpQuantize: number;
-  /** The drum MIDI export's quantize: on or off, and its strength in percent. */
-  drumMidi: { quantize: boolean; strength: number };
+  /** How far the Groove step quantizes the drums, percent. */
+  grooveQuantize: number;
 }
 
 /** The JSON written to disk (format version 1). */
@@ -59,7 +59,7 @@ export function toSessionJson(s: SessionContent): object {
     // below: only written when they differ from how the app starts, so a session without them saves
     // byte-identical, and a reader that predates them ignores the fields.
     ...warpJson(s),
-    ...(s.drumMidi.quantize || s.drumMidi.strength !== 100 ? { groove: { midiQuantize: s.drumMidi.quantize, midiStrength: s.drumMidi.strength } } : {}),
+    ...(s.grooveQuantize ? { groove: { quantize: s.grooveQuantize } } : {}),
   };
 }
 
@@ -162,6 +162,6 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
     excluded: Array.isArray(sl.excluded) ? sl.excluded.filter(T).slice(0, 5000) : [],
     warpMarkers,
     warpQuantize: clamp(Math.round(fin(d.warp?.quantize, 100)), 0, 100),
-    drumMidi: { quantize: !!d.groove?.midiQuantize, strength: clamp(Math.round(fin(d.groove?.midiStrength, 100)), 0, 100) },
+    grooveQuantize: clamp(Math.round(fin(d.groove?.quantize, 0)), 0, 100),
   };
 }

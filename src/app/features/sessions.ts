@@ -61,7 +61,7 @@ export class Sessions {
       excluded: app.excluded,
       warpMarkers: [...app.doc.warpMarkers],
       warpQuantize: app.warp.quantize,
-      drumMidi: { quantize: app.groove.midiQuantize, strength: app.groove.midiStrength },
+      grooveQuantize: app.groove.quantize,
     };
   }
 
@@ -126,7 +126,7 @@ export class Sessions {
     app.set('export', s.export);
     app.set('slicer', s.slicer);
     app.set('warp', { quantize: s.warpQuantize });
-    app.set('groove', { midiQuantize: s.drumMidi.quantize, midiStrength: s.drumMidi.strength });
+    app.set('groove', { quantize: s.grooveQuantize });
     app.excluded = s.excluded;
     app.sliceSel = null;
     app.select(null);
