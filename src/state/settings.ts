@@ -29,7 +29,7 @@ export interface BeatSettings extends MapSettings {
   snapTo: SnapMode;
   /** Bars in the loop for derive-from-loop; null works it out. Not saved. */
   loopBars: number | null;
-  /** How far the grid's every second line swings late, in percent: 100 is a triplet shuffle. Not saved. */
+  /** How far the grid's every second line swings late, in percent: 100 is a triplet shuffle. */
   shuffle: number;
 }
 
@@ -42,8 +42,8 @@ export interface ExportSettings {
 }
 
 /**
- * How the audio is warped onto a straight grid. Kept for this visit only, out of sessions, until the
- * session format takes it.
+ * How the audio is warped onto a straight grid. Only the quantize strength is saved with the session so
+ * far; the rest is kept for this visit only.
  */
 export interface WarpSettings {
   mode: WarpMode;
@@ -103,7 +103,7 @@ export interface GrooveSettings {
   exaggerate: boolean;
   /** The chart under the controls: the pocket, or the hits as a MIDI transcript. */
   chart: GrooveChartMode;
-  /** The drum MIDI export moves each hit onto its grid step. Kept for this visit only, like the rest. */
+  /** The drum MIDI export moves each hit onto its grid step. Saved with the session, unlike the rest of this group. */
   midiQuantize: boolean;
   /** How far, in percent: 100 is onto the step. */
   midiStrength: number;

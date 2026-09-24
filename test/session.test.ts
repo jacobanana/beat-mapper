@@ -22,6 +22,22 @@ describe('session files', () => {
     expect(back.warpMarkers).toEqual(withMarkers.warpMarkers);
   });
 
+  it('carries the shuffle and the quantize settings, and leaves them out at their defaults', () => {
+    const s = parseSession(legacy, legacy.audio.duration, fb);
+    expect(s.beats.shuffle).toBe(0);
+    expect(s.warpQuantize).toBe(100);
+    expect(s.drumMidi).toEqual({ quantize: false, strength: 100 });
+    const set = { ...s, beats: { ...s.beats, shuffle: 60 }, warpQuantize: 40, drumMidi: { quantize: true, strength: 75 } };
+    const json = toSessionJson(set) as { warp: object };
+    expect(json.warp).toEqual({ quantize: 40 });
+    const back = parseSession(JSON.parse(JSON.stringify(json)), legacy.audio.duration, fb);
+    expect(back.beats.shuffle).toBe(60);
+    expect(back.warpQuantize).toBe(40);
+    expect(back.drumMidi).toEqual({ quantize: true, strength: 75 });
+    const odd = parseSession({ ...legacy, beats: { ...legacy.beats, shuffle: 400 }, warp: { quantize: 'x' }, groove: { midiStrength: -5 } }, legacy.audio.duration, fb);
+    expect([odd.beats.shuffle, odd.warpQuantize, odd.drumMidi.strength]).toEqual([100, 100, 0]);
+  });
+
   it('recognises only BeatMapper sessions', () => {
     expect(isSessionJson(legacy)).toBe(true);
     expect(isSessionJson({ format: 'other' })).toBe(false);

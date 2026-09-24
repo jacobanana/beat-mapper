@@ -13,6 +13,10 @@ Vite + TypeScript, no UI framework. Read `docs/architecture.md` before changing 
   edit it.
 - Session JSON (`io/session.ts`) and the `beatmapper:*` localStorage keys are shared with saved user
   work: keep reading old versions.
+- A new setting the user changes is saved with the session: add it to `SessionContent`,
+  `toSessionJson`/`parseSession` (clamped, with its default when missing) and `Sessions.content`/`apply`,
+  with a round-trip test. Write it only when it differs from its default, so older sessions still save
+  byte-identical and older readers ignore it; that needs no version bump or asking first.
 - Comments explain why, in plain sentences, like the existing ones.
 
 ## Workflow

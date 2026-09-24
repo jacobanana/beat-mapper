@@ -21,7 +21,7 @@ export interface SessionContent {
   markers: { manual: number[]; removed: number[] };
   meter: Meter;
   tempo: { anchors: Anchor[]; baseBpm: number };
-  beats: Omit<BeatSettings, 'loopBars' | 'shuffle'>;
+  beats: Omit<BeatSettings, 'loopBars'>;
   transport: Pick<TransportState, 'loop' | 'loopOn' | 'start' | 'playhead' | 'stay' | 'click'>;
   view: TimeRange | null;
   step: Step;
@@ -31,6 +31,10 @@ export interface SessionContent {
   excluded: number[];
   /** Transients put on a grid line in the Warp step, sorted by time. */
   warpMarkers: WarpMarker[];
+  /** Quantize's strength in the Warp step, percent. */
+  warpQuantize: number;
+  /** The drum MIDI export's quantize: on or off, and its strength in percent. */
+  drumMidi: { quantize: boolean; strength: number };
 }
 
 /** The JSON written to disk (format version 1). */
@@ -44,16 +48,27 @@ export function toSessionJson(s: SessionContent): object {
     beats: {
       num: s.meter.num, den: s.meter.den, grid: s.beats.grid, baseBpm: s.tempo.baseBpm, mapEvery: s.beats.mapEvery, tol: s.beats.tol,
       snapTo: s.beats.snapTo, snap: s.beats.snapTo !== 'off', anchors: s.tempo.anchors.map((a) => ({ q: a.q, t: a.t, manual: !!a.manual })),
+      ...(s.beats.shuffle ? { shuffle: s.beats.shuffle } : {}),
     },
     transport: s.transport,
     view: s.view ? { t0: s.view.a, t1: s.view.b } : null,
     step: s.step,
     export: s.export,
     slicer: slicerJson(s),
-    // Added to version 1 without a bump, like step 5: only written when there are some, so a session
-    // without them saves byte-identical, and a reader that predates them ignores the field.
-    ...(s.warpMarkers.length ? { warp: { markers: s.warpMarkers.map((w) => ({ t: w.t, q: w.q })) } } : {}),
+    // Added to version 1 without a bump, like step 5, and so are the shuffle above and the groove
+    // below: only written when they differ from how the app starts, so a session without them saves
+    // byte-identical, and a reader that predates them ignores the fields.
+    ...warpJson(s),
+    ...(s.drumMidi.quantize || s.drumMidi.strength !== 100 ? { groove: { midiQuantize: s.drumMidi.quantize, midiStrength: s.drumMidi.strength } } : {}),
   };
+}
+
+function warpJson(s: SessionContent): object {
+  const w = {
+    ...(s.warpMarkers.length ? { markers: s.warpMarkers.map((m) => ({ t: m.t, q: m.q })) } : {}),
+    ...(s.warpQuantize !== 100 ? { quantize: s.warpQuantize } : {}),
+  };
+  return Object.keys(w).length ? { warp: w } : {};
 }
 
 // Key order as version 1 files have always had it, so an unchanged session saves byte-identical.
@@ -118,6 +133,7 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
       mapEvery: bt.mapEvery === 'bar' ? 'bar' : 'beat',
       tol: clamp(fin(bt.tol, 20), 5, 45),
       snapTo,
+      shuffle: clamp(Math.round(fin(bt.shuffle, 0)), 0, 100),
     },
     transport: { loop, loopOn: !!tr.loopOn && !!loop, start, playhead: T(tr.playhead) ? tr.playhead : start, stay: !!tr.stay, click: !!tr.click },
     view,
@@ -145,5 +161,7 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
     },
     excluded: Array.isArray(sl.excluded) ? sl.excluded.filter(T).slice(0, 5000) : [],
     warpMarkers,
+    warpQuantize: clamp(Math.round(fin(d.warp?.quantize, 100)), 0, 100),
+    drumMidi: { quantize: !!d.groove?.midiQuantize, strength: clamp(Math.round(fin(d.groove?.midiStrength, 100)), 0, 100) },
   };
 }

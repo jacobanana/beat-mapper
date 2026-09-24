@@ -59,7 +59,7 @@ hits, so a ghost note 16 dB down lands in the 50s.
   it was played. It's exact when the export writes a tempo change at every pin. **Quantize** in the
   Export window moves each hit part or all of the way onto its step of the groove grid
   (`quantizedTime` in `groove/pocket.ts`), measured in time against the step, so the notes follow
-  the tempo map. It is off by default, at 100% once on, and kept for the visit, not the session.
+  the tempo map. It is off by default, at 100% once on, and saved with the session.
 - **Groove file** (`io/formats/groove.ts`): the typical bar as a Pocket Science `groove-atlas-v2`
   pattern. It holds the steps played in at least half the bars, with offsets in ticks at 480 PPQ.
   `swing_16th` is null because the swing is already in the offsets.
