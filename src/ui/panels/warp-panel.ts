@@ -48,6 +48,6 @@ export function bindWarpPanel(app: App, f: Features, refocus: () => void): void 
     bpm.placeholder = p ? String(Math.round(p.avgBpm)) : '';
     setText($('wSum'), w.summary());
   };
-  app.bus.on(['warp', 'doc', 'transport', 'audio', 'export', 'beats'], sync);
+  app.bus.on(['warp', 'doc', 'transport', 'audio', 'export', 'beats', 'heard'], sync);
   sync();
 }

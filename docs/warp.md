@@ -46,14 +46,17 @@ In Export, *Whole file + lead-in* keeps what comes before bar 1 and puts silence
 file starts on a bar line; *Trim to bar 1* starts the file on bar 1. Channels, normalizing and bit
 depth are the slicer's.
 
-The first play renders the warp in the worker; after that the render is reused, for playing and for
-saving, until something it depends on changes (a pin, the meter, the loop when only the loop is warped,
-the material, the grid tempo, the transients in Drums mode). A change while playing is rendered again
-once the changes settle, and playback carries on from the same place.
+The first play renders the warp in the worker (`app/features/warp-render.ts`); after that the render is
+reused, for playing and for saving, until something it depends on changes (a pin, the meter, the loop
+when only the loop is warped, the material, the grid tempo, the transients in Drums mode). A change
+while playing is rendered again once the changes settle, and playback carries on from the same place.
+Until the new take plays, the one playing is what is drawn and clicked, so the screen never runs ahead
+of the speakers. A warp that can't be rendered leaves the switch as it is: the original plays, the
+switch dims, and a change to the warp tries again.
 
 The editor stays on the tempo map's timeline, so the playhead moves through the original: fast where a
-bar is being slowed down, slow where it is sped up, and always on the hit you are hearing (`Take` in
-`app/features/playback.ts` maps the two timelines both ways). The grid is drawn where the tempo map
+bar is being slowed down, slow where it is sped up, and always on the hit you are hearing (`WarpOut`
+in `app/warp-out.ts` maps the two timelines both ways, for the audio, the timeline and the exports alike). The grid is drawn where the tempo map
 has it. What is drawn over it follows what is heard (`App.timeline`, see
 [architecture.md](architecture.md#time-on-screen)): heard warped, the waveform, the transients and the
 playhead are drawn where the warp puts them, so a quantized hit is drawn on its line; heard as the
@@ -72,7 +75,9 @@ Warp markers (`core/warp/markers.ts`) are laid over the pins to make the map the
 from it; the tempo map of Beats is left as it was, so its MIDI and bars don't change. A pin a
 marker contradicts gives way to it, markers can't cross each other, and the map past its ends keeps the
 pins' tempo, so a marker near bar 1 doesn't stretch the lead-in. They are in the undoable document and in
-the session file (`warp.markers`, written only when there are some), unlike the other Warp settings.
+the session file (`warp.markers`, written only when there are some). The other Warp settings (material,
+grid tempo, what is warped, the Warped switch, quantize strength) are saved beside them, each only when
+it isn't the default, and a newly opened file starts from the defaults.
 
 ## One method per material
 
@@ -105,7 +110,6 @@ frame's shift in the others.
 ## Later
 
 - A view of the warped waveform itself, on the straight grid.
-- Saving the other warp settings (tempo, material, range) with the session; only the warp markers are kept for now.
 - Other stretchers worth trying: phase gradient heap integration ([Průša & Holighaus 2017][pghi]),
   which needs no peak picking or transient handling.
 

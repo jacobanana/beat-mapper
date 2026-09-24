@@ -1,8 +1,10 @@
 import type { App } from '../../app/app';
+import { stepRules } from '../../app/steps';
 import type { Timeline } from '../../core/timeline';
 import * as layers from './layers';
 import { type Layout, layout } from './layout';
 import { type Colors, readColors, rgba } from './theme';
+import { screen } from './screen';
 import { renderWave } from './waveform';
 
 /**
@@ -69,10 +71,10 @@ export class EditorRenderer {
     if (!a) return;
     app.view.width = L.w || 1;
     // The only place the timeline meets pixels: layers get the audio's x and the grid's x, never the axis.
-    const v = app.view, tl = app.timeline, moved = tl.movesAudio ? tl : null;
+    const v = app.view, tl = app.timeline, s = screen(app), moved = tl.movesAudio ? tl : null;
     const f: layers.Frame = {
-      g, app, L, C, xOf: (t) => v.xOf(tl.axisAt(t)), xAtPos: (q) => v.xOf(tl.axisOfPos(q)), t0: tl.sourceAt(v.t0), t1: tl.sourceAt(v.t1),
-      beatsMode: app.step >= 2, editable: app.step <= 3,
+      g, app, L, C, xOf: s.xOf, xAtPos: s.xAtPos, t0: tl.sourceAt(v.t0), t1: tl.sourceAt(v.t1),
+      beatsMode: stepRules(app.step).recede, editable: stepRules(app.step).editable,
     };
 
     layers.background(f);

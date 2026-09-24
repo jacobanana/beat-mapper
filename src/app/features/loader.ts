@@ -4,7 +4,7 @@ import { bpmFromName } from '../../core/format';
 import { synthDemo, synthKit } from '../../core/demo';
 import type { Analyzer } from '../../analysis/analyzer';
 import { audioContext, channelsOf, decodeAudio } from '../../engine/audio-context';
-import { emptyDoc } from '../../state/project';
+import { STEP } from '../../state/steps';
 import { type App } from '../app';
 import { makeAsset } from '../audio-asset';
 import type { Playback } from './playback';
@@ -72,24 +72,10 @@ export class Loader {
     const analysis = await this.analyzer.analyze(asset.x, asset.sr, (f) => this.busy('Finding transients', 0.1 + 0.88 * f));
     const cands = await this.analyzer.candidates(app.detection.band, app.detection.algo);
 
-    app.audio = asset;
-    app.analysis = analysis;
-    app.cands = cands;
-    app.drums = null;
-    app.startBpm = bpm ?? bpmFromName(fileName) ?? +estimateTempo(analysis.odfs.flux.full, analysis.fr).toFixed(2);
-    app.doc = emptyDoc(app.startBpm);
-    app.history.clear();
-    app.sel = null;
-    app.hover = null;
-    app.excluded = [];
-    app.sliceSel = null;
-    app.amp = 1;
-    app.view.reset(asset.dur);
-    app.transport = { ...app.transport, playhead: 0, start: 0, loop: null, loopOn: false };
     app.busy = false;
     app.notify.idle();
-    app.bus.emit('audio', 'doc', 'candidates', 'drums', 'transport', 'view', 'playhead', 'selection', 'slices');
-    this.workflow.goTo(1);
+    app.load(asset, analysis, cands, bpm ?? bpmFromName(fileName) ?? +estimateTempo(analysis.odfs.flux.full, analysis.fr).toFixed(2));
+    this.workflow.goTo(STEP.transients);
     await this.sessions.restore();
   }
 }

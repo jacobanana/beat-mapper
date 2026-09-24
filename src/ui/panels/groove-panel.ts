@@ -39,7 +39,7 @@ export function bindGroovePanel(app: App, f: Features): GrooveChart {
   };
   app.bus.on('groove', sync);
   app.bus.on(['doc', 'selection', 'drums', 'groove'], edits);
-  app.bus.on(['groove', 'drums', 'doc', 'transport', 'audio'], counts);
+  app.bus.on(['groove', 'drums', 'doc', 'transport', 'audio', 'heard'], counts);
   sync();
   edits();
   return chart;

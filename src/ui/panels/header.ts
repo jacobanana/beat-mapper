@@ -3,20 +3,22 @@
 // mixer and the Export window that open from it are in mixer-panel.ts and export-dialog.ts.
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
+import { stepRules } from '../../app/steps';
 import { fmtTime } from '../../core/format';
+import { STEP, STEPS, type Step } from '../../state/steps';
 import { $, $btn, icon, setPressed } from '../dom';
 import { confirmAction } from './confirm';
 import { STEP_FORMATS } from './export-dialog';
 
-const STEPS = [1, 2, 3, 4, 5] as const;
+const WARP_TITLE = 'Warped: Warp, Slice and Groove hear, cut, measure and export the audio moved onto the grid; off, the original (W)';
 
 /** What each step's Reset asks: what goes, and whether undo brings it back. */
-const RESET_ASK: Record<(typeof STEPS)[number], [string, string]> = {
-  1: ['Reset Transients?', 'Detection goes back to how it starts, and the markers to how they were found. Undo brings back your marker edits.'],
-  2: ['Reset Beats?', 'Only bar 1 stays, on the first transient, in 4/4 at the starting tempo. Undo brings back your map.'],
-  3: ['Reset Warp?', 'The whole file is warped at the tempo it averages, as a full mix, and the warp markers come off. Your grid tempo and material are cleared, the shuffle goes back to 0% and the quantize strength to 100%; undo brings back the warp markers.'],
-  4: ['Reset Slice?', 'Every transient starts a slice again, and every slice is kept. Dropped slices can\'t be brought back with undo.'],
-  5: ['Reset Groove?', 'The hits go back to how they were found, at the starting sensitivities. Undo brings back your hit edits.'],
+const RESET_ASK: Record<Step, [string, string]> = {
+  [STEP.transients]: ['Reset Transients?', 'Detection goes back to how it starts, and the markers to how they were found. Undo brings back your marker edits.'],
+  [STEP.beats]: ['Reset Beats?', 'Only bar 1 stays, on the first transient, in 4/4 at the starting tempo. Undo brings back your map.'],
+  [STEP.warp]: ['Reset Warp?', 'The whole file is warped at the tempo it averages, as a full mix, and the warp markers come off. Your grid tempo and material are cleared, the shuffle goes back to 0% and the quantize strength to 100%; undo brings back the warp markers.'],
+  [STEP.slice]: ['Reset Slice?', 'Every transient starts a slice again, and every slice is kept. Dropped slices can\'t be brought back with undo.'],
+  [STEP.groove]: ['Reset Groove?', 'The hits go back to how they were found, at the starting sensitivities. Undo brings back your hit edits.'],
 };
 
 export function bindHeader(app: App, f: Features, openHelp: () => void, openExport: () => void): void {
@@ -57,7 +59,7 @@ export function bindHeader(app: App, f: Features, openHelp: () => void, openExpo
       $('p' + i).hidden = i !== app.step;
     }
     // Warped or not is for the steps after the warp is made; Transients and Beats hear the original.
-    $('warpBtn').hidden = app.step < 3;
+    $('warpBtn').hidden = !stepRules(app.step).hearsWarp;
     // Export follows the step: off where the step makes nothing to export.
     const none = !STEP_FORMATS[app.step].length, ex = $btn('exportBtn');
     ex.disabled = none;
@@ -101,14 +103,21 @@ export function bindHeader(app: App, f: Features, openHelp: () => void, openExpo
 
   const syncReset = () => { for (const id of RESETS) $btn(id).disabled = !f.workflow.canReset; };
 
-  const syncWarp = () => setPressed($('warpBtn'), app.warp.listen);
+  // The switch shows how it is set, and dims when it is on but the original is what plays: no warp to
+  // make (a loop warped alone with the loop off), or one that couldn't be rendered.
+  const syncWarp = () => {
+    const b = $('warpBtn'), off = app.warp.listen && (!app.hearingWarp || f.warpRender.unavailable);
+    setPressed(b, app.warp.listen);
+    b.classList.toggle('idle', off);
+    b.title = off ? 'Warped is on, but the original plays: ' + (app.hearingWarp ? "the warp couldn't be rendered" : 'there is nothing to warp') + ' (W)' : WARP_TITLE;
+  };
 
   app.bus.on('step', syncSteps);
-  app.bus.on('warp', syncWarp);
+  app.bus.on(['warp', 'heard', 'step'], syncWarp);
   app.bus.on(['step', 'doc', 'detection', 'candidates', 'beats', 'warp', 'slicer', 'slices', 'groove', 'drums', 'audio'], syncReset);
   app.bus.on(['doc', 'audio'], syncHistory);
   app.bus.on(['transport', 'playhead'], syncTransport);
-  app.bus.on(['playhead', 'doc', 'audio', 'step', 'warp', 'transport'], syncReadout);
+  app.bus.on(['playhead', 'heard', 'doc', 'audio'], syncReadout);
   app.bus.on('audio', syncFile);
   syncSteps();
   syncWarp();

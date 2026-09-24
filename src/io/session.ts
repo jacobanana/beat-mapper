@@ -2,17 +2,19 @@
 // JSON is kept in localStorage per file and can be saved to carry the work to another device.
 // Everything read back is validated and clamped, so a hand-edited or older file can't break the app.
 import { ALGOS, type Algo, BANDS, type Band } from '../core/dsp/onset';
+import { VOICES, type Voice } from '../core/drums/voices';
 import { DENOMINATORS, GRID_DIVISIONS, type GridDivision, type Meter } from '../core/tempo/meter';
 import type { Anchor, TimeRange } from '../core/types';
 import { type WarpMarker, placeWarpMarker } from '../core/warp/markers';
+import { WARP_MODES, type WarpMode } from '../core/warp/modes';
 import {
-  type BeatSettings, type DetectionSettings, type ExportSettings, SNAP_MODES, type SlicerSettings, type SnapMode, type TransportState,
+  type BeatSettings, type DetectionSettings, type ExportSettings, SNAP_MODES, type SlicerSettings, type SnapMode, type TransportState, type WarpSettings,
+  defaultWarp,
 } from '../state/settings';
+import { STEPS, type Step } from '../state/steps';
 
 export const SESSION_FORMAT = 'beatmapper-session';
 export const SESSION_VERSION = 1;
-
-export type Step = 1 | 2 | 3 | 4 | 5;
 
 /** Everything a session holds, in the app's own terms. */
 export interface SessionContent {
@@ -31,8 +33,10 @@ export interface SessionContent {
   excluded: number[];
   /** Transients put on a grid line in the Warp step, sorted by time. */
   warpMarkers: WarpMarker[];
-  /** Quantize's strength in the Warp step, percent. */
-  warpQuantize: number;
+  /** The Warp step's settings: the material, the grid tempo, what is warped, whether it is heard, quantize's strength. */
+  warp: WarpSettings;
+  /** Drum hits edited by hand in the Groove step: added (with their loudness) and deleted, by time. */
+  hits: { manual: { voice: Voice; t: number; a: number }[]; removed: { voice: Voice; t: number }[] };
 }
 
 /** The JSON written to disk (format version 1). */
@@ -56,17 +60,30 @@ export function toSessionJson(s: SessionContent): object {
     // Added to version 1 without a bump, like step 5, and so is the shuffle above: only written when
     // it differs from how the app starts, so a session without it saves byte-identical, and a reader
     // that predates it ignores the field. The Groove step's own quantize (`groove.quantize`) was
-    // written here too; the warp's quantize is the only one now, so older files' is ignored.
+    // written here too; the warp's quantize is the only one now, so older files' is ignored. The
+    // other Warp settings and the hit edits came later still, and are written the same way.
     ...warpJson(s),
+    ...hitsJson(s),
   };
 }
 
 function warpJson(s: SessionContent): object {
-  const w = {
+  const w0 = defaultWarp(), w = s.warp;
+  const out = {
     ...(s.warpMarkers.length ? { markers: s.warpMarkers.map((m) => ({ t: m.t, q: m.q })) } : {}),
-    ...(s.warpQuantize !== 100 ? { quantize: s.warpQuantize } : {}),
+    ...(w.quantize !== w0.quantize ? { quantize: w.quantize } : {}),
+    ...(w.mode !== w0.mode ? { mode: w.mode } : {}),
+    ...(w.bpm !== w0.bpm ? { bpm: w.bpm } : {}),
+    ...(w.range !== w0.range ? { range: w.range } : {}),
+    ...(w.listen !== w0.listen ? { listen: w.listen } : {}),
   };
-  return Object.keys(w).length ? { warp: w } : {};
+  return Object.keys(out).length ? { warp: out } : {};
+}
+
+function hitsJson(s: SessionContent): object {
+  const { manual, removed } = s.hits;
+  if (!manual.length && !removed.length) return {};
+  return { drums: { manual: manual.map((h) => ({ voice: h.voice, t: h.t, a: h.a })), removed: removed.map((h) => ({ voice: h.voice, t: h.t })) } };
 }
 
 // Key order as version 1 files have always had it, so an unchanged session saves byte-identical.
@@ -110,6 +127,14 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
     const r = placeWarpMarker(warpMarkers, w.t, w.q);
     if (r.ok) warpMarkers = r.markers;
   }
+  const w = d.warp || {}, w0 = defaultWarp(), dr = d.drums || {};
+  const V = (v: unknown): v is Voice => VOICES.includes(v as Voice);
+  const hits: SessionContent['hits'] = {
+    manual: (Array.isArray(dr.manual) ? dr.manual : []).filter((h: Json) => h && V(h.voice) && T(h.t)).slice(0, 20000)
+      .map((h: Json) => ({ voice: h.voice, t: h.t, a: clamp(fin(h.a, 1), 0, 1e6) })),
+    removed: (Array.isArray(dr.removed) ? dr.removed : []).filter((h: Json) => h && V(h.voice) && T(h.t)).slice(0, 20000)
+      .map((h: Json) => ({ voice: h.voice, t: h.t })),
+  };
 
   return {
     audio: { name: String(au.name ?? ''), fileName: String(au.fileName ?? ''), duration: fin(au.duration, dur), sampleRate: fin(au.sampleRate, 0) },
@@ -136,7 +161,7 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
     transport: { loop, loopOn: !!tr.loopOn && !!loop, start, playhead: T(tr.playhead) ? tr.playhead : start, stay: !!tr.stay, click: !!tr.click },
     view,
     // Step 5 (Groove) came later; a version 1 reader that predates it falls back to 1.
-    step: oneOf<Step>([1, 2, 3, 4, 5], d.step, 1),
+    step: oneOf<Step>(STEPS, d.step, 1),
     export: {
       lead: ex.lead === 'trim' ? 'trim' : 'full',
       res: oneOf(['pins', 'bar', 'beat'] as const, ex.res, 'pins'),
@@ -159,6 +184,13 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
     },
     excluded: Array.isArray(sl.excluded) ? sl.excluded.filter(T).slice(0, 5000) : [],
     warpMarkers,
-    warpQuantize: clamp(Math.round(fin(d.warp?.quantize, 100)), 0, 100),
+    warp: {
+      mode: oneOf<WarpMode>(WARP_MODES, w.mode, w0.mode),
+      bpm: Number.isFinite(w.bpm) ? clamp(+w.bpm, 20, 400) : w0.bpm,
+      range: w.range === 'loop' ? 'loop' : w0.range,
+      listen: typeof w.listen === 'boolean' ? w.listen : w0.listen,
+      quantize: clamp(Math.round(fin(w.quantize, w0.quantize)), 0, 100),
+    },
+    hits,
   };
 }

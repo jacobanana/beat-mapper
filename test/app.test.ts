@@ -3,7 +3,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { barQ } from '../src/core/tempo/meter';
 import { buildMidi } from '../src/io/formats/midi';
-import { MemoryStore, type TestApp, createTestApp, openDemo } from './helpers';
+import { noHitEdits } from '../src/core/drums/edit';
+import { defaultWarp } from '../src/state/settings';
+import { MemoryStore, type TestApp, createTestApp, demo, fakeBuffer, openDemo } from './helpers';
 
 let t: TestApp;
 beforeEach(async () => {
@@ -440,25 +442,25 @@ describe('the Warp step', () => {
     f.workflow.goTo(2);
     f.beats.autoMap();
     f.warp.update({ mode: 'repitch' });
-    expect(f.warp.wanted()).toBe(false);
+    expect(f.warpRender.wanted()).toBe(false);
     f.workflow.goTo(3);
     expect(app.warp.listen).toBe(true);
-    expect(f.warp.wanted()).toBe(true);
+    expect(f.warpRender.wanted()).toBe(true);
     f.warp.toggleListen();
-    expect(f.warp.wanted()).toBe(false);
+    expect(f.warpRender.wanted()).toBe(false);
     f.warp.toggleListen();
-    const r = (await f.warp.render())!;
+    const r = (await f.warpRender.render())!;
     expect(r.chans[0].length).toBe(Math.round(r.plan.outDur * 44100));
     // Nothing changed: the same render, for listening and for saving.
-    expect(await f.warp.render()).toBe(r);
+    expect(await f.warpRender.render()).toBe(r);
     // A pin moved (in Beats): rendered again.
     f.beats.nudge(app.doc.tempo.anchors[5], 0.01);
-    const r2 = (await f.warp.render())!;
+    const r2 = (await f.warpRender.render())!;
     expect(r2).not.toBe(r);
     expect(r2.plan).toBe(app.warpPlan);
     // Slice and Groove hear it too; Transients and Beats, the original the warp is made from.
-    for (const step of [4, 5] as const) { f.workflow.goTo(step); expect(f.warp.wanted()).toBe(true); }
-    for (const step of [1, 2] as const) { f.workflow.goTo(step); expect(f.warp.wanted()).toBe(false); }
+    for (const step of [4, 5] as const) { f.workflow.goTo(step); expect(f.warpRender.wanted()).toBe(true); }
+    for (const step of [1, 2] as const) { f.workflow.goTo(step); expect(f.warpRender.wanted()).toBe(false); }
   });
 
   it('switches to the warp while the original plays: entering Warp, and after Quantize', () => {
@@ -469,7 +471,7 @@ describe('the Warp step', () => {
     Object.defineProperty(pb, 'playingTake', { get: () => take });
     pb.now = () => 1;
     // Playing takes up the take wanted when it is made, else the original.
-    pb.play = (from: number) => { plays.push(from); take = f.warp.wanted() ? f.warp.current() : null; };
+    pb.play = (from: number) => { plays.push(from); take = f.warpRender.wanted() ? f.warpRender.current() : null; };
     vi.useFakeTimers();
     try {
       f.workflow.goTo(2);
@@ -514,6 +516,55 @@ describe('the Warp step', () => {
     expect(f.workflow.canReset).toBe(true);
     f.workflow.resetStep();
     expect(app.warp).toEqual({ mode: 'music', bpm: null, range: 'file', listen: true, quantize: 100 });
+  });
+});
+
+describe('what is heard', () => {
+  it("tells whoever shows it when what is heard changes, whatever changed it", () => {
+    const { app, f } = t, heard: number[] = [];
+    app.bus.on('heard', () => heard.push(1));
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    heard.length = 0;
+    f.workflow.goTo(3);
+    expect(heard.length).toBe(1);
+    f.workflow.goTo(5);
+    expect(heard.length).toBe(1);
+    // The Warped switch in Groove changes what the pocket is measured on: its chart and summary hear of it.
+    expect(app.warpOut).not.toBeNull();
+    f.warp.toggleListen();
+    expect(heard.length).toBe(2);
+    expect(app.warpOut).toBeNull();
+    f.warp.toggleListen();
+    expect(heard.length).toBe(3);
+    // Another grid tempo is another warp.
+    f.warp.update({ bpm: 100 });
+    expect(heard.length).toBe(4);
+    // Nothing heard changes: nothing said.
+    app.setPlayhead(3);
+    f.warp.update({ bpm: 100 });
+    expect(heard.length).toBe(4);
+  });
+
+  it("plays the original, says why and keeps the switch as it was when the warp can't be rendered", async () => {
+    const { app, f, toasts } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.workflow.goTo(3);
+    const warp = vi.spyOn(f.warpRender['analyzer'], 'warp').mockRejectedValueOnce(new Error('too long'));
+    expect(f.warpRender.wanted()).toBe(true);
+    expect(await f.warpRender.prepare()).toBe(false);
+    expect(toasts.at(-1)).toMatch(/^Couldn't warp the audio to play it – the original plays/);
+    expect(app.warp.listen).toBe(true);
+    expect(f.warpRender.wanted()).toBe(false);
+    expect(f.warpRender.unavailable).toBe(true);
+    // Slice and Groove still cut and measure the warp as it is set.
+    expect(app.warpOut).not.toBeNull();
+    // A change to the warp tries again.
+    f.warp.update({ mode: 'repitch' });
+    expect(f.warpRender.wanted()).toBe(true);
+    expect(await f.warpRender.prepare()).toBe(true);
+    warp.mockRestore();
   });
 });
 
@@ -609,6 +660,35 @@ describe('sessions', () => {
     expect(b.app.excluded).toEqual(a.app.excluded);
     // nothing to undo right after a restore
     expect(b.app.undo()).toBe(false);
+  });
+
+  it('keeps the Warp step\'s settings and the hits edited by hand, and starts a new file from the defaults', async () => {
+    const store = new MemoryStore();
+    const a = createTestApp(store);
+    await openDemo(a);
+    a.f.workflow.goTo(2);
+    a.f.beats.autoMap();
+    a.f.workflow.goTo(3);
+    a.f.warp.update({ bpm: 97, mode: 'beats', listen: false });
+    a.f.workflow.goTo(5);
+    await a.f.groove.ensureDrums();
+    const kick = a.app.drumHits!.kick[0], snare = a.app.drumHits!.snare[1];
+    a.f.groove.removeHit('kick', kick.t);
+    a.f.groove.addHit('snare', snare.t + 0.2);
+    a.f.sessions.autosave();
+
+    const b = createTestApp(store);
+    await openDemo(b);
+    expect(b.app.warp).toEqual({ ...a.app.warp });
+    expect(b.app.doc.drums.removed).toEqual(a.app.doc.drums.removed);
+    expect(b.app.doc.drums.manual.map((h) => [h.voice, h.t])).toEqual(a.app.doc.drums.manual.map((h) => [h.voice, h.t]));
+    await b.f.groove.ensureDrums();
+    expect(b.app.drumHits).toEqual(a.app.drumHits);
+
+    // Another file keeps nothing of the last one's warp: its grid tempo, material and switch.
+    await b.f.loader.open(fakeBuffer([demo.x.slice(0, 44100 * 20)], 44100), 'other', 'other.wav', null);
+    expect(b.app.warp).toEqual(defaultWarp());
+    expect(b.app.doc.drums).toEqual(noHitEdits());
   });
 
   it('keeps sessions for the last eight files only', () => {

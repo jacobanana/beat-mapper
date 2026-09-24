@@ -11,10 +11,9 @@ import { type Slice, isExcluded, loopInfo, planSlices, sliceKey } from '../core/
 import { Grid, barQ } from '../core/tempo/meter';
 import { type Bar, TempoMap } from '../core/tempo/tempo-map';
 import type { Anchor, Candidate, Marker, TimeRange } from '../core/types';
-import { type WarpMap, averageBpm, gridMap, planWarp, warpRange } from '../core/warp/map';
+import { averageBpm, planWarp, warpRange } from '../core/warp/map';
 import { Timeline } from '../core/timeline';
 import { Alignment, type WarpMarker } from '../core/warp/markers';
-import type { Step } from '../io/session';
 import { Emitter } from '../state/emitter';
 import { History } from '../state/history';
 import { memo } from '../state/memo';
@@ -23,13 +22,24 @@ import {
   type BeatSettings, type DetectionSettings, type ExportSettings, type GrooveSettings, type MixSettings, type MuteSettings, type SlicerSettings, type TransportState, type WarpSettings,
   defaultBeats, defaultDetection, defaultExport, defaultGroove, defaultMix, defaultMute, defaultSlicer, defaultTransport, defaultWarp,
 } from '../state/settings';
+import { type Step, STEP } from '../state/steps';
 import { Viewport } from '../state/viewport';
 import type { AudioAsset } from './audio-asset';
+import { stepRules } from './steps';
+import { type WarpOut, type WarpPlan, warpOut } from './warp-out';
+
+export type { WarpOut, WarpPlan } from './warp-out';
 
 /** What changed. Listeners subscribe to the topics they display. */
 export type Topic =
   | 'audio' | 'doc' | 'candidates' | 'detection' | 'beats' | 'export' | 'slicer' | 'slices'
-  | 'warp' | 'transport' | 'playhead' | 'view' | 'step' | 'selection' | 'hover' | 'display' | 'drums' | 'groove' | 'mix' | 'mute';
+  | 'warp' | 'transport' | 'playhead' | 'view' | 'step' | 'selection' | 'hover' | 'display' | 'drums' | 'groove' | 'mix' | 'mute'
+  /**
+   * Derived: what is heard changed (the warp or the original, and which warp), and with it the
+   * timeline, the slices and the pocket. Emitted by the App itself after whichever topic caused it, so
+   * a view of anything placed by the warp listens to this one topic rather than to all its causes.
+   */
+  | 'heard';
 
 export type Selection =
   | { kind: 'marker'; id: string } | { kind: 'anchor'; q: number } | { kind: 'hit'; voice: Voice; t: number }
@@ -38,41 +48,6 @@ export type Selection =
   | null;
 /** What the pointer is over: a marker, a pin, or a grid line that could become a pin. */
 export type Hover = Selection | { kind: 'grid'; q: number };
-
-/** What would be warped onto a straight grid, and how. */
-export interface WarpPlan {
-  map: WarpMap;
-  bpm: number;
-  /** The tempo the part being warped averages. */
-  avgBpm: number;
-  /** Quarter notes from bar 1 at the start of the warped audio. */
-  q0: number;
-  /** Source seconds warped, and output seconds. */
-  srcDur: number;
-  outDur: number;
-  /** The least and most anything is stretched: above 1 is slowed down. */
-  ratios: [number, number];
-  loop: boolean;
-}
-
-/**
- * The warp as Slice and Groove hear it: the file it makes, on its own steady grid, and where each moment
- * of the original lands in it. Transients, slices and hits keep their original times; this places them.
- */
-export interface WarpOut {
-  plan: WarpPlan;
-  /** The warped file's tempo map: one steady tempo, quarter note `plan.q0` at its start. */
-  map: TempoMap;
-  /**
-   * The tempo map a DAW gets with the warped file: its own, but for a loop, which starts the file, bar 1
-   * is at its start.
-   */
-  exportMap: TempoMap;
-  /** The part of the original that is warped, in its own seconds. */
-  range: TimeRange;
-  /** Where the moment at original time t is in the warped file. */
-  at(t: number): number;
-}
 
 export interface SliceView extends Slice {
   /** Dropped from the export. */
@@ -87,6 +62,11 @@ export interface Notifier {
 }
 
 type Settings = { detection: DetectionSettings; beats: BeatSettings; export: ExportSettings; slicer: SlicerSettings; warp: WarpSettings; transport: TransportState; groove: GrooveSettings; mix: MixSettings; mute: MuteSettings };
+
+/** A loop shorter than this is no loop: nothing plays, is warped or is sliced inside it. */
+export const MIN_LOOP = 0.01;
+/** The loop, when there is one long enough to be one. */
+export const usableLoop = (L: TimeRange | null): TimeRange | null => (L && L.b - L.a > MIN_LOOP ? L : null);
 
 export class App {
   readonly bus = new Emitter<Topic>();
@@ -115,7 +95,7 @@ export class App {
   /** Muted channels: for this visit only, so the audio is never silent on arrival. */
   mute = defaultMute();
 
-  step: Step = 1;
+  step: Step = STEP.transients;
   sel: Selection = null;
   hover: Hover = null;
   /** Waveform height multiplier. */
@@ -129,11 +109,27 @@ export class App {
    * put on if let go now (null while it is off the grid, or would cross another warp marker).
    */
   warpDrag: { t: number; q: number | null; at: number } | null = null;
+  /**
+   * Set by Playback while something plays: the warp playing (a take made before an edit plays on
+   * until the next is ready), or null for the original. Undefined while nothing plays.
+   */
+  playing: { out: WarpOut | null } | undefined = undefined;
   /** True while a pointer drag is editing something; autosave waits for it to finish. */
   dragging = false;
   busy = false;
 
-  constructor(readonly notify: Notifier) {}
+  constructor(readonly notify: Notifier) {
+    // 'heard' follows whatever changed what is heard, so nobody has to list its causes.
+    let out: WarpOut | null = null, tl: Timeline | null = null;
+    this.bus.on('*', (topic) => {
+      if (topic === 'heard') return;
+      const o = this.warpOut, t = this.timeline;
+      if (o === out && t === tl) return;
+      out = o;
+      tl = t;
+      this.bus.emit('heard');
+    });
+  }
 
   // ---------- derived data ----------
   private readonly _map = memo((t: ProjectDoc['tempo']) => new TempoMap(t.anchors, t.baseBpm));
@@ -162,9 +158,9 @@ export class App {
     const ex = new Set(excluded.map(sliceKey));
     return plan.map((sl): SliceView => ({ ...sl, off: isExcluded(ex, sl.t0) }));
   });
-  private readonly _range = memo((loop: TimeRange | null, on: boolean, dur: number): TimeRange => (on && loop && loop.b - loop.a > 0.01 ? loop : { a: 0, b: dur }));
+  private readonly _range = memo((loop: TimeRange | null, dur: number): TimeRange => loop ?? { a: 0, b: dur });
   /** With the loop on, only what is inside it is sliced – and so only that is exported. */
-  get sliceRange(): TimeRange { return this._range(this.transport.loop, this.transport.loopOn, this.dur); }
+  get sliceRange(): TimeRange { return this._range(this.activeLoop, this.dur); }
   private readonly _cutRange = memo((r: TimeRange, out: WarpOut | null): TimeRange =>
     (out ? { a: Math.max(r.a, out.range.a), b: Math.min(r.b, out.range.b) } : r));
   /** Slices are cut at the transients, from what is heard: only the part the warp makes when it is. */
@@ -218,11 +214,11 @@ export class App {
   private readonly _warp = memo((map: Alignment, tempo: TempoMap, meter: ProjectDoc['meter'], dur: number, lead: ExportSettings['lead'], loop: TimeRange | null, gridBpm: number | null): WarpPlan | null => {
     if (map.isEmpty) return null;
     const r = warpRange(map, meter, dur, { lead, loop });
-    if (!(r.b - r.a > 0.01)) return null;
+    if (!(r.b - r.a > MIN_LOOP)) return null;
     const avgBpm = averageBpm(tempo, r), bpm = gridBpm ?? Math.round(avgBpm);
     if (!(bpm > 0)) return null;
     const w = planWarp(map, r, bpm);
-    return { map: w, bpm, avgBpm, q0: r.q0, srcDur: r.b - r.a, outDur: w.outDur, ratios: w.ratioRange(), loop: !!loop };
+    return { map: w, bpm, avgBpm, q0: r.q0, range: r, srcDur: r.b - r.a, outDur: w.outDur, ratios: w.ratioRange(), loop: !!loop, tempo, alignment: map };
   });
   /**
    * The warp onto a straight grid: the whole file, or the loop alone when the Warp step says so. Null
@@ -239,34 +235,41 @@ export class App {
    * What plays is the warp: from the Warp step on, heard warped, with something to warp. Transients and
    * Beats always hear the original, since the warp is made from what they find.
    */
-  get hearingWarp(): boolean { return this.step >= 3 && this.warp.listen && !!this.warpPlan; }
+  get hearingWarp(): boolean { return stepRules(this.step).hearsWarp && this.warp.listen && !!this.warpPlan; }
 
-  private readonly _out = memo((plan: WarpPlan): WarpOut => {
-    const m = plan.map;
-    const map = gridMap(plan.q0, plan.bpm);
-    return { plan, map, exportMap: plan.loop ? gridMap(0, plan.bpm) : map, range: { a: m.src[0], b: m.src[m.src.length - 1] }, at: (t) => m.dstAt(t) };
-  });
-  /** The warp as Slice and Groove hear it, or null when they hear the original. */
-  get warpOut(): WarpOut | null { return this.hearingWarp ? this._out(this.warpPlan!) : null; }
+  private readonly _out = memo((plan: WarpPlan, meter: ProjectDoc['meter'], dur: number): WarpOut => warpOut(plan, meter, dur));
+  /** The file a plan makes, and where the original lands in it. */
+  outOf(plan: WarpPlan): WarpOut { return this._out(plan, this.doc.meter, this.dur); }
+  /**
+   * The warp Slice and Groove cut, measure and export, or null when they use the original: the warp as
+   * it stands, whether or not its take has been rendered yet.
+   */
+  get warpOut(): WarpOut | null { return this.hearingWarp ? this.outOf(this.warpPlan!) : null; }
 
-  private readonly _timeline = memo((map: TempoMap, moved: Alignment | null, bpm: number | null) => new Timeline(map, moved, bpm));
+  /** Where the moment at original time t is in what Slice and Groove export: the warped file's time, or t. */
+  placed(t: number): number { const o = this.warpOut; return o ? o.at(t) : t; }
+
+  /**
+   * The warp heard, or null for the original: what plays while something plays, which after an edit
+   * is the take made before it until the next is ready; otherwise what would play.
+   */
+  get heard(): WarpOut | null { return this.playing ? this.playing.out : this.warpOut; }
+
+  private readonly _timeline = memo((map: TempoMap, moved: Alignment | null, bpm: number | null, range: TimeRange | null) => new Timeline(map, moved, bpm, range));
   /**
    * Where everything is drawn and what the pointer lands on (`core/timeline.ts`). It follows what is
    * heard: the warp draws the audio moved onto the grid, the original draws it where it is.
    */
   get timeline(): Timeline {
-    const warped = this.hearingWarp;
-    return this._timeline(this.tempoMap, warped ? this.alignment : null, warped ? this.warpPlan!.bpm : null);
+    const h = this.heard, p = h?.plan;
+    return p ? this._timeline(p.tempo, p.alignment, p.bpm, h.range) : this._timeline(this.tempoMap, null, null, null);
   }
 
   get dur(): number { return this.audio?.dur ?? 0; }
   get hasMap(): boolean { return this.doc.tempo.anchors.length > 0; }
 
   /** The loop when it is switched on and not empty. */
-  get activeLoop(): TimeRange | null {
-    const L = this.transport.loop;
-    return this.transport.loopOn && L && L.b - L.a > 0.01 ? L : null;
-  }
+  get activeLoop(): TimeRange | null { return this.transport.loopOn ? usableLoop(this.transport.loop) : null; }
 
   /** The active loop as music: its nearest whole bar count and the tempo that implies. */
   get loopInfo() {
@@ -294,6 +297,34 @@ export class App {
   }
 
   // ---------- changes ----------
+  /**
+   * Makes new audio the one being worked on: everything that belongs to a file starts again from its
+   * defaults, and a session restored afterwards brings back what it saved. The mixer and the other
+   * preferences of this device stay.
+   */
+  load(audio: AudioAsset, analysis: Analysis, cands: readonly Candidate[], startBpm: number): void {
+    this.audio = audio;
+    this.analysis = analysis;
+    this.cands = cands;
+    this.drums = null;
+    this.startBpm = startBpm;
+    this.doc = emptyDoc(startBpm);
+    this.history.clear();
+    this.sel = null;
+    this.hover = null;
+    this.excluded = [];
+    this.sliceSel = null;
+    this.warpDrag = null;
+    this.amp = 1;
+    this.view.reset(audio.dur);
+    this.transport = { ...this.transport, playhead: 0, start: 0, loop: null, loopOn: false };
+    // The grid tempo, the material, what is warped and whether it is heard are this file's; so is the
+    // shuffle, which is the feel of this take.
+    this.warp = defaultWarp();
+    this.beats = { ...this.beats, shuffle: defaultBeats().shuffle };
+    this.bus.emit('audio', 'doc', 'candidates', 'drums', 'transport', 'view', 'playhead', 'selection', 'slices', 'warp', 'beats');
+  }
+
   /** Applies an edit to the document, recorded for undo unless `record` is false. */
   edit(fn: (d: ProjectDoc) => ProjectDoc, record = true): void {
     const next = fn(this.doc);

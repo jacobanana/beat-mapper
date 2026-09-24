@@ -2,6 +2,7 @@
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { $ } from '../dom';
+import { STEP } from '../../state/steps';
 
 export interface KeyboardHooks {
   openHelp(): void;
@@ -36,7 +37,7 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
       return;
     }
     if (k === 'Tab') {
-      if (el === cv) { e.preventDefault(); if (app.step === 4) f.slicer.tab(e.shiftKey ? -1 : 1); else f.markers.tab(e.shiftKey ? -1 : 1); }
+      if (el === cv) { e.preventDefault(); if (app.step === STEP.slice) f.slicer.tab(e.shiftKey ? -1 : 1); else f.markers.tab(e.shiftKey ? -1 : 1); }
       return;
     }
     if (k === ' ') { if (tag === 'BUTTON') return; e.preventDefault(); f.playback.togglePlay(e.shiftKey); return; }
@@ -69,17 +70,17 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
       case 'Escape': app.select(null); if (el === cv) cv.blur(); return;
       case 'Delete': case 'Backspace': {
         const m = app.selectedMarker(), a = app.selectedAnchor(), h = app.selectedHit();
-        if (m && app.step === 1) f.markers.remove(m);
-        else if (a && app.step === 2) f.beats.unpin(a);
-        else if (h && app.step === 5) f.groove.removeHit(h.voice, h.t);
-        else if (app.step === 3 && f.warp.selected() != null) f.warp.removeSelected();
+        if (m && app.step === STEP.transients) f.markers.remove(m);
+        else if (a && app.step === STEP.beats) f.beats.unpin(a);
+        else if (h && app.step === STEP.groove) f.groove.removeHit(h.voice, h.t);
+        else if (app.step === STEP.warp && f.warp.selected() != null) f.warp.removeSelected();
         return done();
       }
     }
-    if (app.step === 1) {
+    if (app.step === STEP.transients) {
       if (k === 'a') f.markers.add(app.transport.playhead);
       else if (k === '[' || k === ']') f.markers.setSensitivity(app.detection.sens + (k === ']' ? 2 : -2));
-    } else if (app.step === 2) {
+    } else if (app.step === STEP.beats) {
       if (k === 'd') f.beats.setDownbeat(app.transport.playhead);
       else if (k === 'b') f.beats.pinAt(app.transport.playhead);
       else if (k === 'm') f.beats.autoMap();
@@ -87,14 +88,14 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
       else if (k === 'g') f.beats.cycleGrid(e.shiftKey ? -1 : 1);
       else if (k === 't') f.beats.tap();
       else if (k === 's') f.beats.cycleSnap(e.shiftKey ? -1 : 1);
-    } else if (app.step === 3) {
+    } else if (app.step === STEP.warp) {
       if (k === 'f') f.warp.fromLoop();
       else if (k === 'q') f.warp.toggleQuantize();
       else if (k === 'g') f.beats.cycleGrid(e.shiftKey ? -1 : 1);
-    } else if (app.step === 4) {
+    } else if (app.step === STEP.slice) {
       if (k === 'e') f.slicer.previewSelected();
       else if (k === 'x') f.slicer.toggleSelected();
-    } else if (app.step === 5) {
+    } else if (app.step === STEP.groove) {
       if (k === 'x') f.groove.toggleExaggerate();
       else if (k === 'm') {
         f.mixer.toggleMute('drums');
@@ -117,8 +118,8 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
       return;
     }
     const m = app.selectedMarker(), a = app.selectedAnchor();
-    if (m) { if (app.step === 1) f.markers.nudge(m, dt); }
+    if (m) { if (app.step === STEP.transients) f.markers.nudge(m, dt); }
     else if (a) f.beats.nudge(a, dt);
-    else if (app.step === 5) f.groove.nudgeSelected(dt);
+    else if (app.step === STEP.groove) f.groove.nudgeSelected(dt);
   }
 }

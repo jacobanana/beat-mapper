@@ -116,3 +116,17 @@ export class TempoMap implements PositionMap {
     return { bar, a: this.posToTime(bar * bq), b: Math.min(dur, this.posToTime((bar + 1) * bq)) };
   }
 }
+
+/**
+ * Every `stepQ` quarter notes from bar 1 of `map` that falls between times a (inclusive) and b:
+ * `emit(time, k)`, k counting steps from bar 1 (negative in the lead-in). The metronome, the warp's
+ * straight grid and Drums mode's fallback cuts all walk a grid this way.
+ */
+export function eachStep(map: PositionMap, stepQ: number, a: number, b: number, emit: (t: number, k: number) => void, limit = 1e6): void {
+  if (map.isEmpty || !(b > a)) return;
+  for (let k = Math.ceil(map.timeToPos(a) / stepQ - 1e-9), n = 0; n < limit; k++, n++) {
+    const t = map.posToTime(k * stepQ);
+    if (t >= b) break;
+    if (t >= a) emit(t, k);
+  }
+}

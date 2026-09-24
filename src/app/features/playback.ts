@@ -1,22 +1,21 @@
 // Playing, stopping, the start point, the loop, scrubbing and the metronome.
 import { fmtTime } from '../../core/format';
-import { beatQ } from '../../core/tempo/meter';
 import { lowerBound, nearest } from '../../core/search';
 import type { TimeRange } from '../../core/types';
-import { type ClickSource, OneShot, Player, grain } from '../../engine/player';
-import type { App } from '../app';
+import { beatsOf } from '../../core/warp/map';
+import { OneShot, Player, grain } from '../../engine/player';
+import { type App, usableLoop } from '../app';
+import { stepRules } from '../steps';
+import type { WarpOut } from '../warp-out';
 
 /**
  * Another take of the audio, played in its place on its own timeline: the warp, from the Warp step on.
- * The editor stays on the original's timeline, so positions are mapped both ways.
+ * The editor stays on the original's timeline, so positions are mapped both ways by `out`.
  */
 export interface Take {
   buffer: AudioBuffer;
-  /** Original time to the take's time, and back. */
-  toTake(t: number): number;
-  toSource(t: number): number;
-  /** The metronome, on the take's timeline. */
-  clicks: ClickSource;
+  /** The warp it is: where the original lands in it (`at`), and back (`source`), and its grid. */
+  out: WarpOut;
 }
 
 /** Where a take comes from. Playback asks it on every play. */
@@ -48,17 +47,26 @@ export class Playback {
       clicks: (a, b, emit) => this.clicksIn(a, b, emit),
       clicksOn: () => app.transport.click,
       // The notes are timed on the original; under the warp each plays where the warp puts its hit.
-      hits: (a, b, emit) => {
-        const N = app.drumNotes, k = this.take, s0 = k ? k.toSource(a) : a, s1 = k ? k.toSource(b) : b;
-        for (let i = lowerBound(N, s0); i < N.length && N[i].t < s1; i++) emit(k ? k.toTake(N[i].t) : N[i].t, N[i].voice, N[i].vel);
-      },
-      // The synth kit only plays in the Groove step, where its drums are drawn.
-      hitsOn: () => app.step === 5 && !!app.drums && !app.mute.drums,
+      hits: (a, b, emit) => this.eachHeard(app.drumNotes, a, b, (n, t) => emit(t, n.voice, n.vel)),
+      // The synth kit only plays where its drums are drawn.
+      hitsOn: () => this.kitOn,
       audioLevel: () => this.audioLevel,
       clickLevel: () => app.mix.click / 100,
       hitLevel: () => app.mix.drums / 100,
     });
-    this.player.onEnded = () => { app.setPlayhead(app.dur, false); app.bus.emit('transport'); };
+    this.player.onEnded = () => { app.playing = undefined; app.setPlayhead(app.dur, false); app.bus.emit('transport'); };
+  }
+
+  /** The synth kit is heard: in a step that plays it, once the drums are found, and not muted. */
+  get kitOn(): boolean { return this.kitLive && !this.app.mute.drums; }
+  /** The synth kit would be heard here, muted or not. */
+  get kitLive(): boolean { return stepRules(this.app.step).kit && !!this.app.drums; }
+
+  // Every item timed on the original that plays between the player's times a and b, at the player's
+  // time it plays at: the same moment under the warp, where the warp puts it.
+  private eachHeard<T extends { t: number }>(list: readonly T[], a: number, b: number, emit: (x: T, t: number) => void): void {
+    const o = this.take?.out, s0 = o ? o.source(a) : a, s1 = o ? o.source(b) : b;
+    for (let i = lowerBound(list, s0); i < list.length && list[i].t < s1; i++) emit(list[i], o ? o.at(list[i].t) : list[i].t);
   }
 
   get playing(): boolean { return this.player.playing; }
@@ -71,7 +79,7 @@ export class Playback {
   // Where the sound is in the original audio.
   private position(): number {
     const p = this.player.position();
-    return this.take ? this.take.toSource(p) : p;
+    return this.take ? this.take.out.source(p) : p;
   }
 
   /** The audio's gain, from the mixer: scrub grains and slice previews play at it too. */
@@ -98,12 +106,14 @@ export class Playback {
     this.stop(true);
     this.gen = gen;
     if (from >= app.dur - 0.01) from = 0;
-    const take = T?.wanted() ? T.current() : null, L = app.transport.loopOn ? app.transport.loop : null;
+    const take = T?.wanted() ? T.current() : null, L = app.activeLoop;
     this.take = take;
     if (take) {
-      const end = take.buffer.duration;
-      this.player.play(take.buffer, Math.max(0, Math.min(end - 0.01, take.toTake(from))), L && { a: take.toTake(L.a), b: take.toTake(L.b) });
+      const end = take.buffer.duration, at = (t: number) => clamp(take.out.at(t), 0, end);
+      this.player.play(take.buffer, Math.min(end - 0.01, at(from)), L && { a: at(L.a), b: at(L.b) });
     } else this.player.play(app.audio.buffer, from, L);
+    // What plays now: the editor draws it, until it stops or something else plays.
+    app.playing = { out: take?.out ?? null };
     app.transport.playhead = from;
     app.bus.emit('transport', 'playhead');
   }
@@ -131,6 +141,7 @@ export class Playback {
       }
     }
     this.player.stop();
+    app.playing = undefined;
     app.bus.emit('transport', 'playhead');
   }
 
@@ -191,21 +202,21 @@ export class Playback {
     this.app.notify.toast(this.app.transport.scrubMode ? 'Scrub on' : 'Scrub off');
   }
 
-  // In Transients and Slice the metronome clicks on every marker; elsewhere on the beats of the map.
+  // The metronome, between the player's times a and b: on every transient where the step says so,
+  // else on the beats of the grid heard, the warp's straight one or the tempo map's, lead-in included.
   private clicksIn(a: number, b: number, fn: (t: number, down: boolean) => void): void {
-    const { app } = this;
-    if (this.take) this.take.clicks(a, b, fn);
-    else if (app.step === 1 || app.step === 4) {
-      const M = app.markers;
-      for (let i = lowerBound(M, a); i < M.length && M[i].t < b; i++) fn(M[i].t, false);
-    } else if (app.hasMap) {
-      const map = app.tempoMap, bq = beatQ(app.doc.meter);
-      for (let k = Math.max(0, Math.ceil(map.timeToPos(a) / bq - 1e-9)); k < 1e6; k++) {
-        const t = map.posToTime(k * bq);
-        if (t >= b) break;
-        if (t >= a) fn(t, k % app.doc.meter.num === 0);
-      }
-    }
+    const { app } = this, o = this.take?.out;
+    if (stepRules(app.step).clicks === 'transients') this.eachHeard(app.markers, a, b, (_, t) => fn(t, false));
+    else if (o) o.beats(a, b, fn);
+    else if (app.hasMap) beatsOf(app.tempoMap, app.doc.meter, a, b, fn);
+  }
+
+  // What a grain of the audio at original time t sounds from: the take heard when there is one ready,
+  // so a scrub in Re-pitch has the pitch that plays; else the original.
+  private grainAt(t: number, len: number | undefined): void {
+    const { app } = this, T = this.takes, take = T?.wanted() ? T.current() : null;
+    if (take) grain(take.buffer, clamp(take.out.at(t), 0, take.buffer.duration), len, this.audioLevel);
+    else if (app.audio) grain(app.audio.buffer, t, len, this.audioLevel);
   }
 
   // ---------- loop ----------
@@ -222,10 +233,10 @@ export class Playback {
   }
 
   toggleLoop(): void {
-    const { app } = this, L = app.transport.loop;
+    const { app } = this, L = usableLoop(app.transport.loop);
     if (!app.audio) return;
     // With nothing selected to loop, the whole file loops; the loop strip shows it, ready to narrow.
-    if (!L || L.b - L.a < 0.01) {
+    if (!L) {
       this.setLoop({ a: 0, b: app.dur }, true);
       app.notify.toast('Looping the whole file. Drag in the top ruler to loop less.');
     } else this.setLoop(L, !app.transport.loopOn);
@@ -238,7 +249,7 @@ export class Playback {
     const t = clamp(this.now(), 0, app.dur), cur = app.transport.loop;
     const L = cur ? { ...cur } : which === 'a' ? { a: t, b: app.dur } : { a: 0, b: t };
     L[which] = t;
-    if (L.b - L.a < 0.01) { if (which === 'a') L.b = app.dur; else L.a = 0; }
+    if (!usableLoop(L)) { if (which === 'a') L.b = app.dur; else L.a = 0; }
     this.setLoop(L, true);
   }
 
@@ -266,7 +277,7 @@ export class Playback {
     app.setPlayhead(t);
     const n = performance.now();
     if (app.audio && n - s.lastG >= 45 && Math.abs(t - s.lastPos) > 1e-5) {
-      grain(app.audio.buffer, t, undefined, this.audioLevel);
+      this.grainAt(t, undefined);
       s.lastG = n;
       s.lastPos = t;
     }
@@ -282,7 +293,7 @@ export class Playback {
     const px = app.view.span / app.view.width;
     this.seek(app.transport.playhead + dir * px * (fine ? 1 : 12), true);
     app.reveal(app.transport.playhead);
-    grain(app.audio.buffer, app.transport.playhead, 0.13, this.audioLevel);
+    this.grainAt(app.transport.playhead, 0.13);
   }
 
   stopPreview(): void {

@@ -1,6 +1,5 @@
 // Sessions: the work on each audio file is kept in this browser and comes back when the same file is
 // opened again; a session file carries it to another device. Neither ever holds audio.
-import { noHitEdits } from '../../core/drums/edit';
 import { safeName } from '../../core/format';
 import { matchRemoved } from '../../core/markers/detect';
 import { saveError, saveFile } from '../../io/download';
@@ -60,7 +59,11 @@ export class Sessions {
       slicer: app.slicer,
       excluded: app.excluded,
       warpMarkers: [...app.doc.warpMarkers],
-      warpQuantize: app.warp.quantize,
+      warp: { ...app.warp },
+      hits: {
+        manual: app.doc.drums.manual.map((h) => ({ voice: h.voice, t: h.t, a: h.a })),
+        removed: app.doc.drums.removed.map((h) => ({ voice: h.voice, t: h.t })),
+      },
     };
   }
 
@@ -115,8 +118,7 @@ export class Sessions {
       meter: s.meter,
       tempo: s.tempo,
       markers: { manual, removed: matchRemoved(app.cands, s.markers.removed).map((i) => app.cands[i].t), nextId: manual.length + 1 },
-      // Hit edits aren't in the session file yet: a session starts from the hits as detected.
-      drums: noHitEdits(),
+      drums: { removed: s.hits.removed, manual: s.hits.manual.map((h, i) => ({ id: i + 1, ...h })), nextId: s.hits.manual.length + 1 },
       warpMarkers: s.warpMarkers,
     };
     app.edit(() => doc, false);
@@ -124,7 +126,7 @@ export class Sessions {
     app.set('transport', s.transport);
     app.set('export', s.export);
     app.set('slicer', s.slicer);
-    app.set('warp', { quantize: s.warpQuantize });
+    app.set('warp', s.warp);
     app.excluded = s.excluded;
     app.sliceSel = null;
     app.select(null);

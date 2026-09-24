@@ -6,6 +6,7 @@ import { buildRpp } from '../../io/formats/rpp';
 import { wavEncode } from '../../io/formats/wav';
 import { type ZipEntry, zipFiles } from '../../io/formats/zip';
 import type { App } from '../app';
+import type { WarpOut } from '../warp-out';
 import type { Beats } from './beats';
 
 const NOTHING = 'Nothing to export yet – map the beats in step 2.';
@@ -13,9 +14,14 @@ const NOTHING = 'Nothing to export yet – map the beats in step 2.';
 export class Exports {
   constructor(private readonly app: App, private readonly beats: Beats) {}
 
-  options(): ExportOptions {
+  /**
+   * What the MIDI and REAPER writers get: the tempo map over the audio, or with `out`, the warped
+   * file's own grid over it, which starts on a bar line and so is never trimmed.
+   */
+  options(out: WarpOut | null = null): ExportOptions {
     const { app } = this, e = app.exportSettings;
-    return { map: app.tempoMap, meter: app.doc.meter, dur: app.dur, mode: e.res, trimmed: e.lead === 'trim', clicks: e.clicks };
+    const base: ExportOptions = { map: app.tempoMap, meter: app.doc.meter, dur: app.dur, mode: e.res, trimmed: e.lead === 'trim', clicks: e.clicks };
+    return out ? { ...base, map: out.exportMap, dur: out.plan.outDur, trimmed: false } : base;
   }
 
   private base(): string { return safeName(this.app.audio?.name || 'audio') + '-tempo-map'; }

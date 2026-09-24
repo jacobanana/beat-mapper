@@ -97,20 +97,22 @@ export function bindSlicePanel(app: App, f: Features): void {
       if (box.checked === sl.off) box.checked = !sl.off;
       box.setAttribute('aria-label', 'Keep slice ' + (sl.i + 1));
       setText(tr.cells[1], String(sl.i + 1));
-      setText(tr.cells[2], fmtTime(sl.t0));
-      setText(tr.cells[3], String(Math.round((sl.t1 - sl.t0) * 1000)));
+      // Where and how long each slice is in what it is cut from: the warped file when the warp is heard.
+      const t0 = app.placed(sl.t0), t1 = app.placed(sl.t1);
+      setText(tr.cells[2], fmtTime(t0));
+      setText(tr.cells[3], String(Math.round((t1 - t0) * 1000)));
       setText(tr.cells[4], peakDb(sl.t0, sl.t1));
       btn.dataset.p = String(sl.i);
       btn.title = 'Preview slice ' + (sl.i + 1);
       btn.setAttribute('aria-label', btn.title);
     }
     let tot = 0, on = 0;
-    for (const sl of S) if (!sl.off) { tot += sl.t1 - sl.t0; on++; }
+    for (const sl of S) if (!sl.off) { tot += app.placed(sl.t1) - app.placed(sl.t0); on++; }
     if (!S.length) $('slSum').textContent = app.audio ? 'No slices – add transients in step 1, or lower the minimum length.' : '';
     else {
-      const b = s.zipEstimate(), L = app.loopInfo;
+      const b = s.zipEstimate(), L = s.loopHeard();
       $('slSum').textContent = `${on} of ${S.length} slices · ${fmtTime(tot)} of audio · zip about ${b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.round(b / 1024) + ' KB'}`
-        + (L ? ` · loop only: ${L.bars} bar${L.bars === 1 ? '' : 's'} at ${fmtBpm(L.bpm)} BPM (${fmtTime(L.a)}–${fmtTime(L.b)})` : '')
+        + (L ? ` · loop only: ${L.bars} bar${L.bars === 1 ? '' : 's'} at ${fmtBpm(L.bpm)} BPM (${fmtTime(app.placed(L.a))}–${fmtTime(app.placed(L.b))})` : '')
         + (n < S.length ? ` · first ${n} listed` : '');
     }
     if (sel != null && sel !== lastSel) rows.querySelector(`tr[data-i="${sel}"]`)?.scrollIntoView?.({ block: 'nearest' });
@@ -118,6 +120,6 @@ export function bindSlicePanel(app: App, f: Features): void {
   };
 
   app.bus.on('slicer', sync);
-  app.bus.on(['slices', 'slicer', 'doc', 'candidates', 'detection', 'transport', 'step', 'audio'], render);
+  app.bus.on(['slices', 'slicer', 'doc', 'candidates', 'detection', 'transport', 'step', 'audio', 'heard'], render);
   sync();
 }

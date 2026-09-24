@@ -50,13 +50,20 @@ editor that the viewport turns into pixels. Musical **positions** (quarter notes
   so the grid is drawn where it puts it.
 - The **alignment** (`core/warp/markers.ts`) is where the warp puts the audio: the pins with the warp
   markers laid over. It has positions only, no tempo, so a tempo can't be read from it by mistake.
-- **`App.timeline`** decides where the audio is drawn on the axis, from what is heard: the warp, in
-  Warp, Slice and Groove with the Warped switch on, draws it moved onto the grid; anything else
-  (always Transients and Beats) draws it where it is. The canvas layers get
-  `xOf` (audio) and `xAtPos` (grid) from it; the pointer, the readout, grid snapping, looping a bar and
-  following the playhead go through it too.
+- **`App.heard`** is the warp heard, or null for the original. While something plays it is what
+  plays, which Playback tells the App (`App.playing`): the original while a take is still being
+  rendered, and the take made before an edit until the next one plays. Stopped, it is what would play:
+  the warp in Warp, Slice and Groove with the Warped switch on, else the original.
+- **`App.timeline`** decides where the audio is drawn on the axis, from what is heard: the warp draws
+  it moved onto the grid, the original where it is. The canvas layers get `xOf` (audio) and `xAtPos`
+  (grid) from it through `ui/canvas/screen.ts`, which the pointer uses too; the readout, grid
+  snapping, looping a bar and following the playhead go through it as well.
+- **`WarpOut`** (`app/warp-out.ts`) is one warp described once: the part warped, where a moment of
+  the original lands in it and back, its straight grid, and the tempo map a DAW gets. The audio, the
+  metronome, the synth kit, the timeline, the slices, the pocket and the exports all read it.
 
-So what is drawn under the playhead is what is heard, and a click falls on a grid line drawn.
+So what is drawn under the playhead is what is heard, and a click falls on a grid line drawn, even
+while a warp is being rendered.
 
 ## The flow
 
@@ -107,10 +114,19 @@ bridge when the app runs inside one).
 - **`App`** (`app/app.ts`) holds the document, settings, the audio and its analysis, and derives
   everything else on demand, memoised on the identity of its inputs: the visible markers, the tempo
   map, the grid, the bars, the slices, the drum hits the sensitivities let through, the notes they make, the pocket, the warp plan, the
-  warp as Slice and Groove use it (`warpOut`), and the timeline everything is drawn on. Nothing derived is stored, so nothing can go stale.
+  warp as Slice and Groove use it (`warpOut`), the warp heard (`heard`), and the timeline everything is drawn on. Nothing derived is stored, so nothing can go stale.
+  `App.load` starts a new file from the defaults of everything that belongs to a file (the document,
+  the selection, the loop, the Warp settings, the shuffle); the mixer and other preferences stay.
+- **Steps** (`state/steps.ts` names them, `app/steps.ts` sets their rules): which steps hear the warp,
+  what the metronome clicks on, where the synth kit plays, which have an edit half. Anything that
+  differs by step reads the table rather than comparing step numbers.
 - **Features** (`app/features/`) are the verbs: `Markers`, `Beats`, `Playback`, `Slicer`,
-  `Exports`, `Warp`, `Groove`, `Mixer`, `Sessions`, `Loader`, `Workflow`. They change the App and emit topics (`'doc'`,
+  `Exports`, `Warp` (what is warped and how), `WarpRender` (rendering it, and making what plays follow
+  what is wanted), `Groove`, `Mixer`, `Sessions`, `Loader`, `Workflow`. They change the App and emit topics (`'doc'`,
   `'transport'`, `'slices'`…). They talk to the user only through the `Notifier` interface.
+- **`'heard'`** is a topic the App emits itself whenever what is heard changes (the warp or the
+  original, and which warp), after whatever caused it. A view of anything the warp places (slices,
+  the pocket, the readout) listens to it rather than to every topic that could change the warp.
 
 ## ui/
 

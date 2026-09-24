@@ -22,7 +22,7 @@ export class GrooveChart {
 
   constructor(private readonly cv: HTMLCanvasElement, private readonly app: App) {
     this.g = cv.getContext('2d')!;
-    app.bus.on(['drums', 'groove', 'doc', 'transport', 'step', 'audio', 'beats'], () => this.invalidate());
+    app.bus.on(['drums', 'groove', 'doc', 'transport', 'step', 'audio', 'beats', 'heard'], () => this.invalidate());
     // The transcript follows the playhead and the editor's view; the pocket doesn't move with them.
     app.bus.on(['playhead', 'view'], () => { if (app.groove.chart === 'midi') this.invalidate(); });
   }
