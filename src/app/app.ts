@@ -13,7 +13,7 @@ import { type Bar, TempoMap } from '../core/tempo/tempo-map';
 import type { Anchor, Candidate, Marker, TimeRange } from '../core/types';
 import { averageBpm, planWarp, warpRange } from '../core/warp/map';
 import { Timeline } from '../core/timeline';
-import { Alignment, type WarpMarker } from '../core/warp/markers';
+import { Alignment, type WarpMarker, quantizeTransients } from '../core/warp/markers';
 import { Emitter } from '../state/emitter';
 import { History } from '../state/history';
 import { memo } from '../state/memo';
@@ -205,9 +205,24 @@ export class App {
     return this._groove(this.drumHits, this.tempoMap, this.doc.meter, this.groove.grid, this.sliceRange, this.warpOut);
   }
 
+  // Quantize is the strength, not an edit: every transient of what is warped goes that part of the way
+  // to the grid line nearest it, on the pins with the warp markers placed by hand laid over. So the
+  // strength, the grid and the shuffle move it as they move, and the warp and its render follow.
+  private readonly _quantized = memo((map: TempoMap, manual: readonly WarpMarker[], grid: Grid, markers: readonly Marker[], range: TimeRange, strength: number) =>
+    (strength > 0 ? quantizeTransients(Alignment.of(map, manual), grid, markers.map((m) => m.t), range, manual, strength / 100) : manual));
+  /**
+   * Every warp marker the warp follows: those placed by hand (in the document), and the transients
+   * Quantize lines up at its strength.
+   */
+  get warpMarkers(): readonly WarpMarker[] {
+    const loop = this.warp.range === 'loop' ? this.activeLoop : null;
+    return this._quantized(this.tempoMap, this.doc.warpMarkers, this.grid, this.markers, this._warpedRange(loop, this.dur), this.warp.quantize);
+  }
+  private readonly _warpedRange = memo((loop: TimeRange | null, dur: number): TimeRange => loop ?? { a: 0, b: dur });
+
   private readonly _alignment = memo((map: TempoMap, wm: readonly WarpMarker[]) => Alignment.of(map, wm));
   /** Where the warp puts each moment of the audio: the pins with the warp markers laid over. Not a tempo. */
-  get alignment(): Alignment { return this._alignment(this.tempoMap, this.doc.warpMarkers); }
+  get alignment(): Alignment { return this._alignment(this.tempoMap, this.warpMarkers); }
 
   // The tempo is the tempo map's: warp markers line hits up inside it, so quantizing, its strength or
   // the shuffle never change the tempo shown or the grid it is warped to.

@@ -61,7 +61,10 @@ export function toSessionJson(s: SessionContent): object {
     // it differs from how the app starts, so a session without it saves byte-identical, and a reader
     // that predates it ignores the field. The Groove step's own quantize (`groove.quantize`) was
     // written here too; the warp's quantize is the only one now, so older files' is ignored. The
-    // other Warp settings and the hit edits came later still, and are written the same way.
+    // other Warp settings and the hit edits came later still, and are written the same way. The warp's
+    // quantize strength was `warp.quantize` while it only set how far the Quantize button went; now
+    // that it is the quantize itself it is `warp.strength`, so an older file's slider position isn't
+    // read as a quantize it never had.
     ...warpJson(s),
     ...hitsJson(s),
   };
@@ -71,7 +74,7 @@ function warpJson(s: SessionContent): object {
   const w0 = defaultWarp(), w = s.warp;
   const out = {
     ...(s.warpMarkers.length ? { markers: s.warpMarkers.map((m) => ({ t: m.t, q: m.q })) } : {}),
-    ...(w.quantize !== w0.quantize ? { quantize: w.quantize } : {}),
+    ...(w.quantize !== w0.quantize ? { strength: w.quantize } : {}),
     ...(w.mode !== w0.mode ? { mode: w.mode } : {}),
     ...(w.bpm !== w0.bpm ? { bpm: w.bpm } : {}),
     ...(w.range !== w0.range ? { range: w.range } : {}),
@@ -189,7 +192,7 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
       bpm: Number.isFinite(w.bpm) ? clamp(+w.bpm, 20, 400) : w0.bpm,
       range: w.range === 'loop' ? 'loop' : w0.range,
       listen: typeof w.listen === 'boolean' ? w.listen : w0.listen,
-      quantize: clamp(Math.round(fin(w.quantize, w0.quantize)), 0, 100),
+      quantize: clamp(Math.round(fin(w.strength, w0.quantize)), 0, 100),
     },
     hits,
   };

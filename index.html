@@ -226,16 +226,14 @@
             <span class="cap" title="Drag a transient onto a grid line to line it up there">Align</span><span class="items">
               <label class="sl" title="Grid (G): the lines a transient is lined up on">grid<select id="warpGrid" aria-label="Grid"><option value="bar">Bar</option><option value="2">1/2</option><option value="4">1/4</option><option value="8">1/8</option><option value="16" selected>1/16</option><option value="32">1/32</option><option value="4t">1/4T</option><option value="8t">1/8T</option><option value="16t">1/16T</option></select></label>
               <label class="sl" title="Shuffle: every second line of the grid swings late, 100% a triplet shuffle (1/8, 1/16 and 1/32 only)">shuffle<input type="range" id="warpShuffle" min="0" max="100" step="5" value="0" aria-label="Shuffle"><output id="warpShuffleO">0%</output></label>
-              <label class="sl" title="Strength: how far Quantize moves each transient to its grid line, 100% onto it, less keeps some of the feel">strength<input type="range" id="qStrength" min="0" max="100" step="5" value="100" aria-label="Quantize strength"><output id="qStrengthO">100%</output></label>
-              <button class="btn" id="wQuantize" title="Quantize on: every transient towards the grid line nearest it, as far as the strength says; off puts the warp markers back (Q)" aria-label="Quantize every transient to the grid" aria-pressed="false">Quantize</button>
-              <button class="btn" id="wClearMarkers" title="Clear the warp markers: only the pins are lined up" aria-label="Clear the warp markers">Clear</button>
+              <label class="sl" title="Quantize: how far every transient of what is warped moves to the grid line nearest it. 0% leaves them as played, 100% puts them on it; in between keeps some of the feel. Compare with the original with W">quantize<input type="range" id="qStrength" min="0" max="100" step="5" value="0" aria-label="Quantize strength"><output id="qStrengthO">0%</output></label>
             </span>
           </div>
           <div class="row2">
             <span class="cap" title="What is warped, and how it is stretched">Warp</span><span class="items">
               <select id="warpRange" title="What is warped, heard and saved" aria-label="What is warped"><option value="file">whole file</option><option value="loop">just the loop</option></select>
               <select id="warpModeB" title="Material: sets how the audio is stretched" aria-label="Material, which sets the warp algorithm"><option value="beats">Drums</option><option value="mono">Mono</option><option value="vocal">Vocal</option><option value="poly">Poly</option><option value="music">Full mix</option><option value="repitch">Re-pitch</option></select>
-              <button class="btn end" id="resetW" title="Reset Warp: the whole file at the tempo it averages, Full mix, no warp markers, no shuffle, full quantize strength" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
+              <button class="btn end" id="resetW" title="Reset Warp: the whole file at the tempo it averages, Full mix, no warp markers, no shuffle, no quantize" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
             </span>
           </div>
           <p id="wSum"></p>
@@ -411,10 +409,10 @@
     <div><svg class="ic"><use href="#i-warp"/></svg><span>Warped, in the top bar: what plays. Warped plays it with the click on the grid, and the waveform is drawn where the warp puts it. Slice and Groove follow the same switch</span><span><kbd>W</kbd></span></div>
     <div><svg class="ic"><use href="#i-loop"/></svg><span>From loop: loop a section that is played right, and the grid takes the tempo it averages, to the nearest BPM. Or type a tempo; empty takes the average of what is warped</span><span><kbd>F</kbd></span></div>
     <div><span>Align: drag a transient in the upper half onto a grid line, and the warp puts that hit exactly on it, stretching the audio either side to fit. Double-tap a transient to put it on the nearest line, or a warp marker to let it go. Alt drops it off the grid</span><span></span></div>
-    <div><span>Quantize (a switch): every transient of what is warped towards the grid line nearest it, as far as the strength beside the shuffle says (100% by default); off puts the warp markers back. Clear takes the warp markers off; undo brings them back. The only quantize: the slices, the pocket and the drum MIDI follow it</span><span><kbd>Q</kbd></span></div>
+    <div><span>Quantize: every transient of what is warped moves that far towards the grid line nearest it (0% by default, as played). Moving it, the grid or the shuffle warps again, and what plays follows once you let go. Hear the difference with Warped (W). The only quantize: the slices, the pocket and the drum MIDI follow it</span><span></span></div>
     <div><span>whole file · just the loop</span><span>What is warped, heard and saved. Drawing a loop to take its tempo doesn't make it the loop alone</span><span></span></div>
     <div><span>Material</span><span>How it is stretched: Drums cut at the transients, Mono and Vocal overlap-add, Poly a phase vocoder, Full mix both, Re-pitch like a turntable</span><span></span></div>
-    <div><svg class="ic"><use href="#i-reset"/></svg><span>Reset: the whole file at the tempo it averages, Full mix</span><span></span></div>
+    <div><svg class="ic"><use href="#i-reset"/></svg><span>Reset: the whole file at the tempo it averages, Full mix, no quantize, and no warp markers (undo brings them back)</span><span></span></div>
     <div><svg class="ic"><use href="#i-export"/></svg><span>Save the warped audio as a .wav: in Export</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
     <h3>Export</h3>
     <div><svg class="ic"><use href="#i-export"/></svg><span>One window for every file BeatMapper saves: the tempo map as MIDI or a REAPER project, the warped audio, the slices, the selected slice or the loop as .wav, the drums as MIDI, the groove, and the session. Each format shows only its own options, and what the file will hold</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
@@ -477,7 +475,6 @@
     <div><span><kbd>S</kbd></span><span>Magnet: transients, grid, or nothing (⇧ the other way)</span></div>
     <div><span><kbd>Del</kbd></span><span>Unpin selected</span></div>
     <h3>Step 3 – Warp</h3>
-    <div><span><kbd>Q</kbd></span><span>Quantize every transient to the grid, on or off</span></div>
     <div><span><kbd>G</kbd></span><span>Finer grid (<kbd>Shift</kbd> coarser)</span></div>
     <div><span><kbd>Del</kbd></span><span>Remove the selected warp marker</span></div>
     <div><span><kbd>F</kbd></span><span>Grid tempo from the loop</span></div>

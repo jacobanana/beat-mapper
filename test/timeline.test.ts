@@ -35,10 +35,7 @@ function mapBeats(s: Setup): void {
 function arrange(s: Setup): void {
   const { f } = t;
   f.beats.setShuffle(s.shuffle);
-  if (s.strength != null) {
-    f.warp.setQuantizeStrength(s.strength);
-    f.warp.toggleQuantize();
-  }
+  if (s.strength != null) f.warp.setQuantizeStrength(s.strength);
   f.warp.setListen(s.listen);
 }
 
@@ -53,7 +50,7 @@ describe('the timeline', () => {
       arrange(s);
       const tl = app.timeline, map = app.tempoMap, meter = app.doc.meter, p = app.warpPlan!;
       expect(app.hearingWarp).toBe(s.listen);
-      if (s.strength) expect(app.doc.warpMarkers.length).toBeGreaterThan(20);
+      if (s.strength) expect(app.warpMarkers.length).toBeGreaterThan(20);
 
       // The music is untouched: the same tempo map, the same bars.
       expect(map).toBe(before.map);
@@ -91,7 +88,7 @@ describe('the timeline', () => {
       }
 
       // A warp marker is drawn on its line while the warp is heard.
-      if (s.listen) for (const w of app.doc.warpMarkers) close(tl.axisAt(w.t), tl.axisOfPos(w.q));
+      if (s.listen) for (const w of app.warpMarkers) close(tl.axisAt(w.t), tl.axisOfPos(w.q));
     });
   }
 

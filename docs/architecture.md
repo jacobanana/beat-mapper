@@ -114,6 +114,7 @@ bridge when the app runs inside one).
 - **`App`** (`app/app.ts`) holds the document, settings, the audio and its analysis, and derives
   everything else on demand, memoised on the identity of its inputs: the visible markers, the tempo
   map, the grid, the bars, the slices, the drum hits the sensitivities let through, the notes they make, the pocket, the warp plan, the
+  warp markers the warp follows (`warpMarkers`: those placed by hand, with the quantize laid around them at its strength), the
   warp as Slice and Groove use it (`warpOut`), the warp heard (`heard`), and the timeline everything is drawn on. Nothing derived is stored, so nothing can go stale.
   `App.load` starts a new file from the defaults of everything that belongs to a file (the document,
   the selection, the loop, the Warp settings, the shuffle); the mixer and other preferences stay.

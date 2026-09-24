@@ -54,7 +54,7 @@ export interface WarpSettings {
    * makes. Transients and Beats always work on the original: the warp is made from them.
    */
   listen: boolean;
-  /** How far Quantize moves each transient to its grid line, in percent: 100 is onto it. */
+  /** How far every transient of what is warped moves to its grid line, in percent: 0 is as played, 100 onto it. */
   quantize: number;
 }
 
@@ -131,7 +131,7 @@ export type GrooveChartMode = 'pocket' | 'midi';
 export const defaultDetection = (): DetectionSettings => ({ sens: 55, gap: 60, band: 'full', algo: 'flux', showOdf: true });
 export const defaultBeats = (): BeatSettings => ({ grid: '16', mapEvery: 'beat', tol: 20, snapTo: 'markers', loopBars: null, shuffle: 0 });
 export const defaultExport = (): ExportSettings => ({ lead: 'full', res: 'pins', clicks: true, rppAudio: true });
-export const defaultWarp = (): WarpSettings => ({ mode: 'music', bpm: null, range: 'file', listen: true, quantize: 100 });
+export const defaultWarp = (): WarpSettings => ({ mode: 'music', bpm: null, range: 'file', listen: true, quantize: 0 });
 export const defaultSlicer = (): SlicerSettings => ({
   mode: 'gap', len: 500, tail: 0, fadeIn: 1, fadeOut: 8, min: 40, mono: false, bits: 16, norm: false, target: -1, naming: 'num', csv: true,
 });

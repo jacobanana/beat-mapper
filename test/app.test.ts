@@ -284,24 +284,63 @@ describe('the Warp step', () => {
     expect(app.history.canUndo).toBe(undos);
   });
 
-  it('quantizes, removes and resets warp markers', () => {
+  it('keeps warp markers placed by hand under the quantize, and resets both', () => {
     const { app, f } = t;
     f.workflow.goTo(2);
     f.beats.autoMap();
     f.workflow.goTo(3);
     f.beats.setGrid('8');
-    f.warp.quantize();
-    const n = app.doc.warpMarkers.length;
-    expect(n).toBeGreaterThan(100);
-    f.warp.remove(app.doc.warpMarkers[3].t);
-    expect(app.doc.warpMarkers.length).toBe(n - 1);
     f.warp.snap(app.markers[3].t);
-    expect(app.doc.warpMarkers.length).toBe(n);
+    f.warp.snap(app.markers[7].t);
+    const hand = app.doc.warpMarkers;
+    expect(hand.length).toBe(2);
+    f.warp.setQuantizeStrength(100);
+    // The quantize is laid around them, and leaves the document as it was.
+    expect(app.doc.warpMarkers).toBe(hand);
+    expect(app.warpMarkers.length).toBeGreaterThan(100);
+    for (const w of hand) expect(app.warpMarkers).toContainEqual(w);
+    f.warp.remove(hand[0].t);
+    expect(app.doc.warpMarkers.length).toBe(1);
     f.warp.reset();
     expect(app.doc.warpMarkers).toEqual([]);
+    expect(app.warp.quantize).toBe(0);
+    expect(app.warpMarkers).toEqual([]);
     expect(f.warp.changed).toBe(false);
     app.undo();
-    expect(app.doc.warpMarkers.length).toBe(n);
+    expect(app.doc.warpMarkers.length).toBe(1);
+  });
+
+  it('quantizes as far as the strength says, on the grid and the shuffle as they are, without an edit', () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.workflow.goTo(3);
+    f.beats.setGrid('8');
+    const doc = app.doc, undos = app.history.canUndo, plan = app.warpPlan;
+    expect(app.warpMarkers).toEqual([]);
+    f.warp.setQuantizeStrength(100);
+    const full = app.warpMarkers;
+    expect(full.length).toBeGreaterThan(100);
+    // The warp follows, so what plays is rendered again.
+    expect(app.warpPlan).not.toBe(plan);
+    f.warp.setQuantizeStrength(50);
+    const half = app.warpMarkers;
+    expect(half.length).toBe(full.length);
+    // Half way from where each transient sits to its line.
+    half.forEach((w, i) => expect(w.q).toBeCloseTo((full[i].q + app.tempoMap.timeToPos(w.t)) / 2, 6));
+    f.warp.setQuantizeStrength(100);
+    // Every off-beat eighth swings two thirds of the way through its beat.
+    f.beats.setShuffle(100);
+    expect(app.warpMarkers.filter((w) => Math.abs((w.q % 1) - 2 / 3) < 1e-6).length).toBeGreaterThan(10);
+    f.beats.setShuffle(0);
+    expect(app.warpMarkers).toEqual(full);
+    f.beats.setGrid('4');
+    expect(app.warpMarkers.every((w) => Math.abs(w.q - Math.round(w.q)) < 1e-6)).toBe(true);
+    f.warp.setQuantizeStrength(0);
+    expect(app.warpMarkers).toEqual([]);
+    // None of it is an edit: the document and undo are as they were.
+    expect(app.doc).toBe(doc);
+    expect(app.history.canUndo).toBe(undos);
   });
 
   it('draws the audio moved onto the grid in Warp, the grid staying put', () => {
@@ -311,8 +350,8 @@ describe('the Warp step', () => {
     f.workflow.goTo(3);
     f.beats.setGrid('8');
     expect(app.timeline.movesAudio).toBe(false);
-    f.warp.quantize();
-    const map = app.tempoMap, wm = app.doc.warpMarkers, tl = app.timeline;
+    f.warp.setQuantizeStrength(100);
+    const map = app.tempoMap, wm = app.warpMarkers, tl = app.timeline;
     expect(tl.movesAudio).toBe(true);
     for (const w of wm) {
       expect(tl.axisAt(w.t)).toBeCloseTo(map.posToTime(w.q), 9);
@@ -334,8 +373,8 @@ describe('the Warp step', () => {
     f.workflow.goTo(3);
     f.beats.setGrid('16');
     const p0 = app.warpPlan!, bars = app.bars;
-    f.warp.toggleQuantize();
-    expect(app.doc.warpMarkers.length).toBeGreaterThan(50);
+    f.warp.setQuantizeStrength(100);
+    expect(app.warpMarkers.length).toBeGreaterThan(50);
     for (const pct of [100, 40, 75]) {
       f.warp.setQuantizeStrength(pct);
       for (const sh of [0, 60]) {
@@ -346,79 +385,6 @@ describe('the Warp step', () => {
         expect(app.bars).toBe(bars);
       }
     }
-  });
-
-  it('quantizes again as the strength moves, as one undo step', () => {
-    const { app, f } = t;
-    f.workflow.goTo(2);
-    f.beats.autoMap();
-    f.workflow.goTo(3);
-    f.beats.setGrid('8');
-    const undos = app.history.canUndo, before = app.doc;
-    expect(f.warp.quantize()).toBe(true);
-    const full = app.doc.warpMarkers;
-    f.warp.setQuantizeStrength(50);
-    expect(f.warp.quantizeOpen).toBe(true);
-    const half = app.doc.warpMarkers;
-    expect(half.length).toBe(full.length);
-    // Half way from where each transient sits to its line.
-    half.forEach((w, i) => expect(w.q).toBeCloseTo((full[i].q + app.tempoMap.timeToPos(w.t)) / 2, 6));
-    f.warp.setQuantizeStrength(0);
-    expect(app.doc.warpMarkers).toEqual([]);
-    f.warp.setQuantizeStrength(80);
-    expect(app.warp.quantize).toBe(80);
-    app.undo();
-    expect(app.doc).toBe(before);
-    expect(app.history.canUndo).toBe(undos);
-    // The undo ended it: the slider no longer edits.
-    f.warp.setQuantizeStrength(100);
-    expect(app.doc).toBe(before);
-  });
-
-  it('switches quantize on and off, off putting the warp markers back', () => {
-    const { app, f } = t;
-    f.workflow.goTo(2);
-    f.beats.autoMap();
-    f.workflow.goTo(3);
-    f.beats.setGrid('8');
-    const before = app.doc;
-    f.warp.toggleQuantize();
-    expect(f.warp.quantizeOpen).toBe(true);
-    expect(app.doc.warpMarkers.length).toBeGreaterThan(100);
-    f.warp.toggleQuantize();
-    expect(f.warp.quantizeOpen).toBe(false);
-    expect(app.doc).toBe(before);
-    // Another edit keeps the quantize and turns the switch off.
-    f.warp.toggleQuantize();
-    f.warp.remove(app.doc.warpMarkers[0].t);
-    expect(f.warp.quantizeOpen).toBe(false);
-    expect(app.doc.warpMarkers.length).toBeGreaterThan(100);
-  });
-
-  it('quantizes again as the shuffle or the grid moves while quantize is on, as one undo step', () => {
-    const { app, f } = t;
-    f.workflow.goTo(2);
-    f.beats.autoMap();
-    f.workflow.goTo(3);
-    f.beats.setGrid('8');
-    const before = app.doc;
-    f.warp.toggleQuantize();
-    const straight = app.doc.warpMarkers;
-    f.beats.setShuffle(100);
-    expect(f.warp.quantizeOpen).toBe(true);
-    // Every off-beat eighth swings two thirds of the way through its beat.
-    const off = app.doc.warpMarkers.filter((w) => Math.abs((w.q % 1) - 2 / 3) < 1e-6);
-    expect(off.length).toBeGreaterThan(10);
-    expect(app.doc.warpMarkers).not.toEqual(straight);
-    f.beats.setShuffle(0);
-    expect(app.doc.warpMarkers).toEqual(straight);
-    f.beats.setGrid('4');
-    expect(app.doc.warpMarkers.every((w) => Math.abs(w.q - Math.round(w.q)) < 1e-6)).toBe(true);
-    app.undo();
-    expect(app.doc).toBe(before);
-    // Off, the shuffle only sets the grid.
-    f.beats.setShuffle(50);
-    expect(app.doc).toBe(before);
   });
 
   it('resets the shuffle and the quantize strength with the warp', () => {
@@ -433,8 +399,38 @@ describe('the Warp step', () => {
     f.warp.setQuantizeStrength(40);
     expect(f.warp.changed).toBe(true);
     f.warp.reset();
-    expect(app.warp.quantize).toBe(100);
+    expect(app.warp.quantize).toBe(0);
     expect(f.warp.changed).toBe(false);
+  });
+
+  it('renders what plays again once the strength, the shuffle or the grid stop moving', () => {
+    const { f } = t, pb = f.playback, plays: number[] = [];
+    let take: object | null = {};
+    // Playback needs Web Audio: stand in for it, with a take of the warp playing.
+    Object.defineProperty(pb, 'playing', { get: () => true });
+    Object.defineProperty(pb, 'playingTake', { get: () => take });
+    pb.now = () => 1;
+    pb.play = (from: number) => { plays.push(from); take = {}; };
+    vi.useFakeTimers();
+    try {
+      f.workflow.goTo(2);
+      f.beats.autoMap();
+      f.workflow.goTo(3);
+      vi.advanceTimersByTime(400);
+      plays.length = 0;
+      // A slider dragged: every step makes another warp, but only the last one is rendered.
+      for (const pct of [10, 20, 30, 40, 50]) { f.warp.setQuantizeStrength(pct); vi.advanceTimersByTime(100); }
+      expect(plays).toEqual([]);
+      vi.advanceTimersByTime(300);
+      expect(plays).toEqual([1]);
+      for (const sh of [20, 40, 60]) { f.beats.setShuffle(sh); vi.advanceTimersByTime(100); }
+      f.beats.setGrid('8');
+      expect(plays).toEqual([1]);
+      vi.advanceTimersByTime(400);
+      expect(plays).toEqual([1, 1]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('plays it warped by default, and renders once until the warp changes', async () => {
@@ -463,7 +459,7 @@ describe('the Warp step', () => {
     for (const step of [1, 2] as const) { f.workflow.goTo(step); expect(f.warpRender.wanted()).toBe(false); }
   });
 
-  it('switches to the warp while the original plays: entering Warp, and after Quantize', () => {
+  it('switches to the warp while the original plays: entering Warp, and after quantizing', () => {
     const { f } = t, pb = f.playback, plays: number[] = [];
     let take: object | null = null;
     // Playback needs Web Audio: stand in for it, playing the original from the start.
@@ -482,9 +478,9 @@ describe('the Warp step', () => {
       f.workflow.goTo(3);
       vi.advanceTimersByTime(400);
       expect(plays).toEqual([1]);
-      // The take plays; Quantize makes it stale, so it is made again.
+      // The take plays; quantizing makes it stale, so it is made again.
       take = {};
-      f.warp.toggleQuantize();
+      f.warp.setQuantizeStrength(100);
       vi.advanceTimersByTime(400);
       expect(plays).toEqual([1, 1]);
       // Back in Beats, with the new take playing, the original is wanted again, at once.
@@ -515,7 +511,7 @@ describe('the Warp step', () => {
     expect(f.warp.summary()).toMatch(new RegExp(`^The file averages .* warped to ${p.bpm} BPM`));
     expect(f.workflow.canReset).toBe(true);
     f.workflow.resetStep();
-    expect(app.warp).toEqual({ mode: 'music', bpm: null, range: 'file', listen: true, quantize: 100 });
+    expect(app.warp).toEqual({ mode: 'music', bpm: null, range: 'file', listen: true, quantize: 0 });
   });
 });
 
@@ -799,7 +795,7 @@ describe('groove', () => {
     await f.groove.ensureDrums();
     f.workflow.goTo(3);
     f.beats.setGrid('16');
-    f.warp.toggleQuantize();
+    f.warp.setQuantizeStrength(100);
     f.workflow.goTo(5);
     expect(app.hearingWarp).toBe(true);
     const out = app.warpOut!, g = app.pocket!, bq = barQ(app.doc.meter);
@@ -811,7 +807,7 @@ describe('groove', () => {
       expect(app.drumHits![h.voice].some((k) => k.t === h.t)).toBe(true);
     }
     // A hit on a transient that Quantize lined up sits on its step.
-    const lined = g.hits.filter((h) => app.doc.warpMarkers.some((w) => Math.abs(w.t - h.t) < 1e-4));
+    const lined = g.hits.filter((h) => app.warpMarkers.some((w) => Math.abs(w.t - h.t) < 1e-4));
     expect(lined.length).toBeGreaterThan(20);
     for (const h of lined) expect(Math.abs(h.gridMs)).toBeLessThan(0.2);
     // The original: the hits as played, on the tempo map, and the pocket is measured again.

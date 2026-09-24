@@ -23,24 +23,32 @@ describe('session files', () => {
     expect(back.warpMarkers).toEqual(withMarkers.warpMarkers);
   });
 
-  it('carries the shuffle and the quantize settings, and leaves them out at their defaults', () => {
+  it('carries the shuffle and the quantize strength, and leaves them out at their defaults', () => {
     const s = parseSession(legacy, legacy.audio.duration, fb);
     expect(s.beats.shuffle).toBe(0);
-    expect(s.warp.quantize).toBe(100);
+    expect(s.warp.quantize).toBe(0);
     const set = { ...s, beats: { ...s.beats, shuffle: 60 }, warp: { ...s.warp, quantize: 40 } };
     const json = toSessionJson(set) as { warp: object };
-    expect(json.warp).toEqual({ quantize: 40 });
+    expect(json.warp).toEqual({ strength: 40 });
     const back = parseSession(JSON.parse(JSON.stringify(json)), legacy.audio.duration, fb);
     expect(back.beats.shuffle).toBe(60);
     expect(back.warp.quantize).toBe(40);
-    const odd = parseSession({ ...legacy, beats: { ...legacy.beats, shuffle: 400 }, warp: { quantize: 'x' } }, legacy.audio.duration, fb);
-    expect([odd.beats.shuffle, odd.warp.quantize]).toEqual([100, 100]);
+    const odd = parseSession({ ...legacy, beats: { ...legacy.beats, shuffle: 400 }, warp: { strength: 'x' } }, legacy.audio.duration, fb);
+    expect([odd.beats.shuffle, odd.warp.quantize]).toEqual([100, 0]);
+  });
+
+  it("opens an older file's quantize slider as no quantize: it only set how far the Quantize button went", () => {
+    const old = { ...legacy, warp: { markers: [{ t: 2, q: 4 }], quantize: 40 } };
+    const s = parseSession(old, legacy.audio.duration, fb);
+    expect(s.warp.quantize).toBe(0);
+    expect(s.warpMarkers).toEqual([{ t: 2, q: 4 }]);
+    expect((toSessionJson(s) as { warp: object }).warp).toEqual({ markers: [{ t: 2, q: 4 }] });
   });
 
   it('carries the Warp step\'s material, grid tempo, range and switch, and leaves them out at their defaults', () => {
     const s = parseSession(legacy, legacy.audio.duration, fb);
     expect(s.warp).toEqual(defaultWarp());
-    const set = { ...s, warp: { mode: 'beats' as const, bpm: 96.5, range: 'loop' as const, listen: false, quantize: 100 } };
+    const set = { ...s, warp: { mode: 'beats' as const, bpm: 96.5, range: 'loop' as const, listen: false, quantize: 0 } };
     const json = toSessionJson(set) as { warp: object };
     expect(json.warp).toEqual({ mode: 'beats', bpm: 96.5, range: 'loop', listen: false });
     expect(parseSession(JSON.parse(JSON.stringify(json)), legacy.audio.duration, fb).warp).toEqual(set.warp);

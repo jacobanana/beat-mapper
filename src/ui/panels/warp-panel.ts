@@ -5,7 +5,7 @@ import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { type GridDivision, swings } from '../../core/tempo/meter';
 import { WARP_MODES, type WarpMode } from '../../core/warp/modes';
-import { $, $btn, $in, $sel, setPressed, setText, setValue } from '../dom';
+import { $, $btn, $in, $sel, setText, setValue } from '../dom';
 
 export function bindWarpPanel(app: App, f: Features, refocus: () => void): void {
   const w = f.warp;
@@ -13,13 +13,11 @@ export function bindWarpPanel(app: App, f: Features, refocus: () => void): void 
   // The same grid as Beats: one setting, drawn in both steps.
   $sel('warpGrid').onchange = (e) => f.beats.setGrid((e.target as HTMLSelectElement).value as GridDivision);
 
-  // Quantize is a switch, on while the quantize it made is the last edit; the strength beside the
-  // shuffle is always there, and moving it, the shuffle or the grid while Quantize is on quantizes again as the same undo step.
-  const qBtn = $btn('wQuantize'), strength = $in('qStrength');
-  qBtn.onclick = () => { w.toggleQuantize(); refocus(); };
+  // Quantize is how far every transient moves to its grid line. The warp follows each move of it, the
+  // shuffle or the grid, and what plays is rendered again once they settle.
+  const strength = $in('qStrength');
   strength.oninput = () => w.setQuantizeStrength(+strength.value);
   $in('warpShuffle').oninput = (e) => f.beats.setShuffle(+(e.target as HTMLInputElement).value);
-  $('wClearMarkers').onclick = () => w.clearMarkers();
   $sel('warpRange').onchange = (e) => w.setRange((e.target as HTMLSelectElement).value === 'loop' ? 'loop' : 'file');
   $sel('warpModeB').onchange = (e) => w.setMode((e.target as HTMLSelectElement).value as WarpMode);
   $in('warpBpmB').onchange = (e) => {
@@ -36,11 +34,9 @@ export function bindWarpPanel(app: App, f: Features, refocus: () => void): void 
     setValue($in('warpShuffle'), app.beats.shuffle);
     $in('warpShuffle').disabled = !swings(app.beats.grid, app.grid.beatQ);
     setText($('warpShuffleO'), app.beats.shuffle + '%');
-    qBtn.disabled = !p;
-    setPressed(qBtn, !!p && w.quantizeOpen);
+    strength.disabled = !p;
     setValue(strength, s.quantize);
     setText($('qStrengthO'), s.quantize + '%');
-    $btn('wClearMarkers').disabled = !app.doc.warpMarkers.length;
     setValue($sel('warpRange'), s.range);
     if ((WARP_MODES as readonly string[]).includes(s.mode)) setValue($sel('warpModeB'), s.mode);
     const bpm = $in('warpBpmB');
