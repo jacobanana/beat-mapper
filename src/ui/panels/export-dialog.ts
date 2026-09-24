@@ -1,11 +1,13 @@
 // The Export window: what the step you are in makes, one format at a time, each showing only the options
-// that change it and what the file will hold. Transients makes nothing of its own, so there it is off;
-// the session, wanted from every step, is beside Open instead (session-panel.ts).
+// of the file itself (its placement in the DAW, level, channels, depth, rate) and what it will hold.
+// What goes in it is set in the step, not here again: the warped .wav's tempo, material and range are
+// the Warp step's. Transients makes nothing of its own, so there it is off; the session, wanted from
+// every step, is beside Open instead (session-panel.ts).
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { fmtBpm, fmtTime, plural } from '../../core/format';
 import { VOICES } from '../../core/drums/voices';
-import { WARP_MODES, WARP_MODE_INFO, type WarpMode } from '../../core/warp/modes';
+import { WARP_MODE_INFO } from '../../core/warp/modes';
 import type { Step } from '../../state/steps';
 import { buildMidi } from '../../io/formats/midi';
 import { $, $btn, $in, $sel, setText, setValue } from '../dom';
@@ -95,7 +97,7 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
       save: 'Save REAPER project', info: mapInfo, run: () => f.exports.saveRpp(),
     },
     warpWav: {
-      desc: 'The audio warped so the tempo map becomes a straight grid: every bar the same length, ready for a DAW at one tempo. The whole file, or just the loop, as the Warp step says.',
+      desc: 'The audio warped so the tempo map becomes a straight grid: every bar the same length, ready for a DAW at one tempo. The whole file or just the loop, at the tempo and with the material set in the Warp step.',
       save: 'Save .wav', info: warpInfo, run: () => f.warp.save(),
     },
     slices: {
@@ -199,6 +201,8 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
     setText($('fmtPickExt'), cur.querySelector('small')!.textContent!);
     setText($('fmtPickSub'), cur.querySelector('.sub')!.textContent!);
     dlg.querySelectorAll<HTMLElement>('.fld').forEach((el) => { el.hidden = !el.dataset.for!.split(' ').includes(fmt); });
+    // A group is there only while a row in it is.
+    dlg.querySelectorAll<HTMLElement>('.grp').forEach((g) => { g.hidden = !g.querySelector('.fld:not([hidden])'); });
     setText($('expDesc'), F.desc);
     setText($('expInfo'), i.text);
     setText($('expSaveL'), F.save);
@@ -227,20 +231,6 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
   $sel('res').onchange = (e) => app.set('export', { res: (e.target as HTMLSelectElement).value as 'pins' | 'bar' | 'beat' });
   $in('clicks').onchange = (e) => app.set('export', { clicks: (e.target as HTMLInputElement).checked });
   $in('rppAudio').onchange = (e) => app.set('export', { rppAudio: (e.target as HTMLInputElement).checked });
-  const warpMode = $sel('warpMode'), warpBpm = $in('warpBpm');
-  warpMode.onchange = () => f.warp.update({ mode: warpMode.value as WarpMode });
-  // An empty tempo follows the audio; anything else is taken if it is a tempo at all.
-  warpBpm.onchange = () => {
-    const v = warpBpm.value.trim() === '' ? null : +warpBpm.value;
-    f.warp.update({ bpm: v != null && Number.isFinite(v) && v >= 20 && v <= 400 ? v : null });
-  };
-  const syncWarp = () => {
-    if ((WARP_MODES as readonly string[]).includes(app.warp.mode)) setValue(warpMode, app.warp.mode);
-    const p = f.warp.plan(), auto = p ? Math.round(p.avgBpm) : null;
-    if (document.activeElement !== warpBpm) warpBpm.value = app.warp.bpm == null ? '' : String(app.warp.bpm);
-    warpBpm.placeholder = auto != null ? String(auto) : '';
-    setText($('warpAvg'), p ? `averages ${fmtBpm(p.avgBpm)}` : '');
-  };
 
   const sync = () => {
     const s = app.exportSettings;
@@ -252,10 +242,8 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
 
 
   app.bus.on('export', sync);
-  app.bus.on(['warp', 'doc', 'transport', 'audio', 'export', 'heard'], syncWarp);
   app.bus.on(['export', 'warp', 'slicer', 'slices', 'doc', 'drums', 'groove', 'transport', 'audio', 'candidates', 'selection', 'heard'], render);
   sync();
-  syncWarp();
 
   return (next?: ExportFormat) => {
     const mine = STEP_FORMATS[app.step];

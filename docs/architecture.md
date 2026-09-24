@@ -28,6 +28,7 @@ from bar 1.
 | `dsp/refine.ts` | Places a coarse onset on the real attack at sample level, then on a zero crossing. |
 | `dsp/tempo.ts` | Starting tempo by autocorrelation. |
 | `dsp/peaks.ts` | Mono mixdown and the min/max pyramid the waveform is drawn from. |
+| `dsp/resample.ts` | Polyphase windowed-sinc resampling, for a .wav written at another sample rate. |
 | `markers/detect.ts` | Candidates from a detection function; which ones the sensitivity and gap let through; merging in manual markers and deletions. |
 | `tempo/meter.ts` | Meter and grid: bar/beat lengths, grid levels, nearest grid line. |
 | `tempo/tempo-map.ts` | `TempoMap`: pins → time↔position, BPM at a time, bars. |
@@ -99,7 +100,7 @@ timeline.
 ## io/
 
 `formats/` writes MIDI (type 1, tempo track + click, and a drum track when given notes), REAPER
-`.rpp`, PCM WAV and stored ZIP, all byte-for-byte what the single-file app wrote, plus the Pocket
+`.rpp`, PCM WAV (16 or 24-bit, at the audio's rate or resampled to another, dithered if asked) and stored ZIP, all byte-for-byte what the single-file app wrote by default, plus the Pocket
 Science groove file (`groove.ts`). `session.ts` reads and writes the session JSON,
 validating and clamping everything it reads. `download.ts` saves a file (through a host's download
 bridge when the app runs inside one).

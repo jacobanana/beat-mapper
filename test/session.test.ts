@@ -67,6 +67,19 @@ describe('session files', () => {
     expect(odd.hits).toEqual({ manual: [], removed: [] });
   });
 
+  it('carries the sample rate and the dither of the .wav files, and leaves them out at their defaults', () => {
+    const s = parseSession(legacy, legacy.audio.duration, fb);
+    expect([s.slicer.rate, s.slicer.dither]).toEqual([null, false]);
+    expect(Object.keys((toSessionJson(s) as { slicer: object }).slicer)).toEqual(Object.keys(legacy.slicer));
+    const set = { ...s, slicer: { ...s.slicer, rate: 48000, dither: true } };
+    const json = toSessionJson(set) as { slicer: Record<string, unknown> };
+    expect(Object.keys(json.slicer).slice(-3)).toEqual(['csv', 'rate', 'dither']);
+    const back = parseSession(JSON.parse(JSON.stringify(json)), legacy.audio.duration, fb);
+    expect([back.slicer.rate, back.slicer.dither]).toEqual([48000, true]);
+    const odd = parseSession({ ...legacy, slicer: { ...legacy.slicer, rate: 12345, dither: 'yes' } }, legacy.audio.duration, fb);
+    expect([odd.slicer.rate, odd.slicer.dither]).toEqual([null, false]);
+  });
+
   it("still opens a session with the Groove step's old quantize, and saves it without", () => {
     const old = { ...legacy, groove: { quantize: 75 } };
     const s = parseSession(old, legacy.audio.duration, fb);
@@ -103,7 +116,7 @@ describe('session files', () => {
     expect(s.transport).toMatchObject({ loop: null, loopOn: false, start: 4, playhead: 4 });
     expect(s.view).toBeNull();
     expect(s.step).toBe(1);
-    expect(s.slicer.bits).toBe(16);
+    expect(s.slicer.bits).toBe(24);
     expect(s.slicer.len).toBe(60000);
     expect(s.excluded).toEqual([1]);
     // one that crosses an earlier one, one past the end and a bad one are dropped

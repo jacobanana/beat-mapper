@@ -8,9 +8,9 @@ import { averageBpm } from '../../core/warp/map';
 import { placeWarpMarker, removeWarpMarker, warpMarkerAt } from '../../core/warp/markers';
 import { WARP_MODE_INFO, type WarpMode } from '../../core/warp/modes';
 import { saveError, saveFile } from '../../io/download';
-import { wavEncode } from '../../io/formats/wav';
+import { wavFile } from '../../io/formats/wav';
 import type { ProjectDoc } from '../../state/project';
-import { type WarpSettings, defaultBeats, defaultWarp, sliceRenderOptions } from '../../state/settings';
+import { type WarpSettings, defaultBeats, defaultWarp, sliceRenderOptions, wavOptions } from '../../state/settings';
 import type { App } from '../app';
 import { stepRules } from '../steps';
 import type { WarpPlan } from '../warp-out';
@@ -230,10 +230,10 @@ export class Warp {
       const r = await this.rendered.render();
       if (!r) return app.notify.toast('The audio changed while it was warping – save again.');
       const p = r.plan, n = r.chans[0].length;
-      // Channels, level and bit depth as the slicer has them; a warped file is one long sample.
+      // Channels, level, depth and rate as the slicer has them; a warped file is one long sample.
       const out = renderSlice(r.chans, a.sr, 0, n / a.sr, { ...sliceRenderOptions(app.slicer), fadeIn: 0, fadeOut: 0 });
       app.notify.busy('Writing the .wav', 0.95);
-      const bytes = wavEncode(out.chans, a.sr, app.slicer.bits);
+      const bytes = wavFile(out.chans, a.sr, wavOptions(app.slicer));
       app.notify.idle();
       const res = await saveFile(this.fileName(p), bytes as BlobPart, 'audio/wav');
       app.notify.toast(res.ok ? `Warped to ${fmtBpm(p.bpm)} BPM and saved.` : saveError(res.code, 'Too large for this viewer. Loop a shorter part, or use 16-bit mono.'));

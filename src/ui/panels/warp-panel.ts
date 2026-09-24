@@ -1,6 +1,7 @@
 // Step 3 – Warp: the grid tempo and where it comes from, the grid transients are lined up on, what
-// is warped, and the material. The same settings as the Export window's warped .wav. Whether it is heard
-// is the Warped switch in the top bar, since Slice and Groove follow it too.
+// is warped, and the material. The Export window's warped .wav is made from these, and only says how
+// the file is written. Whether it is heard is the Warped switch in the top bar, since Slice and Groove
+// follow it too.
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { type GridDivision, swings } from '../../core/tempo/meter';
