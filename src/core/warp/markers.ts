@@ -3,8 +3,8 @@
 // and stretches the audio either side to fit. They are laid over the pins to make the map the warp
 // follows, which leaves the tempo map of the Beats step as it is.
 import type { Grid } from '../tempo/meter';
-import { TempoMap } from '../tempo/tempo-map';
-import type { TimeRange } from '../types';
+import { type PositionMap, TempoMap } from '../tempo/tempo-map';
+import type { Anchor, TimeRange } from '../types';
 
 /** The audio at time t (a transient, seconds) goes to musical position q (quarter notes from bar 1). */
 export interface WarpMarker {
@@ -21,19 +21,34 @@ const inOrder = (a: { t: number; q: number }, b: { t: number; q: number }) =>
   (b.t > a.t + EPS_T && b.q > a.q + EPS_Q) || (b.t < a.t - EPS_T && b.q < a.q - EPS_Q);
 
 /**
- * The tempo map the warp follows: the pins, with the warp markers laid over them. A pin that a warp
- * marker contradicts (the same position elsewhere, or out of order with it) gives way, since the
- * marker is the later and finer decision.
+ * Where the warp puts each moment of the audio: the pins, with the warp markers laid over them. It
+ * answers positions only. It is not a tempo, so it has no bars, beats or BPM to give: those are the
+ * tempo map's, which warp markers leave as it is.
  */
-export function warpTempoMap(map: TempoMap, markers: readonly WarpMarker[]): TempoMap {
-  if (!markers.length || map.isEmpty) return map;
-  const pins = map.anchors.filter((p) => markers.every((w) => inOrder(w, p)));
-  // Past the first and last points a map carries on at the slope of its end segments. A marker near an
-  // end would tilt that slope and stretch the whole lead-in or tail, so two far points on the pins' own
-  // map keep the ends going as the pins had them.
-  const A = map.anchors, far = (t: number) => ({ q: map.timeToPos(t), t, manual: false });
-  const ends = [far(A[0].t - FAR), far(A[A.length - 1].t + FAR)];
-  return new TempoMap([ends[0], ...pins, ...markers.map((w) => ({ q: w.q, t: w.t, manual: true })), ends[1]], map.baseBpm);
+export class Alignment implements PositionMap {
+  private constructor(private readonly map: TempoMap, readonly moved: boolean) {}
+
+  /**
+   * The pins with the markers laid over. A pin that a warp marker contradicts (the same position
+   * elsewhere, or out of order with it) gives way, since the marker is the later and finer decision.
+   */
+  static of(map: TempoMap, markers: readonly WarpMarker[]): Alignment {
+    if (!markers.length || map.isEmpty) return new Alignment(map, false);
+    const pins = map.anchors.filter((p) => markers.every((w) => inOrder(w, p)));
+    // Past the first and last points a map carries on at the slope of its end segments. A marker near an
+    // end would tilt that slope and stretch the whole lead-in or tail, so two far points on the pins' own
+    // map keep the ends going as the pins had them.
+    const A = map.anchors, far = (t: number) => ({ q: map.timeToPos(t), t, manual: false });
+    const ends = [far(A[0].t - FAR), far(A[A.length - 1].t + FAR)];
+    return new Alignment(new TempoMap([ends[0], ...pins, ...markers.map((w) => ({ q: w.q, t: w.t, manual: true })), ends[1]], map.baseBpm), true);
+  }
+
+  get isEmpty(): boolean { return this.map.isEmpty; }
+  get anchors(): readonly Anchor[] { return this.map.anchors; }
+  /** Where the audio that goes to position q is. */
+  posToTime(q: number): number { return this.map.posToTime(q); }
+  /** The position the audio at time t goes to. */
+  timeToPos(t: number): number { return this.map.timeToPos(t); }
 }
 
 export type PlaceResult = { ok: true; markers: WarpMarker[] } | { ok: false; reason: 'crosses' };
@@ -67,7 +82,7 @@ export const warpMarkerAt = (markers: readonly WarpMarker[], t: number): WarpMar
  * line, which tightens the timing and keeps some of the feel; at 0 nothing moves, so nothing is added.
  */
 export function quantizeTransients(
-  map: TempoMap,
+  map: PositionMap,
   grid: Grid,
   transients: readonly number[],
   range: TimeRange,
@@ -86,20 +101,4 @@ export function quantizeTransients(
   // Part of the way from where the transient sits on the map to its line.
   const added = picked.map(({ t, q }) => ({ t, q: q + (1 - s) * (map.timeToPos(t) - q) })).filter((p) => markers.every((w) => inOrder(w, p)));
   return [...markers, ...added].sort((a, b) => a.t - b.t);
-}
-
-/** Where the audio at time t is drawn once warped (`shown`), and which audio is drawn at a time (`source`). */
-export interface WarpView {
-  shown(t: number): number;
-  source(t: number): number;
-}
-
-/**
- * The Warp step as it is drawn: the grid stays where the tempo map puts it and the audio moves onto
- * it, so a transient lined up is drawn on its grid line. Audio at t goes to where the tempo map has the
- * position the warp gives it. Null when the warp moves nothing the tempo map doesn't already say.
- */
-export function warpView(map: TempoMap, warped: TempoMap): WarpView | null {
-  if (warped === map || map.isEmpty) return null;
-  return { shown: (t) => map.posToTime(warped.timeToPos(t)), source: (t) => warped.posToTime(map.timeToPos(t)) };
 }

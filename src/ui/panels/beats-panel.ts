@@ -36,7 +36,7 @@ export function bindBeatsPanel(app: App, f: Features, refocus: () => void): void
   });
 
   const visible = () => !$('p2').hidden;
-  const currentBar = () => (app.hasMap ? Math.floor(app.tempoMap.timeToPos(app.transport.playhead) / app.grid.barQ) : -1);
+  const currentBar = () => (app.hasMap ? Math.floor(app.timeline.posOf(app.transport.playhead) / app.grid.barQ) : -1);
 
   const syncInputs = () => {
     setValue($in('num'), app.doc.meter.num);

@@ -1,22 +1,22 @@
 import type { AudioAsset } from '../../app/audio-asset';
-import type { WarpView } from '../../core/warp/markers';
+import type { Timeline } from '../../core/timeline';
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
 /**
  * Draws t0..t1 of the audio into canvas c at wpx×hpx device pixels. Zoomed out it is a min/max bar
- * per pixel; zoomed in, a line through the samples, with dots once they are far apart. With a warp
- * view, t0..t1 is where things are drawn and the audio is drawn where the warp moves it.
+ * per pixel; zoomed in, a line through the samples, with dots once they are far apart. With a timeline
+ * that moves the audio, t0..t1 is a stretch of its axis and the audio is drawn where it puts it.
  */
 export function renderWave(
   c: HTMLCanvasElement, a: AudioAsset, t0: number, t1: number, wpx: number, hpx: number, amp: number, color: string, dpr: number,
-  wv: WarpView | null = null,
+  tl: Timeline | null = null,
 ): void {
   c.width = wpx;
   c.height = hpx;
   const k = c.getContext('2d')!;
   k.clearRect(0, 0, wpx, hpx);
-  const shown = wv ? wv.shown : (t: number) => t, source = wv ? wv.source : (t: number) => t;
+  const shown = (t: number) => (tl ? tl.axisAt(t) : t), source = (t: number) => (tl ? tl.sourceAt(t) : t);
   const x = a.x, sr = a.sr, mid = hpx / 2, sc = ((hpx / 2 - 3 * dpr) * amp) / a.peak, s0t = source(t0), s1t = source(t1), spp = ((s1t - s0t) * sr) / wpx;
   const pxOf = (s: number) => ((shown(s / sr) - t0) / (t1 - t0)) * wpx;
   k.fillStyle = color;

@@ -3,7 +3,8 @@ import { synthDemo } from '../src/core/demo';
 import { Grid } from '../src/core/tempo/meter';
 import { TempoMap } from '../src/core/tempo/tempo-map';
 import { planWarp, warpRange } from '../src/core/warp/map';
-import { placeWarpMarker, quantizeTransients, removeWarpMarker, warpTempoMap, warpView } from '../src/core/warp/markers';
+import { Timeline } from '../src/core/timeline';
+import { Alignment, placeWarpMarker, quantizeTransients, removeWarpMarker } from '../src/core/warp/markers';
 import { renderWarp } from '../src/core/warp/modes';
 
 const sr = 22050;
@@ -21,7 +22,7 @@ describe('warp markers', () => {
     expect(Math.abs(before.dstAt(hat) - q * 0.5)).toBeGreaterThan(0.0005);
     const r = placeWarpMarker([], hat, q);
     expect(r.ok).toBe(true);
-    const map = warpTempoMap(demoMap, r.ok ? r.markers : []);
+    const map = Alignment.of(demoMap, r.ok ? r.markers : []);
     const w = planWarp(map, warpRange(map, meter, demo.dur, { lead: 'trim', loop: null }), 120);
     expect(w.dstAt(hat)).toBeCloseTo(q * 0.5, 9);
     // The beats either side stay where the pins put them.
@@ -32,7 +33,7 @@ describe('warp markers', () => {
   it('moves the sound itself: the hit is heard on the grid line', () => {
     const click = new Float32Array(sr * 2), at = 0.73, s0 = Math.round(at * sr);
     for (let i = 0; i < 2000; i++) click[s0 + i] = Math.sin(i * 0.3) * Math.exp(-i / 300);
-    const map = warpTempoMap(new TempoMap([{ q: 0, t: 0, manual: true }, { q: 4, t: 2, manual: true }], 120), [{ t: at, q: 1.5 }]);
+    const map = Alignment.of(new TempoMap([{ q: 0, t: 0, manual: true }, { q: 4, t: 2, manual: true }], 120), [{ t: at, q: 1.5 }]);
     const w = planWarp(map, { a: 0, b: 2, q0: 0 }, 120);
     const [y] = renderWarp({ chans: [click], sr, src: [...w.src], dst: [...w.dst], n: Math.round(w.outDur * sr), mode: 'beats', transients: [at] });
     const onset = y.findIndex((v) => Math.abs(v) > 0.1);
@@ -42,10 +43,10 @@ describe('warp markers', () => {
   it('win over a pin they contradict, and never cross each other', () => {
     const map = new TempoMap([{ q: 0, t: 0, manual: true }, { q: 1, t: 0.5, manual: true }, { q: 2, t: 1, manual: true }], 120);
     // Beat 2 said to be at 0.55 s: the pin at 0.5 s gives way.
-    const m = warpTempoMap(map, [{ t: 0.55, q: 1 }]);
+    const m = Alignment.of(map, [{ t: 0.55, q: 1 }]);
     expect(m.anchors.map((a) => a.t).filter((t) => Math.abs(t) < 100)).toEqual([0, 0.55, 1]);
     // Before and after the pins it carries on at their tempo, however near an end a marker sits.
-    const lead = warpTempoMap(map, [{ t: 0.3, q: 0.75 }]);
+    const lead = Alignment.of(map, [{ t: 0.3, q: 0.75 }]);
     expect(lead.timeToPos(-2)).toBeCloseTo(map.timeToPos(-2), 9);
     expect(lead.timeToPos(5)).toBeCloseTo(map.timeToPos(5), 9);
     // A marker later in time but earlier on the grid than another is refused.
@@ -66,7 +67,7 @@ describe('warp markers', () => {
     expect(out.length).toBe(ts.length);
     for (const w of out) expect(w.q * 2).toBeCloseTo(Math.round(w.q * 2), 9);
     // The whole take lined up: every hat lands on its eighth.
-    const map = warpTempoMap(demoMap, out), wm = planWarp(map, warpRange(map, meter, demo.dur, { lead: 'trim', loop: null }), 120);
+    const map = Alignment.of(demoMap, out), wm = planWarp(map, warpRange(map, meter, demo.dur, { lead: 'trim', loop: null }), 120);
     for (const t of offBeats) expect((wm.dstAt(t) / 0.25) % 1).toBeCloseTo(0, 6);
     // A flam: two transients reaching for one line, the nearer one gets it.
     const flam = quantizeTransients(demoMap, grid, [demo.beats[4] - 0.02, demo.beats[4] + 0.005], { a: 0, b: demo.dur }, []);
@@ -107,15 +108,17 @@ describe('shuffle', () => {
 describe('the warp as it is drawn', () => {
   it('keeps the grid where the tempo map has it and moves the audio onto it', () => {
     const out = quantizeTransients(demoMap, new Grid(meter, '8'), offBeats, { a: 0, b: demo.dur }, []);
-    const v = warpView(demoMap, warpTempoMap(demoMap, out))!;
+    const tl = new Timeline(demoMap, Alignment.of(demoMap, out), 120);
     // Each hat lined up is drawn on its eighth of the unchanged grid, and that is the hat drawn there.
     for (const w of out) {
-      expect(v.shown(w.t)).toBeCloseTo(demoMap.posToTime(w.q), 9);
-      expect(v.source(demoMap.posToTime(w.q))).toBeCloseTo(w.t, 9);
+      expect(tl.axisAt(w.t)).toBeCloseTo(tl.axisOfPos(w.q), 9);
+      expect(tl.axisOfPos(w.q)).toBeCloseTo(demoMap.posToTime(w.q), 9);
+      expect(tl.sourceOfPos(w.q)).toBeCloseTo(w.t, 9);
     }
     // The beats, pinned, stay put.
-    for (const b of demo.beats.slice(1, -1)) expect(v.shown(b)).toBeCloseTo(b, 9);
-    // With nothing lined up the audio is drawn where it is.
-    expect(warpView(demoMap, warpTempoMap(demoMap, []))).toBeNull();
+    for (const b of demo.beats.slice(1, -1)) expect(tl.axisAt(b)).toBeCloseTo(b, 9);
+    // With nothing lined up, or the original heard, the audio is drawn where it is.
+    expect(new Timeline(demoMap, Alignment.of(demoMap, []), 120).movesAudio).toBe(false);
+    expect(new Timeline(demoMap).axisAt(offBeats[3])).toBe(offBeats[3]);
   });
 });

@@ -73,9 +73,10 @@ export function bindHeader(app: App, f: Features, openHelp: () => void, openExpo
     const t = app.transport.playhead;
     $('rTime').textContent = fmtTime(t);
     if (app.hasMap) {
-      const bb = app.tempoMap.barBeatAt(t, app.doc.meter);
+      // What is heard at the playhead, on the grid drawn under it.
+      const tl = app.timeline, bb = tl.barBeatAt(t, app.doc.meter);
       $('rPos').textContent = bb ? bb.bar + 1 + '.' + (bb.beat + 1) : 'lead-in';
-      $('rBpm').textContent = app.tempoMap.bpmAt(t).toFixed(2);
+      $('rBpm').textContent = tl.bpmAt(t).toFixed(2);
     } else {
       $('rPos').textContent = '–';
       $('rBpm').textContent = '–';
@@ -101,7 +102,7 @@ export function bindHeader(app: App, f: Features, openHelp: () => void, openExpo
   app.bus.on(['step', 'doc', 'detection', 'candidates', 'beats', 'warp', 'slicer', 'slices', 'groove', 'drums', 'audio'], syncReset);
   app.bus.on(['doc', 'audio'], syncHistory);
   app.bus.on(['transport', 'playhead'], syncTransport);
-  app.bus.on(['playhead', 'doc', 'audio'], syncReadout);
+  app.bus.on(['playhead', 'doc', 'audio', 'step', 'warp', 'transport'], syncReadout);
   app.bus.on('audio', syncFile);
   syncSteps();
   syncTransport();
