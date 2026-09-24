@@ -310,6 +310,34 @@ describe('the Warp step', () => {
     expect(app.doc.warpMarkers.length).toBe(1);
   });
 
+  it('draws Drums mode as it cuts: the hits whole where the warp puts them, and the gaps between', () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.workflow.goTo(3);
+    f.warp.update({ bpm: 90 });
+    expect(app.warpPlan!.cuts).toBeNull();
+    expect(app.timeline.gaps(0, app.dur)).toEqual([]);
+    f.warp.setMode('beats');
+    const p = app.warpPlan!, cuts = p.cuts!, tl = app.timeline;
+    // Slowed down to 90 BPM, every hit has room to spare: a gap after each.
+    expect(cuts.gaps().length).toBeGreaterThan(20);
+    expect(tl.gaps(0, app.dur).length).toBe(cuts.gaps().length);
+    expect(f.warp.summary()).toMatch(/\d+ gaps, longest \d+ ms/);
+    // A hit is where the warp puts it, and the audio after it follows at its own speed, not stretched.
+    const m = app.markers[10], k = cuts.pieces.find((c) => c.s === m.t)!;
+    expect(app.warpOut!.at(m.t)).toBeCloseTo(p.map.dstAt(m.t), 9);
+    expect(app.warpOut!.at(m.t + 0.02)).toBeCloseTo(k.d + 0.02, 9);
+    expect(p.map.dstAt(m.t + 0.02)).not.toBeCloseTo(k.d + 0.02, 4);
+    expect(app.warpOut!.source(k.d + 0.02)).toBeCloseTo(m.t + 0.02, 9);
+    // Filling them is a setting of the step, which Reset puts back.
+    f.warp.setFill(true);
+    expect(f.warp.summary()).toContain('ms, filled');
+    expect(f.warp.changed).toBe(true);
+    f.warp.reset();
+    expect(app.warp.fill).toBe(false);
+  });
+
   it('quantizes as far as the strength says, on the grid and the shuffle as they are, without an edit', () => {
     const { app, f } = t;
     f.workflow.goTo(2);
@@ -511,7 +539,7 @@ describe('the Warp step', () => {
     expect(f.warp.summary()).toMatch(new RegExp(`^The file averages .* warped to ${p.bpm} BPM`));
     expect(f.workflow.canReset).toBe(true);
     f.workflow.resetStep();
-    expect(app.warp).toEqual({ mode: 'music', bpm: null, range: 'file', listen: true, quantize: 0 });
+    expect(app.warp).toEqual({ mode: 'music', bpm: null, range: 'file', listen: true, quantize: 0, fill: false });
   });
 });
 
@@ -640,6 +668,7 @@ describe('sessions', () => {
     a.f.workflow.goTo(3);
     a.f.warp.snap(a.app.markers[5].t);
     a.f.warp.snap(a.app.markers[9].t);
+    a.f.warp.setFill(true);
     a.f.workflow.goTo(2);
     a.f.sessions.autosave();
     expect([...store.map.keys()]).toEqual(['beatmapper:s:drifting-drum-loop.wav|40220', 'beatmapper:index']);
@@ -654,6 +683,7 @@ describe('sessions', () => {
     expect(b.app.detection.sens).toBe(61);
     expect(b.app.step).toBe(2);
     expect(b.app.excluded).toEqual(a.app.excluded);
+    expect(b.app.warp.fill).toBe(true);
     // nothing to undo right after a restore
     expect(b.app.undo()).toBe(false);
   });

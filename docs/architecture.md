@@ -55,7 +55,9 @@ editor that the viewport turns into pixels. Musical **positions** (quarter notes
   rendered, and the take made before an edit until the next one plays. Stopped, it is what would play:
   the warp in Warp, Slice and Groove with the Warped switch on, else the original.
 - **`App.timeline`** decides where the audio is drawn on the axis, from what is heard: the warp draws
-  it moved onto the grid, the original where it is. The canvas layers get `xOf` (audio) and `xAtPos`
+  it moved onto the grid, the original where it is. Drums mode cuts instead of stretching, so there it
+  places each piece whole where the warp lays it down, cut short or followed by a gap
+  (`WarpPlan.cuts`). The canvas layers get `xOf` (audio) and `xAtPos`
   (grid) from it through `ui/canvas/screen.ts`, which the pointer uses too; the readout, grid
   snapping, looping a bar and following the playhead go through it as well.
 - **`WarpOut`** (`app/warp-out.ts`) is one warp described once: the part warped, where a moment of

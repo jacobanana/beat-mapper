@@ -3,7 +3,6 @@
 // follow what is wanted: the warp from the Warp step on when the Warped switch is on, else the
 // original.
 import type { Analyzer } from '../../analysis/analyzer';
-import { eachStep } from '../../core/tempo/tempo-map';
 import { WARP_MODE_INFO, type WarpMode } from '../../core/warp/modes';
 import { bufferFrom } from '../../engine/audio-context';
 import type { App } from '../app';
@@ -104,22 +103,14 @@ export class WarpRender implements TakeSource {
   // ---------- rendering ----------
   // Everything a render depends on; a render is reused while each of these is the same object or value.
   private inputs(p: WarpPlan): unknown[] {
+    // The plan carries Drums mode's cuts, so the transients it cuts at come with it.
     const { app } = this, mode = app.warp.mode;
-    return [app.audio, p, mode, mode === 'beats' ? app.markers : null];
+    return [app.audio, p, mode, mode === 'beats' && app.warp.fill];
   }
 
   private fresh(): Render | null {
     const p = this.plan(), r = this.last;
     return p && r && same(r.inputs, this.inputs(p)) ? r : null;
-  }
-
-  // Where Drums mode cuts: the transients of step 1, or the sixteenths of the tempo map when there are none.
-  private transients(): number[] {
-    const { app } = this, m = app.markers;
-    if (m.length) return m.map((k) => k.t);
-    const out: number[] = [];
-    eachStep(app.tempoMap, 0.25, 0, app.dur, (t) => out.push(t), 100000);
-    return out;
   }
 
   /** The warp as it stands, rendered unless the last render still holds. Null without a plan, or if an edit overtook it. */
@@ -144,9 +135,9 @@ export class WarpRender implements TakeSource {
       // that reach past its ends; times are moved to match.
       const len = a.chans[0].length, s0 = Math.max(0, Math.floor((p.range.a - 0.5) * a.sr));
       const s1 = Math.min(len, Math.ceil((p.range.b + 0.5) * a.sr)), off = s0 / a.sr;
-      const transients = mode === 'beats' ? this.transients().filter((t) => t >= off && t < s1 / a.sr).map((t) => t - off) : [];
+      const transients = mode === 'beats' ? app.cutPoints.filter((t) => t >= off && t < s1 / a.sr).map((t) => t - off) : [];
       const chans = await this.analyzer.warp(
-        { chans: a.chans.map((c) => c.subarray(s0, s1)), sr: a.sr, src: p.map.src.map((t) => t - off), dst: [...p.map.dst], n, mode, transients },
+        { chans: a.chans.map((c) => c.subarray(s0, s1)), sr: a.sr, src: p.map.src.map((t) => t - off), dst: [...p.map.dst], n, mode, transients, fill: app.warp.fill },
         (f) => app.notify.busy(label, 0.01 + 0.97 * f),
       );
       const r: Render = { inputs, plan: p, out: app.outOf(p), chans, take: null };

@@ -233,7 +233,8 @@
             <span class="cap" title="What is warped, and how it is stretched">Warp</span><span class="items">
               <select id="warpRange" title="What is warped, heard and saved" aria-label="What is warped"><option value="file">whole file</option><option value="loop">just the loop</option></select>
               <select id="warpModeB" title="Material: sets how the audio is stretched" aria-label="Material, which sets the warp algorithm"><option value="beats">Drums</option><option value="mono">Mono</option><option value="vocal">Vocal</option><option value="poly">Poly</option><option value="music">Full mix</option><option value="repitch">Re-pitch</option></select>
-              <button class="btn end" id="resetW" title="Reset Warp: the whole file at the tempo it averages, Full mix, no warp markers, no shuffle, no quantize" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
+              <button class="btn" id="wFill" title="Fill gaps (Drums): a hit moved away from the next rings on into it instead of leaving silence" aria-label="Fill the gaps Drums mode leaves" aria-pressed="false">Fill gaps</button>
+              <button class="btn end" id="resetW" title="Reset Warp: the whole file at the tempo it averages, Full mix, no warp markers, no shuffle, no quantize, gaps not filled" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
             </span>
           </div>
           <p id="wSum"></p>

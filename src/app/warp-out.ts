@@ -4,6 +4,7 @@
 import type { TempoMap } from '../core/tempo/tempo-map';
 import type { Meter } from '../core/tempo/meter';
 import type { TimeRange } from '../core/types';
+import type { Cuts } from '../core/warp/beats';
 import { type WarpMap, type WarpRange, beatsOf, gridMap } from '../core/warp/map';
 import type { Alignment } from '../core/warp/markers';
 
@@ -30,6 +31,11 @@ export interface WarpPlan {
    */
   tempo: TempoMap;
   alignment: Alignment;
+  /**
+   * Drums mode's pieces, which it cuts rather than stretches: each hit laid down whole where the warp
+   * puts it, cut short or followed by a gap. Null in the other modes.
+   */
+  cuts: Cuts | null;
 }
 
 /**
@@ -57,14 +63,16 @@ export interface WarpOut {
 }
 
 export function warpOut(plan: WarpPlan, meter: Meter, dur: number): WarpOut {
-  const m = plan.map, map = gridMap(plan.q0, plan.bpm);
+  const m = plan.map, map = gridMap(plan.q0, plan.bpm), c = plan.cuts;
+  // Cut, a moment is heard where its piece is laid down; in a gap, the playhead waits at the end of the
+  // piece before it. Stretched, it is where the warp map takes it.
   return {
     plan,
     map,
     exportMap: plan.loop ? gridMap(0, plan.bpm) : map,
     range: { a: plan.range.a, b: plan.range.b },
-    at: (t) => m.dstAt(t),
-    source: (o) => Math.max(0, Math.min(dur, m.srcAt(o))),
+    at: c ? (t) => (t >= c.a && t <= c.b ? c.dstAt(t) : m.dstAt(t)) : (t) => m.dstAt(t),
+    source: (o) => Math.max(0, Math.min(dur, c && o >= c.start ? c.srcAt(o) : m.srcAt(o))),
     beats: (a, b, emit) => beatsOf(map, meter, a, b, emit),
   };
 }

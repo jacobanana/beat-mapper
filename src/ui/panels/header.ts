@@ -16,7 +16,7 @@ const WARP_TITLE = 'Warped: Warp, Slice and Groove hear, cut, measure and export
 const RESET_ASK: Record<Step, [string, string]> = {
   [STEP.transients]: ['Reset Transients?', 'Detection goes back to how it starts, and the markers to how they were found. Undo brings back your marker edits.'],
   [STEP.beats]: ['Reset Beats?', 'Only bar 1 stays, on the first transient, in 4/4 at the starting tempo. Undo brings back your map.'],
-  [STEP.warp]: ['Reset Warp?', 'The whole file is warped at the tempo it averages, as a full mix, and the warp markers come off. Your grid tempo and material are cleared, the shuffle goes back to 0% and the quantize strength to 100%; undo brings back the warp markers.'],
+  [STEP.warp]: ['Reset Warp?', 'The whole file is warped at the tempo it averages, as a full mix, and the warp markers come off. Your grid tempo and material are cleared, the shuffle goes back to 0%, the quantize strength to 100% and gaps are left unfilled; undo brings back the warp markers.'],
   [STEP.slice]: ['Reset Slice?', 'Every transient starts a slice again, and every slice is kept. Dropped slices can\'t be brought back with undo.'],
   [STEP.groove]: ['Reset Groove?', 'The hits go back to how they were found, at the starting sensitivities. Undo brings back your hit edits.'],
 };

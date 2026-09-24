@@ -34,12 +34,14 @@ export interface WarpJob {
   mode: WarpMode;
   /** Source seconds, sorted; where Drums mode cuts. */
   transients: number[];
+  /** Drums mode fills its gaps. */
+  fill?: boolean;
 }
 
 export function renderWarp(job: WarpJob, onProgress?: Progress): Float32Array[] {
   const { chans, sr, n } = job, w = new WarpMap(job.src, job.dst), p = throttle(onProgress);
   switch (job.mode) {
-    case 'beats': return sliceWarp(chans, sr, w, n, { transients: job.transients }, p);
+    case 'beats': return sliceWarp(chans, sr, w, n, { transients: job.transients, fill: job.fill }, p);
     // Frames hold two periods of a 40 Hz bass and may shift by half of one.
     case 'mono': return wsola(chans, sr, w, n, { frame: 0.05, tol: 0.0125 }, p);
     // A voice sits above 80 Hz, so shorter frames do, and smear consonants less.

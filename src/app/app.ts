@@ -9,9 +9,11 @@ import { type Groove, type VoiceNote, analyseGroove, transcribe } from '../core/
 import { detectMarkers, filterMarkers, sensToThr } from '../core/markers/detect';
 import { type Slice, isExcluded, loopInfo, planSlices, sliceKey } from '../core/slices/slices';
 import { Grid, barQ } from '../core/tempo/meter';
-import { type Bar, TempoMap } from '../core/tempo/tempo-map';
+import { type Bar, TempoMap, eachStep } from '../core/tempo/tempo-map';
 import type { Anchor, Candidate, Marker, TimeRange } from '../core/types';
+import { planCuts } from '../core/warp/beats';
 import { averageBpm, planWarp, warpRange } from '../core/warp/map';
+import type { WarpMode } from '../core/warp/modes';
 import { Timeline } from '../core/timeline';
 import { Alignment, type WarpMarker, quantizeTransients } from '../core/warp/markers';
 import { Emitter } from '../state/emitter';
@@ -233,8 +235,21 @@ export class App {
     const avgBpm = averageBpm(tempo, r), bpm = gridBpm ?? Math.round(avgBpm);
     if (!(bpm > 0)) return null;
     const w = planWarp(map, r, bpm);
-    return { map: w, bpm, avgBpm, q0: r.q0, range: r, srcDur: r.b - r.a, outDur: w.outDur, ratios: w.ratioRange(), loop: !!loop, tempo, alignment: map };
+    return { map: w, bpm, avgBpm, q0: r.q0, range: r, srcDur: r.b - r.a, outDur: w.outDur, ratios: w.ratioRange(), loop: !!loop, tempo, alignment: map, cuts: null };
   });
+  // The source a render is given runs half a second past the warp (`WarpRender.renderNow`), so the
+  // last piece runs out where it does there.
+  private readonly _cut = memo((plan: WarpPlan | null, mode: WarpMode, at: readonly number[], dur: number): WarpPlan | null =>
+    (plan && mode === 'beats' ? { ...plan, cuts: planCuts(plan.map, at, Math.min(dur, plan.range.b + 0.5), plan.outDur) } : plan));
+
+  private readonly _cutPoints = memo((markers: readonly Marker[], map: TempoMap, dur: number): number[] => {
+    if (markers.length) return markers.map((k) => k.t);
+    const out: number[] = [];
+    eachStep(map, 0.25, 0, dur, (t) => out.push(t), 100000);
+    return out;
+  });
+  /** Where Drums mode cuts: the transients of step 1, or the sixteenths of the tempo map when there are none. */
+  get cutPoints(): readonly number[] { return this._cutPoints(this.markers, this.tempoMap, this.dur); }
   /**
    * The warp onto a straight grid: the whole file, or the loop alone when the Warp step says so. Null
    * without a tempo map, or when it is the loop and there is none.
@@ -243,7 +258,8 @@ export class App {
     if (!this.audio || !this.hasMap) return null;
     const loop = this.warp.range === 'loop' ? this.activeLoop : null;
     if (this.warp.range === 'loop' && !loop) return null;
-    return this._warp(this.alignment, this.tempoMap, this.doc.meter, this.dur, this.exportSettings.lead, loop, this.warp.bpm);
+    const p = this._warp(this.alignment, this.tempoMap, this.doc.meter, this.dur, this.exportSettings.lead, loop, this.warp.bpm);
+    return this._cut(p, this.warp.mode, this.warp.mode === 'beats' ? this.cutPoints : [], this.dur);
   }
 
   /**
@@ -270,14 +286,16 @@ export class App {
    */
   get heard(): WarpOut | null { return this.playing ? this.playing.out : this.warpOut; }
 
-  private readonly _timeline = memo((map: TempoMap, moved: Alignment | null, bpm: number | null, range: TimeRange | null) => new Timeline(map, moved, bpm, range));
+  private readonly _timeline = memo((map: TempoMap, moved: Alignment | null, bpm: number | null, range: TimeRange | null, p: WarpPlan | null) =>
+    new Timeline(map, moved, bpm, range, p?.cuts ? { cuts: p.cuts, q0: p.q0, outDur: p.outDur } : null));
   /**
    * Where everything is drawn and what the pointer lands on (`core/timeline.ts`). It follows what is
-   * heard: the warp draws the audio moved onto the grid, the original draws it where it is.
+   * heard: the warp draws the audio moved onto the grid, the original draws it where it is. Drums mode
+   * cuts rather than stretches, so there each piece is drawn whole where it is laid down.
    */
   get timeline(): Timeline {
     const h = this.heard, p = h?.plan;
-    return p ? this._timeline(p.tempo, p.alignment, p.bpm, h.range) : this._timeline(this.tempoMap, null, null, null);
+    return p ? this._timeline(p.tempo, p.alignment, p.bpm, h.range, p) : this._timeline(this.tempoMap, null, null, null, null);
   }
 
   get dur(): number { return this.audio?.dur ?? 0; }

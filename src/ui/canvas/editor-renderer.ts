@@ -75,6 +75,7 @@ export class EditorRenderer {
     const f: layers.Frame = {
       g, app, L, C, xOf: s.xOf, xAtPos: s.xAtPos, t0: tl.sourceAt(v.t0), t1: tl.sourceAt(v.t1),
       beatsMode: stepRules(app.step).recede, editable: stepRules(app.step).editable,
+      gaps: tl.gaps(v.t0, v.t1).map((k) => ({ x0: v.xOf(k.a), x1: v.xOf(k.b), len: k.len })),
     };
 
     layers.background(f);
@@ -90,6 +91,7 @@ export class EditorRenderer {
     g.drawImage(this.waveCache, 0, Math.round(L.wy * dpr));
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+    layers.gaps(f);
     layers.odf(f);
     layers.slices(f);
     layers.markers(f);

@@ -39,6 +39,13 @@ with no tempo map at all.
   leaves this on the whole file. A loop warped alone starts the file and is exactly as many beats long
   as it holds at the new tempo, named like the loop export: `name_4bars_100bpm_warped.wav`.
 - **Material**: the method (below).
+- **Fill gaps** (Drums only): Drums mode moves each hit whole, so a hit moved away from the next
+  leaves silence before it. The editor draws those gaps as red bands, with their length when there is
+  room, and the summary counts them and gives the longest. Fill gaps works like Beat Detective's Fill
+  Gaps, but it doesn't play on through the source, which would sound the next hit early. Instead each
+  piece's own tail plays back and forth over its last quarter (10 to 80 ms), fading into the next hit,
+  the way Ableton's Beats mode loops it. Filled gaps are drawn hatched. It is saved with the session
+  like the other Warp settings (`warp.fill`, written only when on).
 - **Reset** goes back to the whole file at its average tempo, Full mix, with no warp markers (undo brings
   them back).
 
@@ -62,7 +69,10 @@ in `app/warp-out.ts` maps the two timelines both ways, for the audio, the timeli
 has it. What is drawn over it follows what is heard (`App.timeline`, see
 [architecture.md](architecture.md#time-on-screen)): heard warped, the waveform, the transients and the
 playhead are drawn where the warp puts them, so a quantized hit is drawn on its line; heard as the
-original, they are drawn where they are, so A/B shows the difference. The readout names the bar and
+original, they are drawn where they are, so A/B shows the difference. In Drums mode what is heard is
+cuts, not a stretch: each piece is drawn whole from where its transient lands. A piece that runs into
+the next is drawn cut short, and a piece that stops early leaves a gap (`Cuts` in
+`core/warp/beats.ts`, carried by the plan as `WarpPlan.cuts`: the same pieces the render lays down). The readout names the bar and
 beat heard, and the tempo heard (the grid's, while warped). The tempo lane draws the grid's tempo as
 a dashed line, with the gap between each bar's tempo and it shaded: blue for a bar that is slowed
 down, red for one sped up. The bars and their tempo are the tempo map's: warp markers line hits up
@@ -88,7 +98,7 @@ built on the one the literature finds best for its material.
 
 | Material | Method | Good at | Costs |
 | --- | --- | --- | --- |
-| Drums | Cut at every transient, move each hit whole (REX, Ableton's Beats mode) | Attacks exact to the sample, sound untouched | Sustained sounds step; a gap is left when slowing down |
+| Drums | Cut at every transient, move each hit whole (REX, Ableton's Beats mode) | Attacks exact to the sample, sound untouched | Sustained sounds step; a gap is left when slowing down, unless filled |
 | Mono | WSOLA ([Verhelst & Roelands 1993][wsola]), 50 ms frames that may shift 12.5 ms to line up | Bass, lead, one note at a time: no phasing | Chords beat; attacks can double slightly |
 | Vocal | WSOLA with 30 ms frames, 7.5 ms shift | Consonants stay crisp, formants stay put | Same as mono on dense material |
 | Poly | Phase vocoder with identity phase locking ([Laroche & Dolson 1999][pv]), ~93 ms frames | Chords, pads, keys: smooth and in tune | Attacks soften |
