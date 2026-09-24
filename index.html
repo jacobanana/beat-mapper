@@ -295,10 +295,9 @@
             </span>
           </div>
           <div class="row2">
-            <span class="cap" title="What each hit is measured against">Grid</span><span class="items">
+            <span class="cap" title="The grid each hit is measured against">Grid</span><span class="items">
               <select id="gGrid" title="Grid each hit is placed on" aria-label="Grid"><option value="8">1/8</option><option value="16" selected>1/16</option><option value="8t">1/8T</option><option value="16t">1/16T</option></select>
               <label class="sl" title="Quantize: the drums the kit plays, the MIDI chart and the MIDI export moved onto this grid, 0% as played, 100% on it. The pocket is always measured as played">quantize<input type="range" id="gQuant" min="0" max="100" step="5" value="0" aria-label="Quantize the drums"><output id="gQuantO">0%</output></label>
-              <select id="gRef" title="What the pocket is measured against, bar by bar. Auto: the hats when they keep time, else the tempo map's grid" aria-label="Measured against"><option value="auto">vs auto</option><option value="hat">vs hats</option><option value="kick">vs kick</option><option value="snare">vs snare</option><option value="kit">vs whole kit</option><option value="grid">vs grid</option></select>
             </span>
           </div>
           <div class="row2">
@@ -438,7 +437,6 @@
     <div><svg class="ic"><use href="#i-groove"/></svg><span>Kick, snare and hats are found in the audio, and each hit is measured against the beat. The waveform shows them in three lanes, each with a tail back to its grid line. Map the beats first (step 2) if the take drifts</span><span></span></div>
     <div><span>Source</span><span>Drums only, or a full mix (experimental: the other instruments are modelled apart from the drums, but expect misses)</span></div>
     <div><span>K S H</span><span>Sensitivity per voice, with how many hits each has. Raise the snare's for ghost notes</span></div>
-    <div><span>vs</span><span>What the pocket is measured against, bar by bar: the hats (the timekeeper), one of the others, the whole kit, or the tempo map's grid. Measuring against a grid found from the same hits is circular, so auto takes the hats when they keep time</span></div>
     <div><svg class="ic"><use href="#i-reset"/></svg><span>Reset: the hits as found at the starting sensitivities, measured as they start</span><span></span></div>
     <div><svg class="ic"><use href="#i-mix"/></svg><span>Hear the drums as MIDI on a synth kit: in the mixer, tap its icon to unmute it, and the audio's to hear the kit alone</span><span><kbd>M</kbd></span></div>
     <div><span>Chart</span><span>Left: where each voice sits, ahead or behind – every hit, its middle half, and its median. Right: the typical bar – dot size is velocity, faint dots are steps played in only some bars, tails show the lean</span></div>

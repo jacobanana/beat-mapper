@@ -41,12 +41,15 @@ wires mask.
 ## 2. The pocket (`core/groove/pocket.ts`)
 
 Each hit goes to its nearest grid step on the tempo map (1/8, 1/16 or triplets) and is measured
-from it. A map pinned to the transients is pinned to whatever hits first, so measuring against the
-map alone is circular. Offsets are measured against a **reference** instead: by default the hats,
-using their median offset on the eighths in each bar. Sixteenths may swing and swing isn't lean, so
-they don't count towards the reference. A bar without the reference borrows it from its
-neighbours. The reference can also be the kick, the snare, the whole kit, or the grid itself (for a
-take played to a click).
+from it. The app always measures against that grid: the tempo map set in Beats is the beat the
+drums are heard against, and a choice of references (vs hats, vs kick…) read as noise in the panel.
+A map pinned to the transients is pinned to whatever hits first, so pin it by ear or auto-map it
+between a few pins rather than pinning every snare.
+
+`analyseGroove` can still measure against a **reference** voice instead, and its tests keep that
+working: the hats, using their median offset on the eighths in each bar (sixteenths may swing and
+swing isn't lean, so they don't count), the kick, the snare or the whole kit. A bar without the
+reference borrows it from its neighbours.
 
 Out of that: per voice, the median, spread and middle half of the offsets, and the swing (where the
 odd steps fall between the even ones); per step, how often it is played, its median velocity and

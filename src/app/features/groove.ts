@@ -4,7 +4,7 @@ import type { DrumSource } from '../../core/drums/detect';
 import { loudnessAt } from '../../core/drums/edit';
 import { GM_NOTE, VOICES, type Voice } from '../../core/drums/voices';
 import { safeName } from '../../core/format';
-import { type GrooveGrid, type Reference, describeGroove, quantizedTime } from '../../core/groove/pocket';
+import { type GrooveGrid, describeGroove, quantizedTime } from '../../core/groove/pocket';
 import { nearest } from '../../core/search';
 import { hasBridge, saveError, saveFile } from '../../io/download';
 import { grooveJson } from '../../io/formats/groove';
@@ -67,7 +67,6 @@ export class Groove {
   }
 
   setGrid(grid: GrooveGrid): void { this.app.set('groove', { grid }); }
-  setReference(ref: Reference | 'auto'): void { this.app.set('groove', { ref }); }
   toggleExaggerate(): void { this.app.set('groove', { exaggerate: !this.app.groove.exaggerate }); }
   setChart(chart: GrooveChartMode): void { this.app.set('groove', { chart }); }
   /** Moves the drums heard, charted and exported `pct` percent of the way onto the grid. */
@@ -126,7 +125,7 @@ export class Groove {
   /** Something in this step differs from how it starts: a hit edited, or a sensitivity or measure changed. */
   get changed(): boolean {
     const { app } = this, g = app.groove, g0 = defaultGroove(), e = app.doc.drums;
-    return !!app.audio && (e.manual.length > 0 || e.removed.length > 0 || g.grid !== g0.grid || g.ref !== g0.ref || g.quantize !== g0.quantize || VOICES.some((v) => g.sens[v] !== g0.sens[v]));
+    return !!app.audio && (e.manual.length > 0 || e.removed.length > 0 || g.grid !== g0.grid || g.quantize !== g0.quantize || VOICES.some((v) => g.sens[v] !== g0.sens[v]));
   }
 
   /**
@@ -137,8 +136,8 @@ export class Groove {
     const { app } = this;
     if (!this.changed) return;
     this.resetHits();
-    const { sens, grid, ref, quantize } = defaultGroove();
-    app.set('groove', { sens, grid, ref, quantize });
+    const { sens, grid, quantize } = defaultGroove();
+    app.set('groove', { sens, grid, quantize });
     app.select(null);
     app.notify.toast('Groove reset: the hits as found. Undo brings your hit edits back.');
   }

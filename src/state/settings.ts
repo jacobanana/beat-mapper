@@ -3,7 +3,7 @@ import type { Algo, Band } from '../core/dsp/onset';
 import type { MapSettings } from '../core/beats/edit';
 import type { DrumSource } from '../core/drums/detect';
 import type { PerVoice } from '../core/drums/voices';
-import type { GrooveGrid, Reference } from '../core/groove/pocket';
+import type { GrooveGrid } from '../core/groove/pocket';
 import type { GridDivision } from '../core/tempo/meter';
 import type { TimeRange } from '../core/types';
 import type { WarpMode } from '../core/warp/modes';
@@ -98,7 +98,6 @@ export interface GrooveSettings {
   /** Per voice, 0..100. */
   sens: PerVoice<number>;
   grid: GrooveGrid;
-  ref: Reference | 'auto';
   /** Draw offsets three times their size, as Pocket Science's pocket-emphasis mode does. */
   exaggerate: boolean;
   /** The chart under the controls: the pocket, or the hits as a MIDI transcript. */
@@ -142,7 +141,7 @@ export const defaultSlicer = (): SlicerSettings => ({
   mode: 'gap', len: 500, tail: 0, fadeIn: 1, fadeOut: 8, min: 40, mono: false, bits: 16, norm: false, target: -1, naming: 'num', csv: true,
 });
 export const defaultTransport = (): TransportState => ({ loop: null, loopOn: false, start: 0, playhead: 0, stay: false, click: false, scrubMode: false });
-export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', ref: 'auto', exaggerate: true, chart: 'pocket', quantize: 0 });
+export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', exaggerate: true, chart: 'pocket', quantize: 0 });
 export const defaultMix = (): MixSettings => ({ audio: 100, click: 100, drums: 100 });
 export const defaultMute = (): MuteSettings => ({ audio: false, drums: true });
 

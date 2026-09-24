@@ -173,11 +173,12 @@ export class App {
     return this._drumNotes(this._playedNotes(this.drumHits), this.tempoMap, this.doc.meter, this.groove.grid, this.groove.quantize);
   }
 
-  private readonly _groove = memo((hits: PerVoice<EditedHit[]> | null, map: TempoMap, meter: ProjectDoc['meter'], grid: GrooveSettings['grid'], ref: GrooveSettings['ref'], range: TimeRange) =>
-    hits && !map.isEmpty ? analyseGroove(hits, { map, meter, grid, ref, range }) : null);
-  /** Where each voice sits against the beat, inside the loop when it is on. */
+  // Always against the grid: the tempo map the user set is the beat the drums are heard against.
+  private readonly _groove = memo((hits: PerVoice<EditedHit[]> | null, map: TempoMap, meter: ProjectDoc['meter'], grid: GrooveSettings['grid'], range: TimeRange) =>
+    hits && !map.isEmpty ? analyseGroove(hits, { map, meter, grid, ref: 'grid', range }) : null);
+  /** Where each voice sits against the grid, inside the loop when it is on. */
   get pocket(): Groove | null {
-    return this._groove(this.drumHits, this.tempoMap, this.doc.meter, this.groove.grid, this.groove.ref, this.sliceRange);
+    return this._groove(this.drumHits, this.tempoMap, this.doc.meter, this.groove.grid, this.sliceRange);
   }
 
   private readonly _warpTempo = memo((map: TempoMap, wm: readonly WarpMarker[]) => warpTempoMap(map, wm));

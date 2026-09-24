@@ -502,7 +502,7 @@ describe('groove', () => {
     expect(h.hat.length).toBeGreaterThanOrEqual(64);
     const g = app.pocket!;
     expect(g.bars).toBe(16);
-    expect(g.ref).toBe('hat');
+    expect(g.ref).toBe('grid');
     // The demo plays every voice on the beat; only its off-beat hats wander (±4 ms).
     for (const v of g.voices) expect(Math.abs(v.median), v.voice).toBeLessThan(1.5);
     expect(f.groove.summary()).toMatch(/^16 bars · 9\d\.\d BPM/);
@@ -517,8 +517,6 @@ describe('groove', () => {
     expect(app.drumHits!.hat.length).toBeLessThan(n);
     f.groove.setGrid('8');
     expect(app.pocket!.stepsPerBar).toBe(8);
-    f.groove.setReference('grid');
-    expect(app.pocket!.ref).toBe('grid');
     f.playback.setLoop({ a: app.tempoMap.posToTime(8), b: app.tempoMap.posToTime(16) }, true);
     expect(app.pocket!.bars).toBe(2);
   });

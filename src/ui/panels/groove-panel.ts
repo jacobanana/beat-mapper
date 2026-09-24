@@ -4,7 +4,7 @@ import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import type { DrumSource } from '../../core/drums/detect';
 import { VOICES } from '../../core/drums/voices';
-import type { GrooveGrid, Reference } from '../../core/groove/pocket';
+import type { GrooveGrid } from '../../core/groove/pocket';
 import { GrooveChart } from '../canvas/groove-chart';
 import { $, $btn, $in, $sel, setPressed, setText, setValue } from '../dom';
 
@@ -14,7 +14,6 @@ export function bindGroovePanel(app: App, f: Features): GrooveChart {
   for (const v of VOICES) $in('gSens-' + v).oninput = (e) => gr.setSensitivity(v, +(e.target as HTMLInputElement).value);
   $sel('gGrid').onchange = (e) => gr.setGrid((e.target as HTMLSelectElement).value as GrooveGrid);
   $in('gQuant').oninput = (e) => gr.setQuantize(+(e.target as HTMLInputElement).value);
-  $sel('gRef').onchange = (e) => gr.setReference((e.target as HTMLSelectElement).value as Reference | 'auto');
   $('gExag').onclick = () => gr.toggleExaggerate();
   $('gChartPocket').onclick = () => gr.setChart('pocket');
   $('gChartMidi').onclick = () => gr.setChart('midi');
@@ -26,7 +25,6 @@ export function bindGroovePanel(app: App, f: Features): GrooveChart {
     setValue($sel('gSource'), s.source);
     for (const v of VOICES) setValue($in('gSens-' + v), s.sens[v]);
     setValue($sel('gGrid'), s.grid);
-    setValue($sel('gRef'), s.ref);
     setValue($in('gQuant'), s.quantize);
     setText($('gQuantO'), s.quantize + '%');
     setPressed($('gExag'), s.exaggerate);
