@@ -211,7 +211,7 @@ try {
     await page.waitForFunction(() => document.getElementById('gN-kick').textContent !== '' && document.getElementById('busy').hidden, null, { timeout: 30000 });
     assert.equal(await text('gN-kick'), '32');
     assert.equal(await text('gN-snare'), '32');
-    assert.match(await text('gSum'), /^16 bars · 9\d\.\d BPM · Against the hats/);
+    assert.match(await text('gSum'), /^16 bars · 9\d\.\d BPM · Against the grid/);
     await page.keyboard.press('Control+e');
     assert.equal(await page.getAttribute('[data-fmt=drumsMidi]', 'aria-pressed'), 'true');
     const [d] = await Promise.all([page.waitForEvent('download'), page.click('#expSave')]);
