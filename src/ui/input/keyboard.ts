@@ -89,7 +89,7 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
     } else if (app.step === 3) {
       if (k === 'w') f.warp.toggleListen();
       else if (k === 'f') f.warp.fromLoop();
-      else if (k === 'q') f.warp.quantize();
+      else if (k === 'q') f.warp.toggleQuantize();
       else if (k === 'g') f.beats.cycleGrid(e.shiftKey ? -1 : 1);
     } else if (app.step === 4) {
       if (k === 'e') f.slicer.previewSelected();

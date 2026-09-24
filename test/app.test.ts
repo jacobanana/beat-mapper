@@ -279,6 +279,68 @@ describe('the Warp step', () => {
     expect(app.doc).toBe(before);
   });
 
+  it('switches quantize on and off, off putting the warp markers back', () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.workflow.goTo(3);
+    f.beats.setGrid('8');
+    const before = app.doc;
+    f.warp.toggleQuantize();
+    expect(f.warp.quantizeOpen).toBe(true);
+    expect(app.doc.warpMarkers.length).toBeGreaterThan(100);
+    f.warp.toggleQuantize();
+    expect(f.warp.quantizeOpen).toBe(false);
+    expect(app.doc).toBe(before);
+    // Another edit keeps the quantize and turns the switch off.
+    f.warp.toggleQuantize();
+    f.warp.remove(app.doc.warpMarkers[0].t);
+    expect(f.warp.quantizeOpen).toBe(false);
+    expect(app.doc.warpMarkers.length).toBeGreaterThan(100);
+  });
+
+  it('quantizes again as the shuffle or the grid moves while quantize is on, as one undo step', () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.workflow.goTo(3);
+    f.beats.setGrid('8');
+    const before = app.doc;
+    f.warp.toggleQuantize();
+    const straight = app.doc.warpMarkers;
+    f.beats.setShuffle(100);
+    expect(f.warp.quantizeOpen).toBe(true);
+    // Every off-beat eighth swings two thirds of the way through its beat.
+    const off = app.doc.warpMarkers.filter((w) => Math.abs((w.q % 1) - 2 / 3) < 1e-6);
+    expect(off.length).toBeGreaterThan(10);
+    expect(app.doc.warpMarkers).not.toEqual(straight);
+    f.beats.setShuffle(0);
+    expect(app.doc.warpMarkers).toEqual(straight);
+    f.beats.setGrid('4');
+    expect(app.doc.warpMarkers.every((w) => Math.abs(w.q - Math.round(w.q)) < 1e-6)).toBe(true);
+    app.undo();
+    expect(app.doc).toBe(before);
+    // Off, the shuffle only sets the grid.
+    f.beats.setShuffle(50);
+    expect(app.doc).toBe(before);
+  });
+
+  it('resets the shuffle and the quantize strength with the warp', () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.workflow.goTo(3);
+    f.beats.setShuffle(60);
+    expect(f.warp.changed).toBe(true);
+    f.warp.reset();
+    expect(app.beats.shuffle).toBe(0);
+    f.warp.setQuantizeStrength(40);
+    expect(f.warp.changed).toBe(true);
+    f.warp.reset();
+    expect(app.warp.quantize).toBe(100);
+    expect(f.warp.changed).toBe(false);
+  });
+
   it('plays it warped by default, and renders once until the warp changes', async () => {
     const { app, f } = t;
     f.workflow.goTo(2);

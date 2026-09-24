@@ -3,7 +3,7 @@
 // Beats; here it is only read.
 import { fmtBpm, fmtTime, safeName } from '../../core/format';
 import { renderSlice } from '../../core/slices/slices';
-import { type Meter, barQ, beatQ } from '../../core/tempo/meter';
+import { type Grid, type Meter, barQ, beatQ } from '../../core/tempo/meter';
 import type { TempoMap } from '../../core/tempo/tempo-map';
 import type { TimeRange } from '../../core/types';
 import { averageBpm, gridBeats } from '../../core/warp/map';
@@ -14,7 +14,7 @@ import { bufferFrom } from '../../engine/audio-context';
 import { saveError, saveFile } from '../../io/download';
 import { wavEncode } from '../../io/formats/wav';
 import type { ProjectDoc } from '../../state/project';
-import { type WarpSettings, defaultWarp } from '../../state/settings';
+import { type WarpSettings, defaultBeats, defaultWarp } from '../../state/settings';
 import type { App, WarpPlan } from '../app';
 import type { Beats } from './beats';
 import type { Playback, Take, TakeSource } from './playback';
@@ -48,6 +48,10 @@ export class Warp implements TakeSource {
     // What plays follows what is wanted: the original outside this step or with Original chosen, and a
     // fresh take after a change to the warp.
     app.bus.on(['doc', 'warp', 'export', 'transport', 'step', 'candidates', 'detection', 'audio'], () => this.follow());
+    // While Quantize is on, a new grid or shuffle lines the transients up on it again; leaving the step
+    // ends it, so a grid changed in Beats doesn't move them unseen.
+    app.bus.on('beats', () => { if (this.quantizing && this.quantizing.grid !== app.grid) this.requantize(); });
+    app.bus.on('step', () => { if (app.step !== 3) this.endQuantize(); });
   }
 
   update(patch: Partial<WarpSettings>): void { this.app.set('warp', patch); }
@@ -90,13 +94,20 @@ export class Warp implements TakeSource {
   /** Something in this step differs from how it starts. */
   get changed(): boolean {
     const w = this.app.warp, w0 = defaultWarp();
-    return !!this.app.audio && (w.mode !== w0.mode || w.bpm !== w0.bpm || w.range !== w0.range || this.app.doc.warpMarkers.length > 0);
+    return !!this.app.audio && (w.mode !== w0.mode || w.bpm !== w0.bpm || w.range !== w0.range || w.quantize !== w0.quantize ||
+      this.app.beats.shuffle !== defaultBeats().shuffle || this.app.doc.warpMarkers.length > 0);
   }
 
-  /** Back to how the step starts: the averaged tempo, the whole file, the full-mix method, heard warped, no warp markers. */
+  /**
+   * Back to how the step starts: the averaged tempo, the whole file, the full-mix method, heard warped,
+   * no warp markers, a straight grid and quantize at full strength. The shuffle is the Beats grid's
+   * too, but it is set here, so it goes back here as well.
+   */
   reset(): void {
     if (!this.changed) return;
+    this.quantizing = null;
     this.app.edit((d) => (d.warpMarkers.length ? { ...d, warpMarkers: [] } : d));
+    this.app.set('beats', { shuffle: defaultBeats().shuffle });
     this.update(defaultWarp());
     this.app.notify.toast('Warp reset: the whole file at the tempo it averages. Undo brings the warp markers back.');
   }
@@ -193,6 +204,7 @@ export class Warp implements TakeSource {
     base: ProjectDoc['warpMarkers'];
     map: TempoMap;
     range: TimeRange;
+    grid: Grid;
     doc: ProjectDoc;
     recorded: boolean;
   } | null = null;
@@ -208,9 +220,9 @@ export class Warp implements TakeSource {
     if (!app.markers.length) return this.say('No transients to line up. Raise the sensitivity in step 1.');
     const base = app.doc.warpMarkers, map = app.warpTempo, range = { a: p.map.src[0], b: p.map.src[p.map.src.length - 1] };
     if (quantizeTransients(map, app.grid, app.markers.map((m) => m.t), range, base).length === base.length) return this.say('Every transient is already lined up.');
-    this.quantizing = { base, map, range, doc: app.doc, recorded: false };
+    this.quantizing = { base, map, range, grid: app.grid, doc: app.doc, recorded: false };
     const n = this.requantize(), pct = app.warp.quantize;
-    app.notify.toast(n > 0 ? `${n} transients lined up on the grid${pct < 100 ? ` at ${pct} %` : ''} · undo takes them back` : 'Strength 0 %: raise it to line the transients up.');
+    app.notify.toast(n > 0 ? `${n} transients lined up on the grid${pct < 100 ? ` at ${pct} %` : ''} · Quantize again takes them back` : 'Strength 0 %: raise it to line the transients up.');
     return true;
   }
 
@@ -235,6 +247,7 @@ export class Warp implements TakeSource {
       this.quantizing = null;
       return -1;
     }
+    q.grid = app.grid;
     const out = quantizeTransients(q.map, app.grid, app.markers.map((m) => m.t), q.range, q.base, app.warp.quantize / 100);
     if (!q.recorded) {
       if (out.length === q.base.length) return 0;
@@ -249,7 +262,27 @@ export class Warp implements TakeSource {
   }
 
   /** The strength is set: the next change to the warp markers is a new edit. */
-  endQuantize(): void { this.quantizing = null; }
+  endQuantize(): void {
+    if (!this.quantizing) return;
+    this.quantizing = null;
+    this.app.bus.emit('warp');
+  }
+
+  /**
+   * Quantize as a switch: on lines the transients up, off puts back the warp markers there were
+   * before, as long as nothing has been edited since. The undo it takes leaves a redo to turn it on again.
+   */
+  toggleQuantize(): void {
+    if (!this.quantizeOpen) {
+      this.quantize();
+      return this.app.bus.emit('warp');
+    }
+    const recorded = this.quantizing!.recorded;
+    this.quantizing = null;
+    if (recorded) this.app.undo();
+    this.app.bus.emit('warp');
+    this.app.notify.toast('Quantize off');
+  }
 
   /** Every warp marker off: only the pins are warped onto the grid again. */
   clearMarkers(): void {

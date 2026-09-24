@@ -223,12 +223,8 @@
             <span class="cap" title="Drag a transient onto a grid line to line it up there">Align</span><span class="items">
               <label class="sl" title="Grid (G): the lines a transient is lined up on">grid<select id="warpGrid" aria-label="Grid"><option value="bar">Bar</option><option value="2">1/2</option><option value="4">1/4</option><option value="8">1/8</option><option value="16" selected>1/16</option><option value="32">1/32</option><option value="4t">1/4T</option><option value="8t">1/8T</option><option value="16t">1/16T</option></select></label>
               <label class="sl" title="Shuffle: every second line of the grid swings late, 100% a triplet shuffle (1/8, 1/16 and 1/32 only)">shuffle<input type="range" id="warpShuffle" min="0" max="100" step="5" value="0" aria-label="Shuffle"><output id="warpShuffleO">0%</output></label>
-              <button class="btn" id="wQuantize" title="Quantize: every transient towards the grid line nearest it, as far as the strength says (Q)" aria-label="Quantize every transient to the grid" aria-controls="qPop" aria-expanded="false">Quantize</button>
-              <div class="pop" id="qPop" role="group" aria-label="Quantize strength" hidden>
-                <div class="ch"><span class="chn">Strength</span><input type="range" id="qStrength" min="0" max="100" step="5" value="100" aria-label="Quantize strength"><output id="qStrengthO">100%</output></div>
-                <p class="hint">How far each transient moves to its grid line: 100% puts it on the line, less keeps some of the feel. Undo takes the whole quantize back.</p>
-                <div class="acts"><button class="btn primary" id="qDone">Done</button></div>
-              </div>
+              <label class="sl" title="Strength: how far Quantize moves each transient to its grid line, 100% onto it, less keeps some of the feel">strength<input type="range" id="qStrength" min="0" max="100" step="5" value="100" aria-label="Quantize strength"><output id="qStrengthO">100%</output></label>
+              <button class="btn" id="wQuantize" title="Quantize on: every transient towards the grid line nearest it, as far as the strength says; off puts the warp markers back (Q)" aria-label="Quantize every transient to the grid" aria-pressed="false">Quantize</button>
               <button class="btn" id="wClearMarkers" title="Clear the warp markers: only the pins are lined up" aria-label="Clear the warp markers">Clear</button>
             </span>
           </div>
@@ -241,7 +237,7 @@
           <div class="row2">
             <span class="cap" title="What plays">Listen</span><span class="items">
               <span class="seg" role="group" aria-label="What plays"><button class="btn" id="wOrig" title="Play the original (W)" aria-pressed="false">Original</button><button class="btn on" id="wWarped" title="Play it warped onto the grid, with the click on the grid (W)" aria-pressed="true">Warped</button></span>
-              <button class="btn end" id="resetW" title="Reset Warp: the whole file at the tempo it averages, Full mix, no warp markers" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
+              <button class="btn end" id="resetW" title="Reset Warp: the whole file at the tempo it averages, Full mix, no warp markers, no shuffle, full quantize strength" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
             </span>
           </div>
           <p id="wSum"></p>
@@ -416,7 +412,7 @@
     <div><span>Original · Warped</span><span>What plays. Warped plays it with the click on the grid; the playhead follows the original, so it sits on the hit you hear</span><span><kbd>W</kbd></span></div>
     <div><svg class="ic"><use href="#i-loop"/></svg><span>From loop: loop a section that is played right, and the grid takes the tempo it averages, to the nearest BPM. Or type a tempo; empty takes the average of what is warped</span><span><kbd>F</kbd></span></div>
     <div><span>Align: drag a transient in the upper half onto a grid line, and the warp puts that hit exactly on it, stretching the audio either side to fit. Double-tap a transient to put it on the nearest line, or a warp marker to let it go. Alt drops it off the grid</span><span></span></div>
-    <div><span>Quantize: every transient of what is warped towards the grid line nearest it, as far as the strength says (100% by default). Clear takes the warp markers off; undo brings them back</span><span><kbd>Q</kbd></span></div>
+    <div><span>Quantize (a switch): every transient of what is warped towards the grid line nearest it, as far as the strength beside the shuffle says (100% by default); off puts the warp markers back. Clear takes the warp markers off; undo brings them back</span><span><kbd>Q</kbd></span></div>
     <div><span>whole file · just the loop</span><span>What is warped, heard and saved. Drawing a loop to take its tempo doesn't make it the loop alone</span><span></span></div>
     <div><span>Material</span><span>How it is stretched: Drums cut at the transients, Mono and Vocal overlap-add, Poly a phase vocoder, Full mix both, Re-pitch like a turntable</span><span></span></div>
     <div><svg class="ic"><use href="#i-reset"/></svg><span>Reset: the whole file at the tempo it averages, Full mix</span><span></span></div>
@@ -480,7 +476,7 @@
     <div><span><kbd>Del</kbd></span><span>Unpin selected</span></div>
     <h3>Step 3 – Warp</h3>
     <div><span><kbd>W</kbd></span><span>Warped or the original</span></div>
-    <div><span><kbd>Q</kbd></span><span>Quantize every transient to the grid</span></div>
+    <div><span><kbd>Q</kbd></span><span>Quantize every transient to the grid, on or off</span></div>
     <div><span><kbd>G</kbd></span><span>Finer grid (<kbd>Shift</kbd> coarser)</span></div>
     <div><span><kbd>Del</kbd></span><span>Remove the selected warp marker</span></div>
     <div><span><kbd>F</kbd></span><span>Grid tempo from the loop</span></div>

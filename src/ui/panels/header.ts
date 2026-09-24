@@ -14,7 +14,7 @@ const STEPS = [1, 2, 3, 4, 5] as const;
 const RESET_ASK: Record<(typeof STEPS)[number], [string, string]> = {
   1: ['Reset Transients?', 'Detection goes back to how it starts, and the markers to how they were found. Undo brings back your marker edits.'],
   2: ['Reset Beats?', 'Only bar 1 stays, on the first transient, in 4/4 at the starting tempo. Undo brings back your map.'],
-  3: ['Reset Warp?', 'The whole file is warped at the tempo it averages, as a full mix, and the warp markers come off. Your grid tempo and material are cleared; undo brings back the warp markers.'],
+  3: ['Reset Warp?', 'The whole file is warped at the tempo it averages, as a full mix, and the warp markers come off. Your grid tempo and material are cleared, the shuffle goes back to 0% and the quantize strength to 100%; undo brings back the warp markers.'],
   4: ['Reset Slice?', 'Every transient starts a slice again, and every slice is kept. Dropped slices can\'t be brought back with undo.'],
   5: ['Reset Groove?', 'The hits go back to how they were found, at the starting sensitivities. Undo brings back your hit edits.'],
 };
