@@ -14,7 +14,7 @@ adding a control.
 | File | Open, Session, Export, file name | File actions come first in every editor and DAW. Session (save the work, or open a saved one) sits by Open since it is opened like a file and wanted from every step. |
 | Edit | Undo, Redo | Undo and redo are a pair next to the file actions, and grey out when there is nothing to undo or redo. |
 | Steps | Transients, Beats, Warp, Slice, Groove | Main navigation, as tabs; icon only, with a text label from 1520 px wide. |
-| Transport (middle) | Go to start ⏮, Play/Stop ▶ · Loop, Scrub, Stay-on-stop · Click, Mixer | DAWs put "go to start" left of play, then loop. The click sits by the mixer, since both are about what you hear. Toggles show their state with `aria-pressed`. |
+| Transport (middle) | Go to start ⏮, Play/Stop ▶ · Loop, Scrub, Stay-on-stop · Warped, Click, Mixer | DAWs put "go to start" left of play, then loop. Warped, the click and the mixer sit together, since all three are about what you hear. Warped shows from step 3 on only: Transients and Beats always use the original. Toggles show their state with `aria-pressed`. |
 | Readout | time · bar.beat · BPM | Next to the transport, as a DAW's position display is. |
 | View (right) | Zoom out, Zoom in, Fit | Zoom out and zoom in sit together, with fit after them. Zoom out/in are hidden on touch, where you pinch instead. |
 | Help | ? | Help goes at the far right. |
@@ -33,7 +33,7 @@ moved down when Session joined the file group: ten 38 px buttons don't fit one r
   delete, pin), then anything destructive (reset, clear) last and on its own.
 - Every step's panel is laid out in the order the work goes, one captioned row per stage, with what
   changes how a stage behaves folded under **Options** below them:
-  Transients **Find · Fix**, Beats **Tempo · Map · Fix**, Warp **Tempo · Warp · Listen**, Slice
+  Transients **Find · Fix**, Beats **Tempo · Map · Fix**, Warp **Tempo · Align · Warp**, Slice
   **Cut · Pick**, Groove **Find · Grid · Chart · Fix**. Buttons in these rows carry a text label where
   there is room, since the caption and the label together say what a button does and what it changes.
 - Every step has a **Reset** with a text label, last in its bar: it starts that step again, as it was

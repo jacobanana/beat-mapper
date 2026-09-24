@@ -1,29 +1,69 @@
-// Step 4: cutting the audio into one-shot samples at the transients, and saving them.
+// Step 4: cutting the audio into one-shot samples at the transients, and saving them. With the warp
+// heard, the samples are cut from the warped audio, so they are what was heard and sit on its grid.
 import { fmtBpm, plural, safeName } from '../../core/format';
 import { loopTag, sliceName, slicesCsv } from '../../core/slices/naming';
-import { type RenderOptions, renderSlice, sliceKey } from '../../core/slices/slices';
+import { type LoopInfo, type RenderOptions, type Slice, renderSlice, sliceKey } from '../../core/slices/slices';
 import { bufferFrom } from '../../engine/audio-context';
 import { saveError, saveFile } from '../../io/download';
 import { buildRppSlices } from '../../io/formats/rpp';
 import { wavEncode, wavSize } from '../../io/formats/wav';
 import { type ZipEntry, zipFiles } from '../../io/formats/zip';
 import { type SlicerSettings, defaultSlicer } from '../../state/settings';
-import type { App, SliceView } from '../app';
+import type { App, SliceView, WarpOut } from '../app';
 import type { Exports } from './exports';
 import type { Playback } from './playback';
+import type { Warp } from './warp';
 
 const TOO_LARGE = 'Too large for this viewer. Slice a shorter range, or use 16-bit mono.';
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
 
+/** What every rendered slice gets; the warped .wav gets the same channels and level. */
+export function sliceRenderOptions(o: SlicerSettings): RenderOptions {
+  return { fadeIn: o.fadeIn / 1000, fadeOut: o.fadeOut / 1000, mono: o.mono, normalize: o.norm, target: Math.pow(10, o.target / 20) };
+}
+
+/** The audio samples are cut from, and where a moment of the original is in it. */
+interface Cut {
+  chans: readonly Float32Array[];
+  sr: number;
+  at(t: number): number;
+  /** The warp it is, or null for the original. */
+  out: WarpOut | null;
+}
+
 export class Slicer {
-  constructor(private readonly app: App, private readonly playback: Playback, private readonly exports: Exports) {}
+  constructor(private readonly app: App, private readonly playback: Playback, private readonly exports: Exports, private readonly warp: Warp) {}
 
   update(patch: Partial<SlicerSettings>): void { this.app.set('slicer', patch); }
 
   /** What every rendered slice gets. */
-  renderOptions(): RenderOptions {
-    const o = this.app.slicer;
-    return { fadeIn: o.fadeIn / 1000, fadeOut: o.fadeOut / 1000, mono: o.mono, normalize: o.norm, target: Math.pow(10, o.target / 20) };
+  renderOptions(): RenderOptions { return sliceRenderOptions(this.app.slicer); }
+
+  // What the samples are cut from: the warp when it is heard, rendered first unless it already is,
+  // else the audio itself. Null, having said why, if the warp couldn't be rendered.
+  private async cut(): Promise<Cut | null> {
+    const { app } = this, a = app.audio, out = app.warpOut;
+    if (!a) return null;
+    if (!out) return { chans: a.chans, sr: a.sr, at: (t) => t, out: null };
+    try {
+      const r = await this.warp.render();
+      // An edit while it rendered makes another warp; the slices are then for that one.
+      if (r && app.warpOut?.plan === r.plan) return { chans: r.chans, sr: a.sr, at: app.warpOut.at, out: app.warpOut };
+      app.notify.toast('The warp changed while it was rendering – try again.');
+    } catch (e) {
+      console.error(e);
+      app.notify.toast("Couldn't warp the audio – loop a shorter part, or hear the original (W).");
+    }
+    return null;
+  }
+
+  /** A slice as it is in the audio cut from: in the warped file's time when that is the warp. */
+  private static placed<T extends Slice>(sl: T, c: Cut): T { return c.out ? { ...sl, t0: c.at(sl.t0), t1: c.at(sl.t1) } : sl; }
+
+  /** The loop as it is named, at the tempo heard. */
+  private loopHeard(): LoopInfo | null {
+    const L = this.app.loopInfo, out = this.app.warpOut;
+    return L && out ? { ...L, bpm: out.plan.bpm } : L;
   }
 
   select(i: number): void {
@@ -92,25 +132,31 @@ export class Slicer {
   }
 
   /** Plays slice i on its own, rendered exactly as it will be written. */
-  preview(i: number): void {
-    const { app, playback } = this, sl = app.slices[i], a = app.audio;
-    if (!sl || !a) return app.notify.toast('No slice to preview.');
+  preview(i: number): void { void this.previewNow(i); }
+
+  private async previewNow(i: number): Promise<void> {
+    const { app, playback } = this, sl = app.slices[i];
+    if (!sl || !app.audio) return app.notify.toast('No slice to preview.');
     if (playback.playing) playback.stop(true);
     playback.stopPreview();
-    const r = renderSlice(a.chans, a.sr, sl.t0, sl.t1, this.renderOptions());
-    playback.oneShot.play(bufferFrom(r.chans, a.sr), sl.t0, sl.t1, () => app.setPlayhead(sl.t0, false), playback.audioLevel);
     this.select(i);
     app.reveal(sl.t0);
     app.setPlayhead(sl.t0, false);
+    const c = await this.cut();
+    // Only the slice still selected plays: another may have been picked while the warp rendered.
+    if (!c || app.sliceIndex !== i) return;
+    const at = Slicer.placed(sl, c), r = renderSlice(c.chans, c.sr, at.t0, at.t1, this.renderOptions());
+    playback.oneShot.play(bufferFrom(r.chans, c.sr), sl.t0, sl.t1, () => app.setPlayhead(sl.t0, false), playback.audioLevel);
   }
 
   previewSelected(): void { this.preview(this.app.sliceIndex ?? 0); }
 
   /** Rough size of the zip of every kept slice. */
   zipEstimate(): number {
-    const o = this.app.slicer, ch = o.mono ? 1 : (this.app.audio?.chans.length ?? 1);
+    const o = this.app.slicer, ch = o.mono ? 1 : (this.app.audio?.chans.length ?? 1), out = this.app.warpOut;
+    const len = (sl: Slice) => (out ? out.at(sl.t1) - out.at(sl.t0) : sl.t1 - sl.t0);
     let n = 0;
-    for (const sl of this.app.slices) if (!sl.off) n += wavSize(Math.round((sl.t1 - sl.t0) * (this.app.audio?.sr ?? 44100)), ch, o.bits) + 180;
+    for (const sl of this.app.slices) if (!sl.off) n += wavSize(Math.round(len(sl) * (this.app.audio?.sr ?? 44100)), ch, o.bits) + 180;
     return n;
   }
 
@@ -123,23 +169,28 @@ export class Slicer {
   }
 
   async saveSelectedWav(): Promise<void> {
-    const { app } = this, S = app.slices, a = app.audio;
-    if (!S.length || !a) return app.notify.toast('No slices yet.');
-    const i = app.sliceIndex ?? 0, sl = S[i];
+    const { app } = this, S = app.slices;
+    if (!S.length || !app.audio) return app.notify.toast('No slices yet.');
+    const i = app.sliceIndex ?? 0;
     this.select(i);
-    const r = renderSlice(a.chans, a.sr, sl.t0, sl.t1, this.renderOptions());
-    await this.save(sliceName(this.base(), i, String(S.length).length, sl, app.slicer.naming), wavEncode(r.chans, a.sr, app.slicer.bits), 'audio/wav', 'Slice ' + (i + 1) + ' saved');
+    const c = await this.cut(), sl = app.slices[i];
+    if (!c || !sl) return;
+    const at = Slicer.placed(sl, c), r = renderSlice(c.chans, c.sr, at.t0, at.t1, this.renderOptions());
+    await this.save(sliceName(this.base(), i, String(app.slices.length).length, at, app.slicer.naming), wavEncode(r.chans, c.sr, app.slicer.bits), 'audio/wav', 'Slice ' + (i + 1) + ' saved');
   }
 
   // The loop itself, untouched apart from the channel, level and depth settings: fades would dip the
-  // seam where the end meets the start, so a loop is written without them.
+  // seam where the end meets the start, so a loop is written without them. Warped, it is the loop as
+  // the warp makes it, at the grid's tempo, named as the Warp step names a warped loop.
   async saveLoopWav(): Promise<void> {
-    const { app } = this, a = app.audio;
-    if (!a) return app.notify.toast('Open an audio file first.');
-    const L = app.loopInfo;
-    if (!L) return app.notify.toast('Switch the loop on first – drag in the top strip to draw one.');
-    const r = renderSlice(a.chans, a.sr, L.a, L.b, { ...this.renderOptions(), fadeIn: 0, fadeOut: 0 });
-    await this.save(this.base() + loopTag(L) + '.wav', wavEncode(r.chans, a.sr, app.slicer.bits), 'audio/wav', `Loop saved · ${plural(L.bars, 'bar')} at ${fmtBpm(L.bpm)} BPM`);
+    const { app } = this;
+    if (!app.audio) return app.notify.toast('Open an audio file first.');
+    if (!app.loopInfo) return app.notify.toast('Switch the loop on first – drag in the top strip to draw one.');
+    const c = await this.cut(), L = this.loopHeard();
+    if (!c || !L) return;
+    const r = renderSlice(c.chans, c.sr, c.at(Math.max(L.a, c.out?.range.a ?? 0)), c.at(Math.min(L.b, c.out?.range.b ?? app.dur)), { ...this.renderOptions(), fadeIn: 0, fadeOut: 0 });
+    const name = this.base() + loopTag(L) + (c.out ? '_warped' : '') + '.wav';
+    await this.save(name, wavEncode(r.chans, c.sr, app.slicer.bits), 'audio/wav', `Loop saved · ${plural(L.bars, 'bar')} at ${fmtBpm(L.bpm)} BPM${c.out ? ', warped' : ''}`);
   }
 
   private kept(): SliceView[] | null {
@@ -153,23 +204,30 @@ export class Slicer {
     return list;
   }
 
-  /** Every kept slice as .wav files in a zip, with a .csv and optionally a REAPER project. */
+  /**
+   * Every kept slice as .wav files in a zip, with a .csv and optionally a REAPER project. Warped, the
+   * times in both are the warped file's, and the project is at the grid's one tempo.
+   */
   async exportZip(withRpp: boolean): Promise<void> {
-    const { app } = this, list = this.kept(), a = app.audio;
-    if (!list || !a) return;
+    const { app } = this, a = app.audio;
+    if (!this.kept() || !a) return;
+    const c = await this.cut(), kept = this.kept();
+    if (!c || !kept) return;
+    const list = kept.map((sl) => Slicer.placed(sl, c));
     const base = this.base(), pad = String(list.length).length, o = this.renderOptions(), naming = app.slicer.naming;
     app.notify.busy('Rendering slices', 0.02);
     await tick(20);
     try {
       const files: ZipEntry[] = [];
       for (let i = 0; i < list.length; i++) {
-        const r = renderSlice(a.chans, a.sr, list[i].t0, list[i].t1, o);
-        files.push({ name: sliceName(base, i, pad, list[i], naming), data: wavEncode(r.chans, a.sr, app.slicer.bits) });
+        const r = renderSlice(c.chans, c.sr, list[i].t0, list[i].t1, o);
+        files.push({ name: sliceName(base, i, pad, list[i], naming), data: wavEncode(r.chans, c.sr, app.slicer.bits) });
         if ((i & 3) === 0) { app.notify.busy('Rendering slices', 0.02 + (0.86 * (i + 1)) / list.length); await tick(); }
       }
       if (withRpp) {
         const named = list.map((sl, i) => ({ t0: sl.t0, t1: sl.t1, name: files[i].name }));
-        const text = buildRppSlices({ ...this.exports.options(), trimmed: false, slices: named, trackName: (a.name || 'Audio') + ' slices' });
+        const on = c.out ? { map: c.out.exportMap, dur: c.out.plan.outDur } : {};
+        const text = buildRppSlices({ ...this.exports.options(), ...on, trimmed: false, slices: named, trackName: (a.name || 'Audio') + ' slices' });
         files.push({ name: base + '-slices.rpp', data: new TextEncoder().encode(text) });
       }
       if (app.slicer.csv) files.push({ name: base + '-slices.csv', data: new TextEncoder().encode(slicesCsv(list, base, pad, naming)) });
@@ -178,7 +236,7 @@ export class Slicer {
       const zip = zipFiles(files);
       app.notify.idle();
       const n = plural(list.length, 'slice');
-      await this.save(base + loopTag(app.loopInfo) + (withRpp ? '-slices-reaper.zip' : '-slices.zip'), zip, 'application/zip',
+      await this.save(base + loopTag(this.loopHeard()) + (c.out ? '_warped' : '') + (withRpp ? '-slices-reaper.zip' : '-slices.zip'), zip, 'application/zip',
         withRpp ? `${n} saved. Unzip, then open the .rpp in REAPER.` : `${n} saved. Unzip to get the .wav files.`);
     } catch (e) {
       console.error(e);

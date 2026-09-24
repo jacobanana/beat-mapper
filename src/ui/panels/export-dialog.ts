@@ -31,8 +31,6 @@ interface Format {
   run(): Promise<void>;
 }
 
-/** The groove grids as the Groove step names them. */
-const GRID_NAMES = { '8': '1/8', '16': '1/16', '8t': '1/8T', '16t': '1/16T' } as const;
 const OPEN_FIRST = { text: 'Open an audio file first.', ok: false };
 const kb = (b: number) => (b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.round(b / 1024) + ' KB');
 
@@ -101,11 +99,11 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
       save: 'Save .wav', info: warpInfo, run: () => f.warp.save(),
     },
     slices: {
-      desc: 'Every kept slice as a .wav, in one .zip.',
+      desc: 'Every kept slice as a .wav, in one .zip. Cut from the warped audio when it is heard warped.',
       save: 'Save .zip', info: slicesInfo, run: () => f.slicer.exportZip(false),
     },
     slicesRpp: {
-      desc: 'Every kept slice as a .wav, with a REAPER project holding each one where it was cut from.',
+      desc: 'Every kept slice as a .wav, with a REAPER project holding each one where it was cut from: on the grid at one tempo when it is heard warped.',
       save: 'Save .zip', info: slicesInfo, run: () => f.slicer.exportZip(true),
     },
     sliceWav: {
@@ -115,7 +113,8 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
         if (!app.audio) return OPEN_FIRST;
         const S = app.slices, i = app.sliceIndex ?? 0, sl = S[i];
         if (!sl) return { text: 'No slices yet – add transients in step 1.', ok: false };
-        return { text: `Slice ${i + 1} of ${S.length} · ${fmtTime(sl.t0)} · ${Math.round((sl.t1 - sl.t0) * 1000)} ms`, ok: true };
+        const out = app.warpOut, t0 = out ? out.at(sl.t0) : sl.t0, t1 = out ? out.at(sl.t1) : sl.t1;
+        return { text: `Slice ${i + 1} of ${S.length} · ${fmtTime(t0)} · ${Math.round((t1 - t0) * 1000)} ms${out ? ' · warped' : ''}`, ok: true };
       },
       run: () => f.slicer.saveSelectedWav(),
     },
@@ -126,17 +125,18 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
         if (!app.audio) return OPEN_FIRST;
         const L = app.loopInfo;
         if (!L) return { text: 'Switch the loop on first – drag in the top strip to draw one.', ok: false };
-        return { text: `${plural(L.bars, 'bar')} at ${fmtBpm(L.bpm)} BPM · ${fmtTime(L.a)}–${fmtTime(L.b)}`, ok: true };
+        const out = app.warpOut;
+        return { text: `${plural(L.bars, 'bar')} at ${fmtBpm(out ? out.plan.bpm : L.bpm)} BPM · ${fmtTime(L.a)}–${fmtTime(L.b)}${out ? ' · warped' : ''}`, ok: true };
       },
       run: () => f.slicer.saveLoopWav(),
     },
     drumsMidi: {
-      desc: 'The kick, snare and hats as MIDI on the tempo map, as they are heard in the Groove step: where they were played, or quantized as far as its quantize says.',
+      desc: 'The kick, snare and hats as MIDI, as they are heard in the Groove step. Warped, each hit is where the warp puts it (quantized as far as the Warp step says), at the grid\'s one tempo, lined up with the warped .wav; otherwise where it was played, on the tempo map.',
       save: 'Save .mid',
       info: () => drumsInfo(() => {
-        const h = app.pocket!.hits, k = app.groove.quantize / 100;
+        const h = app.pocket!.hits, out = app.warpOut;
         return plural(h.length, 'note') + ' · ' + VOICES.map((v) => `${v} ${h.filter((x) => x.voice === v).length}`).join(', ')
-          + (k ? ` · quantized ${Math.round(k * 100)}% to the ${GRID_NAMES[app.groove.grid]} grid` : ' · as played');
+          + (out ? ` · warped to ${fmtBpm(out.plan.bpm)} BPM` : ' · as played, on the tempo map');
       }),
       run: () => f.groove.saveMidi(),
     },

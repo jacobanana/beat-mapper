@@ -63,6 +63,7 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
       case 'h': f.playback.toggleStay(); return;
       case 'v': f.markers.toggleOdf(); return;
       case 'k': f.playback.toggleClick(); return;
+      case 'w': f.warp.toggleListen(); return;
       case '1': case '2': case '3': case '4': case '5': f.workflow.goTo(+k as 1 | 2 | 3 | 4 | 5); return;
       case '?': hooks.openHelp(); return;
       case 'Escape': app.select(null); if (el === cv) cv.blur(); return;
@@ -87,8 +88,7 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
       else if (k === 't') f.beats.tap();
       else if (k === 's') f.beats.cycleSnap(e.shiftKey ? -1 : 1);
     } else if (app.step === 3) {
-      if (k === 'w') f.warp.toggleListen();
-      else if (k === 'f') f.warp.fromLoop();
+      if (k === 'f') f.warp.fromLoop();
       else if (k === 'q') f.warp.toggleQuantize();
       else if (k === 'g') f.beats.cycleGrid(e.shiftKey ? -1 : 1);
     } else if (app.step === 4) {

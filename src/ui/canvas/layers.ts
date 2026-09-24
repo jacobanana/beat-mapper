@@ -3,6 +3,7 @@
 import type { App } from '../../app/app';
 import { fmtBpm } from '../../core/format';
 import { lowerBound } from '../../core/search';
+import { GROOVE_GRID_Q } from '../../core/groove/pocket';
 import { barQ } from '../../core/tempo/meter';
 import { odfOf, odfRef } from '../../core/dsp/onset';
 import { LANES, type Layout, LOOPH, RUL, RULH, TIME } from './layout';
@@ -159,15 +160,18 @@ export function markers({ g, app, L, C, xOf, t0, t1, beatsMode }: Frame): void {
 // tick as tall as it is loud, with a tail back to the grid line it was measured from when zoomed in
 // far enough to see a few milliseconds. The transients show faintly behind, since hits placed by hand
 // land on them; those hits wear a dot, and the selected or hovered hit a frame.
-export function drums({ g, app, L, C, xOf }: Frame): void {
+export function drums({ g, app, L, C, xOf, xAtPos, t0, t1 }: Frame): void {
   if (app.step !== 5) return;
   const hits = app.drumHits;
   if (!hits) return;
-  const { w, wy, wh, ly } = L, v = app.view, lh = wh / 3, pxMs = w / (v.span * 1000), placed = app.pocket?.hits, M = app.markers;
-  const i0 = lowerBound(M, v.t0);
-  if (lowerBound(M, v.t1) - i0 <= w / 6) {
+  const { w, wy, wh, ly } = L, v = app.view, lh = wh / 3, pxMs = w / (v.span * 1000), pocket = app.pocket, placed = pocket?.hits, M = app.markers;
+  // A hit's tail runs back to its grid step, drawn where the grid is: under the warp, the hit is where
+  // the warp puts it, so its tail is what is left of its offset once quantized.
+  const bq = barQ(app.doc.meter), sq = pocket ? GROOVE_GRID_Q[pocket.grid] : 0;
+  const i0 = lowerBound(M, t0);
+  if (lowerBound(M, t1) - i0 <= w / 6) {
     g.strokeStyle = rgba(C.mark, 0.35); g.lineWidth = 1; g.setLineDash([2, 3]); g.beginPath();
-    for (let i = i0; i < M.length && M[i].t <= v.t1; i++) { const x = Math.round(xOf(M[i].t)) + 0.5; g.moveTo(x, wy + 1); g.lineTo(x, ly); }
+    for (let i = i0; i < M.length && M[i].t <= t1; i++) { const x = Math.round(xOf(M[i].t)) + 0.5; g.moveTo(x, wy + 1); g.lineTo(x, ly); }
     g.stroke(); g.setLineDash([]);
   }
   const mark = (s: typeof app.hover) => (s?.kind === 'hit' ? s : null), sel = mark(app.sel), hov = mark(app.hover);
@@ -176,14 +180,14 @@ export function drums({ g, app, L, C, xOf }: Frame): void {
     const top = wy + i * lh, mid = top + lh / 2, col = C[voice];
     g.fillStyle = rgba(col, 0.06); g.fillRect(0, top + 1, w, lh - 2);
     g.fillStyle = rgba(col, 0.9); g.fillText(voice === 'hat' ? 'HATS' : voice.toUpperCase(), 6, top + 10);
-    const list = placed ? placed.filter((h) => h.voice === voice) : hits[voice].map((h) => ({ t: h.t, vel: 100, gridMs: 0 }));
+    const list = placed ? placed.filter((h) => h.voice === voice) : hits[voice].map((h) => ({ t: h.t, vel: 100, gridMs: 0, bar: 0, step: 0 }));
     const manual = new Set(hits[voice].filter((h) => h.id != null).map((h) => h.t));
     for (const h of list) {
-      if (h.t < v.t0 - 0.05 || h.t > v.t1 + 0.05) continue;
+      if (h.t < t0 - 0.05 || h.t > t1 + 0.05) continue;
       const x = Math.round(xOf(h.t)) + 0.5, hh = (lh - 8) * (0.3 + 0.7 * Math.min(1, h.vel / 127));
       if (pxMs >= 0.4 && Math.abs(h.gridMs) * pxMs >= 2) {
         g.strokeStyle = rgba(col, 0.75); g.lineWidth = 2;
-        g.beginPath(); g.moveTo(xOf(h.t - h.gridMs / 1000), mid); g.lineTo(x, mid); g.stroke();
+        g.beginPath(); g.moveTo(xAtPos(h.bar * bq + h.step * sq), mid); g.lineTo(x, mid); g.stroke();
       }
       g.strokeStyle = col; g.lineWidth = 2;
       g.beginPath(); g.moveTo(x, mid - hh / 2); g.lineTo(x, mid + hh / 2); g.stroke();

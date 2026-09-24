@@ -33,8 +33,6 @@ export interface SessionContent {
   warpMarkers: WarpMarker[];
   /** Quantize's strength in the Warp step, percent. */
   warpQuantize: number;
-  /** How far the Groove step quantizes the drums, percent. */
-  grooveQuantize: number;
 }
 
 /** The JSON written to disk (format version 1). */
@@ -55,11 +53,11 @@ export function toSessionJson(s: SessionContent): object {
     step: s.step,
     export: s.export,
     slicer: slicerJson(s),
-    // Added to version 1 without a bump, like step 5, and so are the shuffle above and the groove
-    // below: only written when they differ from how the app starts, so a session without them saves
-    // byte-identical, and a reader that predates them ignores the fields.
+    // Added to version 1 without a bump, like step 5, and so is the shuffle above: only written when
+    // it differs from how the app starts, so a session without it saves byte-identical, and a reader
+    // that predates it ignores the field. The Groove step's own quantize (`groove.quantize`) was
+    // written here too; the warp's quantize is the only one now, so older files' is ignored.
     ...warpJson(s),
-    ...(s.grooveQuantize ? { groove: { quantize: s.grooveQuantize } } : {}),
   };
 }
 
@@ -162,6 +160,5 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
     excluded: Array.isArray(sl.excluded) ? sl.excluded.filter(T).slice(0, 5000) : [],
     warpMarkers,
     warpQuantize: clamp(Math.round(fin(d.warp?.quantize, 100)), 0, 100),
-    grooveQuantize: clamp(Math.round(fin(d.groove?.quantize, 0)), 0, 100),
   };
 }

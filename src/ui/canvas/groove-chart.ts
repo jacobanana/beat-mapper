@@ -124,6 +124,8 @@ export class GrooveChart {
   /**
    * The hits as MIDI notes over time: the loop when it is on, else what the editor shows, so the
    * transcript scrolls with playback. Bar and beat lines come from the tempo map when there is one.
+   * Everything is placed by the timeline, as in the editor: heard warped, a note is where the warp puts
+   * its hit, so a quantized hit sits on its line.
    */
   private transcript(w: number, h: number): void {
     const { g, C, app } = this, notes = app.drumNotes;
@@ -133,7 +135,8 @@ export class GrooveChart {
       g.textAlign = 'left';
       return;
     }
-    const range = app.activeLoop ?? { a: app.view.t0, b: app.view.t1 };
+    const tl = app.timeline, loop = app.activeLoop;
+    const range = loop ? { a: tl.axisAt(loop.a), b: tl.axisAt(loop.b) } : { a: app.view.t0, b: app.view.t1 };
     const L = LABEL_W + 4, R = w - 8, t0 = range.a, span = Math.max(1e-3, range.b - range.a);
     const xOf = (t: number) => L + ((t - t0) / span) * (R - L), axisY = h - BOTTOM + 4;
     const rh = (h - TOP - BOTTOM) / ROWS.length;
@@ -141,29 +144,29 @@ export class GrooveChart {
     g.beginPath(); g.rect(L, 0, R - L, h); g.clip();
     ROWS.forEach((_, i) => { if (i % 2) { g.fillStyle = rgba(C.ink, 0.035); g.fillRect(L, TOP + rh * i, R - L, rh); } });
     // Grid: steps faint, beats stronger, bars strongest with their numbers.
-    const map = app.tempoMap, meter = app.doc.meter;
+    const meter = app.doc.meter;
     let noteLen = 0.06;
-    if (app.hasMap && !map.isEmpty) {
+    if (app.hasMap && !tl.map.isEmpty) {
       const bq = barQ(meter), btq = beatQ(meter), sq = GROOVE_GRID_Q[app.groove.grid];
-      const q0 = map.timeToPos(t0), q1 = map.timeToPos(t0 + span);
+      const q0 = tl.posAtAxis(t0), q1 = tl.posAtAxis(t0 + span);
       const pxQ = (R - L) / Math.max(1e-6, q1 - q0), unit = pxQ * sq >= 6 ? sq : pxQ * btq >= 6 ? btq : bq;
       g.font = '11px ' + FONT; g.textAlign = 'left';
       for (let k = Math.max(0, Math.floor(q0 / unit)); k * unit <= q1 + 1e-9 && k < 1e5; k++) {
         const q = k * unit, bar = Math.abs(q / bq - Math.round(q / bq)) < 1e-6, beat = Math.abs(q / btq - Math.round(q / btq)) < 1e-6;
-        const x = Math.round(xOf(map.posToTime(q))) + 0.5;
+        const x = Math.round(xOf(tl.axisOfPos(q))) + 0.5;
         g.strokeStyle = bar ? rgba(C.ink, 0.4) : beat ? rgba(C.ink, 0.18) : rgba(C.ink, 0.07);
         g.beginPath(); g.moveTo(x, TOP - 6); g.lineTo(x, axisY); g.stroke();
         if (bar) { g.fillStyle = C.ink; g.fillText(String(Math.round(q / bq) + 1), x + 3, axisY + 12); }
       }
-      noteLen = map.posToTime(q0 + sq) - map.posToTime(q0);
+      noteLen = tl.axisOfPos(q0 + sq) - tl.axisOfPos(q0);
     }
     // Notes: a step long, darker and taller the harder they were hit, lit while they sound.
-    const ph = app.transport.playhead, nw = Math.max(3, Math.min(18, (noteLen / span) * (R - L) * 0.9));
-    for (let i = lowerBound(notes, t0 - noteLen); i < notes.length && notes[i].t < t0 + span; i++) {
-      const n = notes[i], y = this.rowY(ROWS.indexOf(n.voice)), v = n.vel / 127, nh = Math.max(4, rh * (0.3 + 0.4 * v)), x = xOf(n.t);
+    const ph = tl.axisAt(app.transport.playhead), nw = Math.max(3, Math.min(18, (noteLen / span) * (R - L) * 0.9));
+    for (let i = lowerBound(notes, tl.sourceAt(t0 - noteLen)); i < notes.length && tl.axisAt(notes[i].t) < t0 + span; i++) {
+      const n = notes[i], at = tl.axisAt(n.t), y = this.rowY(ROWS.indexOf(n.voice)), v = n.vel / 127, nh = Math.max(4, rh * (0.3 + 0.4 * v)), x = xOf(at);
       g.fillStyle = rgba(C[n.voice], 0.3 + 0.7 * v);
       g.beginPath(); if (g.roundRect) g.roundRect(x, y - nh / 2, nw, nh, 2); else g.rect(x, y - nh / 2, nw, nh); g.fill();
-      if (ph >= n.t && ph < n.t + Math.max(0.08, noteLen)) { g.strokeStyle = C.ink; g.lineWidth = 1.5; g.stroke(); g.lineWidth = 1; }
+      if (ph >= at && ph < at + Math.max(0.08, noteLen)) { g.strokeStyle = C.ink; g.lineWidth = 1.5; g.stroke(); g.lineWidth = 1; }
     }
     if (ph >= t0 && ph <= t0 + span) {
       const x = Math.round(xOf(ph)) + 0.5;

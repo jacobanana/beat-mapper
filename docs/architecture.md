@@ -50,12 +50,38 @@ editor that the viewport turns into pixels. Musical **positions** (quarter notes
   so the grid is drawn where it puts it.
 - The **alignment** (`core/warp/markers.ts`) is where the warp puts the audio: the pins with the warp
   markers laid over. It has positions only, no tempo, so a tempo can't be read from it by mistake.
-- **`App.timeline`** decides where the audio is drawn on the axis, from what is heard: the warp in
-  the Warp step draws it moved onto the grid, anything else draws it where it is. The canvas layers get
+- **`App.timeline`** decides where the audio is drawn on the axis, from what is heard: the warp, in
+  Warp, Slice and Groove with the Warped switch on, draws it moved onto the grid; anything else
+  (always Transients and Beats) draws it where it is. The canvas layers get
   `xOf` (audio) and `xAtPos` (grid) from it; the pointer, the readout, grid snapping, looping a bar and
   following the playhead go through it too.
 
 So what is drawn under the playhead is what is heard, and a click falls on a grid line drawn.
+
+## The flow
+
+Each step works on what the one before it made:
+
+```
+audio ─▶ Transients ─▶ Beats ─▶ Warp ─┬─▶ Slice   samples cut from the warped audio
+         markers       tempo    warp   └─▶ Groove  hits measured and written where the warp puts them
+                       map      markers
+```
+
+Transients and Beats always work on the original: the warp is made from their markers and pins, and
+hearing it there would feed the warp back into itself. From Warp on, the **Warped** switch in the top
+bar (`WarpSettings.listen`, <kbd>W</kbd>) decides what Warp, Slice and Groove hear, cut, measure and
+export. On, `App.warpOut` is the warp as they use it: the plan, the warped file's own steady tempo map,
+and `at(t)`, where a moment of the original lands in it. Markers, slices and drum hits keep their
+times in the original, so dropped slices, hit edits and the session stay as they are; `at` places them.
+
+- **Slice** cuts only what the warp makes (`App.slices`), from the warp's render (`Warp.render()`,
+  shared with playback and the warped .wav), each slice at `at(t0)`–`at(t1)`. Its REAPER project and
+  .csv use the warped file's times, at the grid's one tempo.
+- **Groove** finds the drums in the original, then measures each hit where the warp puts it, on its
+  straight grid (`analyseGroove`'s `at`). The Warp step's Quantize is the only quantize: quantized
+  there, a hit lined up by a warp marker sits on its step. The synth kit plays the hits where the warp
+  puts them, and the drum MIDI is written at the grid's tempo, lined up with the warped .wav.
 `test/timeline.test.ts` checks exactly that for every way of hearing the Warp step, against what the
 audio engine plays; ESLint keeps the viewport's `xOf`/`tOf` to the renderer and the pointer, the
 alignment to where the warp is made, and the tempo map's time lookups in `app/` and `ui/` to the
@@ -80,8 +106,8 @@ bridge when the app runs inside one).
   undone.
 - **`App`** (`app/app.ts`) holds the document, settings, the audio and its analysis, and derives
   everything else on demand, memoised on the identity of its inputs: the visible markers, the tempo
-  map, the grid, the bars, the slices, the drum hits the sensitivities let through, the notes they make, the pocket, the warp plan, and the
-  timeline everything is drawn on. Nothing derived is stored, so nothing can go stale.
+  map, the grid, the bars, the slices, the drum hits the sensitivities let through, the notes they make, the pocket, the warp plan, the
+  warp as Slice and Groove use it (`warpOut`), and the timeline everything is drawn on. Nothing derived is stored, so nothing can go stale.
 - **Features** (`app/features/`) are the verbs: `Markers`, `Beats`, `Playback`, `Slicer`,
   `Exports`, `Warp`, `Groove`, `Mixer`, `Sessions`, `Loader`, `Workflow`. They change the App and emit topics (`'doc'`,
   `'transport'`, `'slices'`…). They talk to the user only through the `Notifier` interface.

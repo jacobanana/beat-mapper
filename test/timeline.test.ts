@@ -1,6 +1,6 @@
 // What is drawn is what is heard. Every way of hearing the Warp step (the original, the warp, with no
 // warp markers, quantized at full or part strength, on a swung grid) is checked against what the audio
-// engine actually plays, worked out here without the timeline: the playhead is drawn on the grid
+// engine actually plays, and Slice and Groove hear what Warp does, worked out here without the timeline: the playhead is drawn on the grid
 // position being heard, a click falls on a grid line drawn, a warp marker is drawn on its line, the
 // readout names the bar heard at the tempo heard, and none of it moves the tempo map's bars or tempo.
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -94,6 +94,28 @@ describe('the timeline', () => {
       if (s.listen) for (const w of app.doc.warpMarkers) close(tl.axisAt(w.t), tl.axisOfPos(w.q));
     });
   }
+
+  it('draws Slice and Groove as Warp when the warp is heard, and Transients and Beats always as the original', () => {
+    const { app, f } = t;
+    const s: Setup = { name: '', mapped: true, strength: 100, shuffle: 0, listen: true };
+    mapBeats(s);
+    arrange(s);
+    for (const listen of [true, false]) {
+      f.warp.setListen(listen);
+      f.workflow.goTo(3);
+      const w = app.timeline;
+      for (const step of [4, 5] as const) {
+        f.workflow.goTo(step);
+        expect(app.hearingWarp).toBe(listen);
+        for (let u = 0.5; u < app.dur - 0.5; u += 0.37) close(app.timeline.axisAt(u), w.axisAt(u));
+      }
+      for (const step of [1, 2] as const) {
+        f.workflow.goTo(step);
+        expect(app.hearingWarp).toBe(false);
+        expect(app.timeline.movesAudio).toBe(false);
+      }
+    }
+  });
 
   it('keeps the tempo the warp is made at, whatever quantize, its strength and the shuffle do', () => {
     const { app } = t;

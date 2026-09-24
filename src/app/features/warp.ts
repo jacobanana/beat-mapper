@@ -17,12 +17,12 @@ import { type WarpSettings, defaultBeats, defaultWarp } from '../../state/settin
 import type { App, WarpPlan } from '../app';
 import type { Beats } from './beats';
 import type { Playback, Take, TakeSource } from './playback';
-import type { Slicer } from './slicer';
+import { sliceRenderOptions } from './slicer';
 
 export type { WarpPlan } from '../app';
 
-/** A render of the warp and everything it was made from, so hearing it and saving it render it once. */
-interface Render {
+/** A render of the warp and everything it was made from, so hearing it, slicing it and saving it render it once. */
+export interface Render {
   inputs: readonly unknown[];
   plan: WarpPlan;
   chans: Float32Array[];
@@ -40,12 +40,11 @@ export class Warp implements TakeSource {
     private readonly app: App,
     private readonly analyzer: Analyzer,
     private readonly beats: Beats,
-    private readonly slicer: Slicer,
     private readonly playback: Playback,
   ) {
     playback.setTakeSource(this);
-    // What plays follows what is wanted: the original outside this step or with Original chosen, and a
-    // fresh take after a change to the warp.
+    // What plays follows what is wanted: the original in Transients and Beats or with Original chosen,
+    // and a fresh take after a change to the warp.
     app.bus.on(['doc', 'warp', 'export', 'transport', 'step', 'candidates', 'detection', 'audio'], () => this.follow());
     // While Quantize is on, a new grid or shuffle lines the transients up on it again; leaving the step
     // ends it, so a grid changed in Beats doesn't move them unseen.
@@ -63,13 +62,15 @@ export class Warp implements TakeSource {
     this.app.notify.toast(WARP_MODE_INFO[mode].label + ': ' + WARP_MODE_INFO[mode].desc);
   }
 
-  /** Warped or the original: what plays in this step. */
+  /** Warped or the original: what Warp, Slice and Groove hear, cut, measure and export. */
   setListen(listen: boolean): void { this.update({ listen }); }
 
-  /** W: the other one. */
+  /** W: the other one. Transients and Beats work on the original whatever it is set to. */
   toggleListen(): void {
-    this.setListen(!this.app.warp.listen);
-    this.app.notify.toast(this.app.warp.listen ? 'Hearing it warped' : 'Hearing the original');
+    const { app } = this;
+    this.setListen(!app.warp.listen);
+    const what = app.warp.listen ? 'Warped: Warp, Slice and Groove use the audio on the grid' : 'Original: Warp, Slice and Groove use the audio as it is';
+    app.notify.toast(app.step < 3 ? what + '. Transients and Beats always use the original.' : what);
   }
 
   setRange(range: WarpSettings['range']): void {
@@ -441,7 +442,7 @@ export class Warp implements TakeSource {
       if (!r) return app.notify.toast('The audio changed while it was warping – save again.');
       const p = r.plan, n = r.chans[0].length;
       // Channels, level and bit depth as the slicer has them; a warped file is one long sample.
-      const out = renderSlice(r.chans, a.sr, 0, n / a.sr, { ...this.slicer.renderOptions(), fadeIn: 0, fadeOut: 0 });
+      const out = renderSlice(r.chans, a.sr, 0, n / a.sr, { ...sliceRenderOptions(app.slicer), fadeIn: 0, fadeOut: 0 });
       app.notify.busy('Writing the .wav', 0.95);
       const bytes = wavEncode(out.chans, a.sr, app.slicer.bits);
       app.notify.idle();

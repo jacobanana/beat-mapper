@@ -51,7 +51,10 @@ export interface WarpSettings {
   bpm: number | null;
   /** What is warped: the whole file, or only the loop. */
   range: 'file' | 'loop';
-  /** In the Warp step, play the warped audio rather than the original. */
+  /**
+   * Warp, Slice and Groove hear the warp rather than the original, and cut, measure and export what it
+   * makes. Transients and Beats always work on the original: the warp is made from them.
+   */
   listen: boolean;
   /** How far Quantize moves each transient to its grid line, in percent: 100 is onto it. */
   quantize: number;
@@ -102,12 +105,6 @@ export interface GrooveSettings {
   exaggerate: boolean;
   /** The chart under the controls: the pocket, or the hits as a MIDI transcript. */
   chart: GrooveChartMode;
-  /**
-   * How far the drums are moved onto the grid, in percent: 0 as played, 100 on the steps. What the kit
-   * plays, the transcript and the MIDI export follow it; the pocket is always measured as played.
-   * Saved with the session, unlike the rest of this group.
-   */
-  quantize: number;
 }
 
 /** How loud each thing that plays is, in percent of its natural level: 100 is as it always was. */
@@ -141,7 +138,7 @@ export const defaultSlicer = (): SlicerSettings => ({
   mode: 'gap', len: 500, tail: 0, fadeIn: 1, fadeOut: 8, min: 40, mono: false, bits: 16, norm: false, target: -1, naming: 'num', csv: true,
 });
 export const defaultTransport = (): TransportState => ({ loop: null, loopOn: false, start: 0, playhead: 0, stay: false, click: false, scrubMode: false });
-export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', exaggerate: true, chart: 'pocket', quantize: 0 });
+export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', exaggerate: true, chart: 'pocket' });
 export const defaultMix = (): MixSettings => ({ audio: 100, click: 100, drums: 100 });
 export const defaultMute = (): MuteSettings => ({ audio: false, drums: true });
 
