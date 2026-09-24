@@ -1,6 +1,7 @@
 // The app and its features end to end, without a browser: demo audio in, the same numbers the UI
 // shows out. Playback is the only part not covered (it needs Web Audio).
 import { beforeEach, describe, expect, it } from 'vitest';
+import { quantizedTime } from '../src/core/groove/pocket';
 import { buildMidi } from '../src/io/formats/midi';
 import { MemoryStore, type TestApp, createTestApp, openDemo } from './helpers';
 
@@ -251,6 +252,33 @@ describe('the Warp step', () => {
     expect(app.doc.warpMarkers.length).toBe(n);
   });
 
+  it('quantizes again as the strength moves, as one undo step', () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.workflow.goTo(3);
+    f.beats.setGrid('8');
+    const undos = app.history.canUndo, before = app.doc;
+    expect(f.warp.quantize()).toBe(true);
+    const full = app.doc.warpMarkers;
+    f.warp.setQuantizeStrength(50);
+    expect(f.warp.quantizeOpen).toBe(true);
+    const half = app.doc.warpMarkers;
+    expect(half.length).toBe(full.length);
+    // Half way from where each transient sits to its line.
+    half.forEach((w, i) => expect(w.q).toBeCloseTo((full[i].q + app.tempoMap.timeToPos(w.t)) / 2, 6));
+    f.warp.setQuantizeStrength(0);
+    expect(app.doc.warpMarkers).toEqual([]);
+    f.warp.setQuantizeStrength(80);
+    expect(app.warp.quantize).toBe(80);
+    app.undo();
+    expect(app.doc).toBe(before);
+    expect(app.history.canUndo).toBe(undos);
+    // The undo ended it: the slider no longer edits.
+    f.warp.setQuantizeStrength(100);
+    expect(app.doc).toBe(before);
+  });
+
   it('plays it warped by default, and renders once until the warp changes', async () => {
     const { app, f } = t;
     f.workflow.goTo(2);
@@ -295,7 +323,7 @@ describe('the Warp step', () => {
     expect(f.warp.summary()).toMatch(new RegExp(`^The file averages .* warped to ${p.bpm} BPM`));
     expect(f.workflow.canReset).toBe(true);
     f.workflow.resetStep();
-    expect(app.warp).toEqual({ mode: 'music', bpm: null, range: 'file', listen: true });
+    expect(app.warp).toEqual({ mode: 'music', bpm: null, range: 'file', listen: true, quantize: 100 });
   });
 });
 
@@ -493,6 +521,25 @@ describe('groove', () => {
     expect(app.pocket!.ref).toBe('grid');
     f.playback.setLoop({ a: app.tempoMap.posToTime(8), b: app.tempoMap.posToTime(16) }, true);
     expect(app.pocket!.bars).toBe(2);
+  });
+
+  it('quantizes the drum MIDI onto the groove grid as far as asked', async () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.workflow.goTo(5);
+    await f.groove.ensureDrums();
+    expect(f.groove.midiStrength()).toBe(0);
+    f.groove.setMidiQuantize(true);
+    expect(f.groove.midiStrength()).toBe(1);
+    f.groove.setMidiStrength(40);
+    expect(f.groove.midiStrength()).toBeCloseTo(0.4, 9);
+    const map = app.tempoMap, sq = 0.25, bq = 4;
+    for (const h of app.pocket!.hits) {
+      const grid = map.posToTime(h.bar * bq + h.step * sq);
+      expect(quantizedTime(h, 1)).toBeCloseTo(grid, 6);
+      expect(quantizedTime(h, 0.4) - grid).toBeCloseTo(0.6 * (h.t - grid), 6);
+    }
   });
 
   it('turns the hits into notes to hear, and switches what is heard and charted', async () => {

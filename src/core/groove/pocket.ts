@@ -133,6 +133,13 @@ export function transcribe(hits: PerVoice<readonly DrumHit[]>): VoiceNote[] {
   return out.sort((a, b) => a.t - b.t);
 }
 
+/**
+ * When a hit sounds once quantized `strength` (0..1) of the way onto its grid step: 1 is on the step,
+ * 0 where it was played. Measured in time against the step, so a drifting take stays on its own map.
+ */
+export const quantizedTime = (h: Pick<PlacedHit, 't' | 'gridMs'>, strength: number): number =>
+  h.t - Math.max(0, Math.min(1, strength)) * h.gridMs / 1000;
+
 /** The reference `auto` stands for: the hats when they keep time through the take, else the grid. */
 export function autoReference(hits: readonly PlacedHit[], every: number, bars: number): Reference {
   const n = hits.filter((h) => h.voice === 'hat' && h.step % every === 0).length;

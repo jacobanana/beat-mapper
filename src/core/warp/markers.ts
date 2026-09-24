@@ -63,7 +63,8 @@ export const warpMarkerAt = (markers: readonly WarpMarker[], t: number): WarpMar
  * Quantize: every transient in the range onto the grid line nearest to it on `map`. Where two
  * transients reach for the same line, the closer one takes it and the other is left to move with the
  * audio around it (a flam, a ghost note). The markers already placed stay, and a transient that would
- * cross one is left alone.
+ * cross one is left alone. `strength` (0..1) moves each transient only that part of the way to its
+ * line, which tightens the timing and keeps some of the feel; at 0 nothing moves, so nothing is added.
  */
 export function quantizeTransients(
   map: TempoMap,
@@ -71,8 +72,10 @@ export function quantizeTransients(
   transients: readonly number[],
   range: TimeRange,
   markers: readonly WarpMarker[],
+  strength = 1,
 ): WarpMarker[] {
-  if (map.isEmpty) return [...markers];
+  const s = Math.max(0, Math.min(1, strength));
+  if (map.isEmpty || s === 0) return [...markers];
   const picked: { t: number; q: number; d: number }[] = [];
   for (const t of transients) {
     if (t < range.a || t > range.b || warpMarkerAt(markers, t)) continue;
@@ -80,6 +83,7 @@ export function quantizeTransients(
     if (last && Math.abs(last.q - q) < EPS_Q) { if (d < last.d) picked[picked.length - 1] = { t, q, d }; }
     else picked.push({ t, q, d });
   }
-  const added = picked.filter((p) => markers.every((w) => inOrder(w, p))).map(({ t, q }) => ({ t, q }));
+  // Part of the way from where the transient sits on the map to its line.
+  const added = picked.map(({ t, q }) => ({ t, q: q + (1 - s) * (map.timeToPos(t) - q) })).filter((p) => markers.every((w) => inOrder(w, p)));
   return [...markers, ...added].sort((a, b) => a.t - b.t);
 }

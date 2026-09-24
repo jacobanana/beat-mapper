@@ -51,6 +51,8 @@ export interface WarpSettings {
   range: 'file' | 'loop';
   /** In the Warp step, play the warped audio rather than the original. */
   listen: boolean;
+  /** How far Quantize moves each transient to its grid line, in percent: 100 is onto it. */
+  quantize: number;
 }
 
 export interface SlicerSettings {
@@ -99,6 +101,10 @@ export interface GrooveSettings {
   exaggerate: boolean;
   /** The chart under the controls: the pocket, or the hits as a MIDI transcript. */
   chart: GrooveChartMode;
+  /** The drum MIDI export moves each hit onto its grid step. Kept for this visit only, like the rest. */
+  midiQuantize: boolean;
+  /** How far, in percent: 100 is onto the step. */
+  midiStrength: number;
 }
 
 /** How loud each thing that plays is, in percent of its natural level: 100 is as it always was. */
@@ -127,12 +133,12 @@ export type GrooveChartMode = 'pocket' | 'midi';
 export const defaultDetection = (): DetectionSettings => ({ sens: 55, gap: 60, band: 'full', algo: 'flux', showOdf: true });
 export const defaultBeats = (): BeatSettings => ({ grid: '16', mapEvery: 'beat', tol: 20, snapTo: 'markers', loopBars: null });
 export const defaultExport = (): ExportSettings => ({ lead: 'full', res: 'pins', clicks: true, rppAudio: true });
-export const defaultWarp = (): WarpSettings => ({ mode: 'music', bpm: null, range: 'file', listen: true });
+export const defaultWarp = (): WarpSettings => ({ mode: 'music', bpm: null, range: 'file', listen: true, quantize: 100 });
 export const defaultSlicer = (): SlicerSettings => ({
   mode: 'gap', len: 500, tail: 0, fadeIn: 1, fadeOut: 8, min: 40, mono: false, bits: 16, norm: false, target: -1, naming: 'num', csv: true,
 });
 export const defaultTransport = (): TransportState => ({ loop: null, loopOn: false, start: 0, playhead: 0, stay: false, click: false, scrubMode: false });
-export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', ref: 'auto', exaggerate: true, chart: 'pocket' });
+export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', ref: 'auto', exaggerate: true, chart: 'pocket', midiQuantize: false, midiStrength: 100 });
 export const defaultMix = (): MixSettings => ({ audio: 100, click: 100, drums: 100 });
 export const defaultMute = (): MuteSettings => ({ audio: false, drums: true });
 

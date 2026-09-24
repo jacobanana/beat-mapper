@@ -31,6 +31,8 @@ interface Format {
   run(): Promise<void>;
 }
 
+/** The groove grids as the Groove step names them. */
+const GRID_NAMES = { '8': '1/8', '16': '1/16', '8t': '1/8T', '16t': '1/16T' } as const;
 const OPEN_FIRST = { text: 'Open an audio file first.', ok: false };
 const kb = (b: number) => (b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.round(b / 1024) + ' KB');
 
@@ -129,11 +131,12 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
       run: () => f.slicer.saveLoopWav(),
     },
     drumsMidi: {
-      desc: 'The kick, snare and hats as MIDI: every hit where it was played, on the tempo map.',
+      desc: 'The kick, snare and hats as MIDI on the tempo map: every hit where it was played, or quantized part or all of the way to the groove grid.',
       save: 'Save .mid',
       info: () => drumsInfo(() => {
-        const h = app.pocket!.hits;
-        return plural(h.length, 'note') + ' · ' + VOICES.map((v) => `${v} ${h.filter((x) => x.voice === v).length}`).join(', ');
+        const h = app.pocket!.hits, k = f.groove.midiStrength();
+        return plural(h.length, 'note') + ' · ' + VOICES.map((v) => `${v} ${h.filter((x) => x.voice === v).length}`).join(', ')
+          + (k ? ` · quantized ${Math.round(k * 100)}% to the ${GRID_NAMES[app.groove.grid]} grid` : ' · as played');
       }),
       run: () => f.groove.saveMidi(),
     },
@@ -240,6 +243,18 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
     setText($('warpAvg'), p ? `averages ${fmtBpm(p.avgBpm)}` : '');
   };
 
+  // The drum MIDI's quantize: the Groove step's setting, since it is about the drums.
+  const drQuant = $in('drQuant'), drStrength = $in('drStrength');
+  drQuant.onchange = () => f.groove.setMidiQuantize(drQuant.checked);
+  drStrength.oninput = () => f.groove.setMidiStrength(+drStrength.value);
+  const syncDrums = () => {
+    const g = app.groove;
+    drQuant.checked = g.midiQuantize;
+    drStrength.disabled = !g.midiQuantize;
+    setValue(drStrength, g.midiStrength);
+    setText($('drStrengthO'), g.midiStrength + '%');
+  };
+
   const sync = () => {
     const s = app.exportSettings;
     setValue($sel('lead'), s.lead);
@@ -250,10 +265,12 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
 
 
   app.bus.on('export', sync);
+  app.bus.on('groove', syncDrums);
   app.bus.on(['warp', 'doc', 'transport', 'audio', 'export'], syncWarp);
   app.bus.on(['export', 'warp', 'slicer', 'slices', 'doc', 'drums', 'groove', 'transport', 'audio', 'candidates', 'selection'], render);
   sync();
   syncWarp();
+  syncDrums();
 
   return (next?: ExportFormat) => {
     const mine = STEP_FORMATS[app.step];

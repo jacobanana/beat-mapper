@@ -75,4 +75,13 @@ describe('warp markers', () => {
     const kept = quantizeTransients(demoMap, grid, ts, { a: 0, b: demo.dur }, [{ t: offBeats[0], q: 0.75 }]);
     expect(kept.find((w) => w.t === offBeats[0])!.q).toBe(0.75);
   });
+
+  it('quantizes part of the way at a lower strength, and not at all at 0', () => {
+    const grid = new Grid(meter, '8'), ts = demo.onsets, all = { a: 0, b: demo.dur };
+    const full = quantizeTransients(demoMap, grid, ts, all, []);
+    const half = quantizeTransients(demoMap, grid, ts, all, [], 0.5);
+    expect(half.length).toBe(full.length);
+    half.forEach((w, i) => expect(w.q).toBeCloseTo((full[i].q + demoMap.timeToPos(w.t)) / 2, 9));
+    expect(quantizeTransients(demoMap, grid, ts, all, [], 0)).toEqual([]);
+  });
 });
