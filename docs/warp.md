@@ -56,7 +56,9 @@ playhead are drawn where the warp puts them against that grid (`warpView` in `co
 `App.warpView`), so a quantized hit is drawn on its line, as it is heard. What the pointer lands on
 is looked up the same way back. The tempo lane draws the grid's tempo as
 a dashed line, with the gap between each bar's tempo and it shaded: blue for a bar that is slowed
-down, red for one sped up.
+down, red for one sped up. The bars and their tempo are the tempo map's: warp markers line hits up
+inside their bars, so quantizing, its strength and the shuffle change neither the tempo drawn nor the
+tempo the file averages, which the grid tempo is taken from.
 
 The tempo map is straight lines between pins, so moving each pin to where a steady tempo puts it
 defines the warp exactly (`core/warp/map.ts`). Between pins the stretch is constant.

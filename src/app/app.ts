@@ -197,15 +197,13 @@ export class App {
   /** Which moment of the audio the editor draws at time t. */
   sourceAt(t: number): number { return this.warpView?.source(t) ?? t; }
 
-  private readonly _warpBars = memo((map: TempoMap, meter: ProjectDoc['meter'], dur: number) => map.bars(meter, dur));
-  /** Every bar's tempo as the warp sees it, warp markers included. */
-  get warpBars(): readonly Bar[] { return this._warpBars(this.warpTempo, this.doc.meter, this.dur); }
-
-  private readonly _warp = memo((map: TempoMap, meter: ProjectDoc['meter'], dur: number, lead: ExportSettings['lead'], loop: TimeRange | null, gridBpm: number | null): WarpPlan | null => {
+  // The tempo is the tempo map's: warp markers line hits up inside it, so quantizing, its strength or
+  // the shuffle never change the tempo shown or the grid it is warped to.
+  private readonly _warp = memo((map: TempoMap, tempo: TempoMap, meter: ProjectDoc['meter'], dur: number, lead: ExportSettings['lead'], loop: TimeRange | null, gridBpm: number | null): WarpPlan | null => {
     if (map.isEmpty) return null;
     const r = warpRange(map, meter, dur, { lead, loop });
     if (!(r.b - r.a > 0.01)) return null;
-    const avgBpm = averageBpm(map, r), bpm = gridBpm ?? Math.round(avgBpm);
+    const avgBpm = averageBpm(tempo, r), bpm = gridBpm ?? Math.round(avgBpm);
     if (!(bpm > 0)) return null;
     const w = planWarp(map, r, bpm);
     return { map: w, bpm, avgBpm, q0: r.q0, srcDur: r.b - r.a, outDur: w.outDur, ratios: w.ratioRange(), loop: !!loop };
@@ -218,7 +216,7 @@ export class App {
     if (!this.audio || !this.hasMap) return null;
     const loop = this.warp.range === 'loop' ? this.activeLoop : null;
     if (this.warp.range === 'loop' && !loop) return null;
-    return this._warp(this.warpTempo, this.doc.meter, this.dur, this.exportSettings.lead, loop, this.warp.bpm);
+    return this._warp(this.warpTempo, this.tempoMap, this.doc.meter, this.dur, this.exportSettings.lead, loop, this.warp.bpm);
   }
 
   get dur(): number { return this.audio?.dur ?? 0; }

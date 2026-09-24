@@ -252,12 +252,13 @@ export function warpMarkers({ g, app, L, C, xOf, t0, t1 }: Frame): void {
 
 /**
  * The tempo lane: each bar's BPM as a step line. In the Warp step, the grid's tempo too, as a dashed
- * line, and the gap each bar is moved across to reach it.
+ * line, and the gap each bar is moved across to reach it. The bars are the tempo map's, drawn on its
+ * grid: warp markers move hits within their bars, not the bars' tempo.
  */
-export function tempoLane({ g, app, L, C, xOf, t0, t1 }: Frame): void {
-  const bars = app.step === 3 ? app.warpBars : app.bars;
+export function tempoLane({ g, app, L, C, xOf, gx }: Frame): void {
+  const bars = app.bars;
   if (!bars.length) return;
-  const { w, ly, laneH } = L, warp = app.step === 3 ? app.warpPlan : null;
+  const { w, ly, laneH } = L, v = app.view, t0 = v.t0, t1 = v.t1, warp = app.step === 3 ? app.warpPlan : null;
   let lo = Infinity, hi = -Infinity;
   for (const b of bars) { if (b.bpm < lo) lo = b.bpm; if (b.bpm > hi) hi = b.bpm; }
   if (warp) { lo = Math.min(lo, warp.bpm); hi = Math.max(hi, warp.bpm); }
@@ -269,7 +270,7 @@ export function tempoLane({ g, app, L, C, xOf, t0, t1 }: Frame): void {
   let started = false, lastLab = -99;
   for (const b of bars) {
     if (b.te < t0 || b.ts > t1) continue;
-    const x0 = xOf(b.ts), x1 = xOf(b.te), y = yOf(b.bpm);
+    const x0 = gx(b.ts), x1 = gx(b.te), y = yOf(b.bpm);
     if (!started) { g.moveTo(x0, y); started = true; } else g.lineTo(x0, y);
     g.lineTo(x1, y);
   }
@@ -277,7 +278,7 @@ export function tempoLane({ g, app, L, C, xOf, t0, t1 }: Frame): void {
   const yw = warp ? yOf(warp.bpm) : 0;
   for (const b of bars) {
     if (b.te < t0 || b.ts > t1) continue;
-    const x0 = xOf(b.ts), x1 = xOf(b.te), y = yOf(b.bpm);
+    const x0 = gx(b.ts), x1 = gx(b.te), y = yOf(b.bpm);
     if (warp) {
       // What the warp does to the bar: the gap between its tempo and the grid's.
       g.fillStyle = rgba(b.bpm > warp.bpm ? C.start : C.down, 0.22); g.fillRect(x0, Math.min(y, yw), x1 - x0, Math.abs(y - yw));

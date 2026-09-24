@@ -275,6 +275,25 @@ describe('the Warp step', () => {
     expect(app.shownAt(loose.t)).toBe(loose.t);
   });
 
+  it('keeps the tempo while quantizing, its strength or the shuffle move', () => {
+    const { app, f } = t;
+    f.workflow.goTo(3);
+    f.beats.setGrid('16');
+    const p0 = app.warpPlan!, bars = app.bars;
+    f.warp.toggleQuantize();
+    expect(app.doc.warpMarkers.length).toBeGreaterThan(50);
+    for (const pct of [100, 40, 75]) {
+      f.warp.setQuantizeStrength(pct);
+      for (const sh of [0, 60]) {
+        f.beats.setShuffle(sh);
+        const p = app.warpPlan!;
+        expect(p.avgBpm).toBeCloseTo(p0.avgBpm, 9);
+        expect(p.bpm).toBe(p0.bpm);
+        expect(app.bars).toBe(bars);
+      }
+    }
+  });
+
   it('quantizes again as the strength moves, as one undo step', () => {
     const { app, f } = t;
     f.workflow.goTo(2);
