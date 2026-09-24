@@ -87,3 +87,19 @@ export function quantizeTransients(
   const added = picked.map(({ t, q }) => ({ t, q: q + (1 - s) * (map.timeToPos(t) - q) })).filter((p) => markers.every((w) => inOrder(w, p)));
   return [...markers, ...added].sort((a, b) => a.t - b.t);
 }
+
+/** Where the audio at time t is drawn once warped (`shown`), and which audio is drawn at a time (`source`). */
+export interface WarpView {
+  shown(t: number): number;
+  source(t: number): number;
+}
+
+/**
+ * The Warp step as it is drawn: the grid stays where the tempo map puts it and the audio moves onto
+ * it, so a transient lined up is drawn on its grid line. Audio at t goes to where the tempo map has the
+ * position the warp gives it. Null when the warp moves nothing the tempo map doesn't already say.
+ */
+export function warpView(map: TempoMap, warped: TempoMap): WarpView | null {
+  if (warped === map || map.isEmpty) return null;
+  return { shown: (t) => map.posToTime(warped.timeToPos(t)), source: (t) => warped.posToTime(map.timeToPos(t)) };
+}

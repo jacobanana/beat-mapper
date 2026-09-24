@@ -17,8 +17,8 @@ with no tempo map at all.
   in the upper half of the waveform onto a grid line (at the resolution of **grid**, the same setting
   as in Beats; <kbd>G</kbd> changes it) and let go: the warp moves that hit exactly onto the line and
   stretches the audio either side to fit. While it is dragged, an arrow shows the line it will land
-  on; once it is dropped, the grid bends so that line sits on the hit, and the hit wears a tab in the
-  bar ruler. <kbd>Alt</kbd> drops it off the grid. A double tap puts a transient on its nearest line,
+  on; once it is dropped, the audio moves so the hit sits on that line, and the hit wears a tab in
+  the bar ruler. The grid stays where it is: it is the audio that is moved onto it. <kbd>Alt</kbd> drops it off the grid. A double tap puts a transient on its nearest line,
   or lets a warp marker go; <kbd>Delete</kbd> removes the selected one. **Quantize** (<kbd>Q</kbd>)
   puts every transient of what is warped on its nearest line, the closer of two taking a line they
   both reach for (a flam), and **Clear** takes every warp marker off. All of it is undoable.
@@ -48,9 +48,13 @@ saving, until something it depends on changes (a pin, the meter, the loop when o
 the material, the grid tempo, the transients in Drums mode). A change while playing is rendered again
 once the changes settle, and playback carries on from the same place.
 
-The editor stays on the original's timeline, so the playhead moves through the original: fast where a
+The editor stays on the tempo map's timeline, so the playhead moves through the original: fast where a
 bar is being slowed down, slow where it is sped up, and always on the hit you are hearing (`Take` in
-`app/features/playback.ts` maps the two timelines both ways). The tempo lane draws the grid's tempo as
+`app/features/playback.ts` maps the two timelines both ways). The grid is drawn where the tempo map
+has it, and the warp markers move the audio drawn over it: the waveform, the transients and the
+playhead are drawn where the warp puts them against that grid (`warpView` in `core/warp/markers.ts`,
+`App.warpView`), so a quantized hit is drawn on its line, as it is heard. What the pointer lands on
+is looked up the same way back. The tempo lane draws the grid's tempo as
 a dashed line, with the gap between each bar's tempo and it shaded: blue for a bar that is slowed
 down, red for one sped up.
 
