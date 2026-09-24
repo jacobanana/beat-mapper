@@ -87,8 +87,8 @@ export class Beats {
     if (!app.audio) return;
     const anchors = edit.ensureDownbeat([], app.markers) ?? [];
     app.edit((d) => ({ ...d, meter: emptyDoc().meter, tempo: { anchors, baseBpm: app.startBpm } }));
-    const { grid, mapEvery, tol, loopBars } = defaultBeats();
-    app.set('beats', { grid, mapEvery, tol, loopBars });
+    const { grid, mapEvery, tol, loopBars, shuffle } = defaultBeats();
+    app.set('beats', { grid, mapEvery, tol, loopBars, shuffle });
     app.select(null);
     app.notify.toast('Beats reset: bar 1 on the first transient, nothing else pinned. Undo brings your map back.');
   }
@@ -162,6 +162,9 @@ export class Beats {
 
   // ---------- grid and magnet ----------
   setGrid(grid: GridDivision): void { this.app.set('beats', { grid }); }
+
+  /** Swings the grid: every second line late by `pct` percent of the way to a triplet shuffle. */
+  setShuffle(pct: number): void { this.app.set('beats', { shuffle: Math.max(0, Math.min(100, Math.round(pct))) }); }
 
   cycleGrid(dir: 1 | -1): void {
     const i = GRID_STEPS.indexOf(this.app.beats.grid);

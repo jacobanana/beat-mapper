@@ -21,7 +21,7 @@ export interface SessionContent {
   markers: { manual: number[]; removed: number[] };
   meter: Meter;
   tempo: { anchors: Anchor[]; baseBpm: number };
-  beats: Omit<BeatSettings, 'loopBars'>;
+  beats: Omit<BeatSettings, 'loopBars' | 'shuffle'>;
   transport: Pick<TransportState, 'loop' | 'loopOn' | 'start' | 'playhead' | 'stay' | 'click'>;
   view: TimeRange | null;
   step: Step;

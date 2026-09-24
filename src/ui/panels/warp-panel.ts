@@ -2,7 +2,7 @@
 // grid transients are lined up on, what is warped, and the material. The same settings as the Export window's warped .wav.
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
-import type { GridDivision } from '../../core/tempo/meter';
+import { type GridDivision, swings } from '../../core/tempo/meter';
 import { WARP_MODES, type WarpMode } from '../../core/warp/modes';
 import { $, $btn, $in, $sel, setPressed, setText, setValue } from '../dom';
 
@@ -42,6 +42,7 @@ export function bindWarpPanel(app: App, f: Features, refocus: () => void): void 
   app.bus.on(['doc', 'step'], () => { if (!pop.hidden && (!w.quantizeOpen || app.step !== 3)) show(false); });
   // A new grid while the strength is open lines the transients up on it instead.
   app.bus.on('beats', () => { if (!pop.hidden) w.requantize(); });
+  $in('warpShuffle').oninput = (e) => f.beats.setShuffle(+(e.target as HTMLInputElement).value);
   $('wClearMarkers').onclick = () => w.clearMarkers();
   $sel('warpRange').onchange = (e) => w.setRange((e.target as HTMLSelectElement).value === 'loop' ? 'loop' : 'file');
   $sel('warpModeB').onchange = (e) => w.setMode((e.target as HTMLSelectElement).value as WarpMode);
@@ -57,6 +58,10 @@ export function bindWarpPanel(app: App, f: Features, refocus: () => void): void 
     setPressed($('wWarped'), s.listen);
     $btn('wFromLoop').disabled = !app.transport.loop;
     setValue($sel('warpGrid'), app.beats.grid);
+    // Only a straight grid finer than the beat has pairs of lines to swing.
+    setValue($in('warpShuffle'), app.beats.shuffle);
+    $in('warpShuffle').disabled = !swings(app.beats.grid, app.grid.beatQ);
+    setText($('warpShuffleO'), app.beats.shuffle + '%');
     $btn('wQuantize').disabled = !p;
     setValue(strength, s.quantize);
     setText($('qStrengthO'), s.quantize + '%');

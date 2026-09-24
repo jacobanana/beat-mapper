@@ -26,6 +26,11 @@ with no tempo map at all.
   only that part of the way to its line, keeping some of the feel. Moving the slider quantizes again
   from where the button started, as the same undo step, until the popover closes; <kbd>Q</kbd>
   quantizes at the strength last set.
+  **shuffle**, beside the grid (and beside it in Beats, since it is the same grid), swings every
+  second line of a 1/8, 1/16 or 1/32 grid late: 100% puts it two thirds of the way through its pair,
+  a triplet shuffle. What is drawn, snapped, pinned and quantized follows it. Triplet grids and grids
+  of a beat or coarser have no pairs to swing, so the slider greys out there. It is kept for the
+  visit only, not in sessions.
 - **whole file · just the loop**: what is warped, heard and saved. Drawing a loop to take its tempo
   leaves this on the whole file. A loop warped alone starts the file and is exactly as many beats long
   as it holds at the new tempo, named like the loop export: `name_4bars_100bpm_warped.wav`.

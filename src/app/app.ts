@@ -119,8 +119,8 @@ export class App {
   private readonly _map = memo((t: ProjectDoc['tempo']) => new TempoMap(t.anchors, t.baseBpm));
   get tempoMap(): TempoMap { return this._map(this.doc.tempo); }
 
-  private readonly _grid = memo((m: ProjectDoc['meter'], g: BeatSettings['grid']) => new Grid(m, g));
-  get grid(): Grid { return this._grid(this.doc.meter, this.beats.grid); }
+  private readonly _grid = memo((m: ProjectDoc['meter'], g: BeatSettings['grid'], sh: number) => new Grid(m, g, sh / 100));
+  get grid(): Grid { return this._grid(this.doc.meter, this.beats.grid, this.beats.shuffle); }
 
   private readonly _detected = memo((c: readonly Candidate[], sens: number, gap: number) => detectMarkers(c, sensToThr(sens), gap / 1000));
   private readonly _markers = memo((c: readonly Candidate[], det: number[], removed: readonly number[], manual: ProjectDoc['markers']['manual']) => {

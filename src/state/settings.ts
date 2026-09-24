@@ -29,6 +29,8 @@ export interface BeatSettings extends MapSettings {
   snapTo: SnapMode;
   /** Bars in the loop for derive-from-loop; null works it out. Not saved. */
   loopBars: number | null;
+  /** How far the grid's every second line swings late, in percent: 100 is a triplet shuffle. Not saved. */
+  shuffle: number;
 }
 
 export interface ExportSettings {
@@ -131,7 +133,7 @@ export const MIX_MAX = 150;
 export type GrooveChartMode = 'pocket' | 'midi';
 
 export const defaultDetection = (): DetectionSettings => ({ sens: 55, gap: 60, band: 'full', algo: 'flux', showOdf: true });
-export const defaultBeats = (): BeatSettings => ({ grid: '16', mapEvery: 'beat', tol: 20, snapTo: 'markers', loopBars: null });
+export const defaultBeats = (): BeatSettings => ({ grid: '16', mapEvery: 'beat', tol: 20, snapTo: 'markers', loopBars: null, shuffle: 0 });
 export const defaultExport = (): ExportSettings => ({ lead: 'full', res: 'pins', clicks: true, rppAudio: true });
 export const defaultWarp = (): WarpSettings => ({ mode: 'music', bpm: null, range: 'file', listen: true, quantize: 100 });
 export const defaultSlicer = (): SlicerSettings => ({

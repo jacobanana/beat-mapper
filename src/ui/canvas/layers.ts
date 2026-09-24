@@ -55,7 +55,7 @@ export function grid({ g, app, L, C, xOf }: Frame): 0 | 1 | 2 {
       const lv = grid.level(j);
       if (lv > visLevel) continue;
       if (!gridHasBeats && j > 0 && !showBeat) continue;
-      const q = b * bq + j * gq, x = Math.round(xOf(map.posToTime(q))) + 0.5;
+      const q = b * bq + grid.at(j), x = Math.round(xOf(map.posToTime(q))) + 0.5;
       if (x < -2 || x > w + 2) continue;
       // In Warp the subdivisions are what transients are dropped on, so they show more.
       g.strokeStyle = rgba(C.beat, (lv === 0 ? 0.75 : lv === 1 ? 0.4 : app.step === 3 ? 0.32 : 0.18) * a * (q < 0 ? 0.5 : 1));

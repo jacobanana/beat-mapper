@@ -200,6 +200,7 @@
             <div class="row2">
               <span class="cap">Fix</span><span class="items">
               <label class="sl" title="Grid (G): the lines drawn, and which one Pin takes">grid<select id="grid" aria-label="Grid"><option value="bar">Bar</option><option value="2">1/2</option><option value="4">1/4</option><option value="8">1/8</option><option value="16" selected>1/16</option><option value="32">1/32</option><option value="4t">1/4T</option><option value="8t">1/8T</option><option value="16t">1/16T</option></select></label>
+              <label class="sl" title="Shuffle: every second line of the grid swings late, 100% a triplet shuffle (1/8, 1/16 and 1/32 only)">shuffle<input type="range" id="shuffle" min="0" max="100" step="5" value="0" aria-label="Shuffle"><output id="shuffleO">0%</output></label>
               <label class="sl" title="Magnet (S): what the playhead and dragged pins land on"><svg class="ic"><use href="#i-snap"/></svg><select id="snapTo" aria-label="Snap to"><option value="markers">transients</option><option value="grid">grid</option><option value="off">nothing</option></select></label></span>
             </div>
           </details>
@@ -221,6 +222,7 @@
           <div class="row2">
             <span class="cap" title="Drag a transient onto a grid line to line it up there">Align</span><span class="items">
               <label class="sl" title="Grid (G): the lines a transient is lined up on">grid<select id="warpGrid" aria-label="Grid"><option value="bar">Bar</option><option value="2">1/2</option><option value="4">1/4</option><option value="8">1/8</option><option value="16" selected>1/16</option><option value="32">1/32</option><option value="4t">1/4T</option><option value="8t">1/8T</option><option value="16t">1/16T</option></select></label>
+              <label class="sl" title="Shuffle: every second line of the grid swings late, 100% a triplet shuffle (1/8, 1/16 and 1/32 only)">shuffle<input type="range" id="warpShuffle" min="0" max="100" step="5" value="0" aria-label="Shuffle"><output id="warpShuffleO">0%</output></label>
               <button class="btn" id="wQuantize" title="Quantize: every transient towards the grid line nearest it, as far as the strength says (Q)" aria-label="Quantize every transient to the grid" aria-controls="qPop" aria-expanded="false">Quantize</button>
               <div class="pop" id="qPop" role="group" aria-label="Quantize strength" hidden>
                 <div class="ch"><span class="chn">Strength</span><input type="range" id="qStrength" min="0" max="100" step="5" value="100" aria-label="Quantize strength"><output id="qStrengthO">100%</output></div>
