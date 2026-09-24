@@ -6,7 +6,7 @@ import type { Features } from '../../app/features';
 import { fmtBpm, fmtTime, plural } from '../../core/format';
 import { VOICES } from '../../core/drums/voices';
 import { WARP_MODES, WARP_MODE_INFO, type WarpMode } from '../../core/warp/modes';
-import type { Step } from '../../io/session';
+import type { Step } from '../../state/steps';
 import { buildMidi } from '../../io/formats/midi';
 import { $, $btn, $in, $sel, setText, setValue } from '../dom';
 
@@ -113,8 +113,8 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
         if (!app.audio) return OPEN_FIRST;
         const S = app.slices, i = app.sliceIndex ?? 0, sl = S[i];
         if (!sl) return { text: 'No slices yet – add transients in step 1.', ok: false };
-        const out = app.warpOut, t0 = out ? out.at(sl.t0) : sl.t0, t1 = out ? out.at(sl.t1) : sl.t1;
-        return { text: `Slice ${i + 1} of ${S.length} · ${fmtTime(t0)} · ${Math.round((t1 - t0) * 1000)} ms${out ? ' · warped' : ''}`, ok: true };
+        const t0 = app.placed(sl.t0), t1 = app.placed(sl.t1);
+        return { text: `Slice ${i + 1} of ${S.length} · ${fmtTime(t0)} · ${Math.round((t1 - t0) * 1000)} ms${app.warpOut ? ' · warped' : ''}`, ok: true };
       },
       run: () => f.slicer.saveSelectedWav(),
     },
@@ -123,10 +123,9 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
       save: 'Save .wav',
       info: () => {
         if (!app.audio) return OPEN_FIRST;
-        const L = app.loopInfo;
+        const L = f.slicer.loopHeard();
         if (!L) return { text: 'Switch the loop on first – drag in the top strip to draw one.', ok: false };
-        const out = app.warpOut;
-        return { text: `${plural(L.bars, 'bar')} at ${fmtBpm(out ? out.plan.bpm : L.bpm)} BPM · ${fmtTime(L.a)}–${fmtTime(L.b)}${out ? ' · warped' : ''}`, ok: true };
+        return { text: `${plural(L.bars, 'bar')} at ${fmtBpm(L.bpm)} BPM · ${fmtTime(app.placed(L.a))}–${fmtTime(app.placed(L.b))}${app.warpOut ? ' · warped' : ''}`, ok: true };
       },
       run: () => f.slicer.saveLoopWav(),
     },
@@ -253,8 +252,8 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
 
 
   app.bus.on('export', sync);
-  app.bus.on(['warp', 'doc', 'transport', 'audio', 'export'], syncWarp);
-  app.bus.on(['export', 'warp', 'slicer', 'slices', 'doc', 'drums', 'groove', 'transport', 'audio', 'candidates', 'selection'], render);
+  app.bus.on(['warp', 'doc', 'transport', 'audio', 'export', 'heard'], syncWarp);
+  app.bus.on(['export', 'warp', 'slicer', 'slices', 'doc', 'drums', 'groove', 'transport', 'audio', 'candidates', 'selection', 'heard'], render);
   sync();
   syncWarp();
 

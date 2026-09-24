@@ -8,19 +8,14 @@ import { saveError, saveFile } from '../../io/download';
 import { buildRppSlices } from '../../io/formats/rpp';
 import { wavEncode, wavSize } from '../../io/formats/wav';
 import { type ZipEntry, zipFiles } from '../../io/formats/zip';
-import { type SlicerSettings, defaultSlicer } from '../../state/settings';
+import { type SlicerSettings, defaultSlicer, sliceRenderOptions } from '../../state/settings';
 import type { App, SliceView, WarpOut } from '../app';
 import type { Exports } from './exports';
 import type { Playback } from './playback';
-import type { Warp } from './warp';
+import type { WarpRender } from './warp-render';
 
 const TOO_LARGE = 'Too large for this viewer. Slice a shorter range, or use 16-bit mono.';
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
-
-/** What every rendered slice gets; the warped .wav gets the same channels and level. */
-export function sliceRenderOptions(o: SlicerSettings): RenderOptions {
-  return { fadeIn: o.fadeIn / 1000, fadeOut: o.fadeOut / 1000, mono: o.mono, normalize: o.norm, target: Math.pow(10, o.target / 20) };
-}
 
 /** The audio samples are cut from, and where a moment of the original is in it. */
 interface Cut {
@@ -32,7 +27,7 @@ interface Cut {
 }
 
 export class Slicer {
-  constructor(private readonly app: App, private readonly playback: Playback, private readonly exports: Exports, private readonly warp: Warp) {}
+  constructor(private readonly app: App, private readonly playback: Playback, private readonly exports: Exports, private readonly warp: WarpRender) {}
 
   update(patch: Partial<SlicerSettings>): void { this.app.set('slicer', patch); }
 
@@ -60,8 +55,8 @@ export class Slicer {
   /** A slice as it is in the audio cut from: in the warped file's time when that is the warp. */
   private static placed<T extends Slice>(sl: T, c: Cut): T { return c.out ? { ...sl, t0: c.at(sl.t0), t1: c.at(sl.t1) } : sl; }
 
-  /** The loop as it is named, at the tempo heard. */
-  private loopHeard(): LoopInfo | null {
+  /** The loop as it is named, at the tempo of what is cut. */
+  loopHeard(): LoopInfo | null {
     const L = this.app.loopInfo, out = this.app.warpOut;
     return L && out ? { ...L, bpm: out.plan.bpm } : L;
   }
@@ -153,8 +148,8 @@ export class Slicer {
 
   /** Rough size of the zip of every kept slice. */
   zipEstimate(): number {
-    const o = this.app.slicer, ch = o.mono ? 1 : (this.app.audio?.chans.length ?? 1), out = this.app.warpOut;
-    const len = (sl: Slice) => (out ? out.at(sl.t1) - out.at(sl.t0) : sl.t1 - sl.t0);
+    const { app } = this, o = app.slicer, ch = o.mono ? 1 : (app.audio?.chans.length ?? 1);
+    const len = (sl: Slice) => app.placed(sl.t1) - app.placed(sl.t0);
     let n = 0;
     for (const sl of this.app.slices) if (!sl.off) n += wavSize(Math.round(len(sl) * (this.app.audio?.sr ?? 44100)), ch, o.bits) + 180;
     return n;
@@ -226,8 +221,7 @@ export class Slicer {
       }
       if (withRpp) {
         const named = list.map((sl, i) => ({ t0: sl.t0, t1: sl.t1, name: files[i].name }));
-        const on = c.out ? { map: c.out.exportMap, dur: c.out.plan.outDur } : {};
-        const text = buildRppSlices({ ...this.exports.options(), ...on, trimmed: false, slices: named, trackName: (a.name || 'Audio') + ' slices' });
+        const text = buildRppSlices({ ...this.exports.options(c.out), trimmed: false, slices: named, trackName: (a.name || 'Audio') + ' slices' });
         files.push({ name: base + '-slices.rpp', data: new TextEncoder().encode(text) });
       }
       if (app.slicer.csv) files.push({ name: base + '-slices.csv', data: new TextEncoder().encode(slicesCsv(list, base, pad, naming)) });

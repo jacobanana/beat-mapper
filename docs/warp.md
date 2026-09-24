@@ -21,15 +21,15 @@ with no tempo map at all.
   stretches the audio either side to fit. While it is dragged, an arrow shows the line it will land
   on; once it is dropped, the audio moves so the hit sits on that line, and the hit wears a tab in
   the bar ruler. The grid stays where it is: it is the audio that is moved onto it. <kbd>Alt</kbd> drops it off the grid. A double tap puts a transient on its nearest line,
-  or lets a warp marker go; <kbd>Delete</kbd> removes the selected one. **Quantize** (<kbd>Q</kbd>)
-  puts every transient of what is warped on its nearest line, the closer of two taking a line they
-  both reach for (a flam), and **Clear** takes every warp marker off. All of it is undoable.
-  Quantize is a switch, and the **strength** slider sits beside the shuffle, always there (100% by
-  default): below 100% each transient moves only that part of the way to its line, keeping some of
-  the feel. While Quantize is on, moving the slider, the shuffle or the grid quantizes again from where it
-  started, as the same undo step; turning it off (the button or <kbd>Q</kbd>) puts the warp markers
-  back as they were. Any other edit, or leaving the step, keeps the quantize and turns the switch off.
-  It is the app's only quantize: the slices, the pocket, the synth kit and the drum MIDI follow it.
+  or lets a warp marker go; <kbd>Delete</kbd> removes the selected one. All of it is undoable.
+  **quantize**, the slider beside the shuffle, moves every transient of what is warped that far
+  towards its nearest line: 0% (the default) leaves them as played, 100% puts them on it, the closer
+  of two taking a line they both reach for (a flam); in between keeps some of the feel. It is a
+  setting, not an edit: the warp markers placed by hand stay as they are and the quantize is laid
+  around them, and moving it, the shuffle or the grid warps again at once. What plays is rendered
+  again once they stop moving (see below). To compare with how it was played, use the Warped switch
+  (<kbd>W</kbd>). It is the app's only quantize: the slices, the pocket, the synth kit and the drum
+  MIDI follow it.
   **shuffle**, beside the grid (and beside it in Beats, since it is the same grid), swings every
   second line of a 1/8, 1/16 or 1/32 grid late: 100% puts it two thirds of the way through its pair,
   a triplet shuffle. What is drawn, snapped, pinned and quantized follows it. Triplet grids and grids
@@ -46,14 +46,19 @@ In Export, *Whole file + lead-in* keeps what comes before bar 1 and puts silence
 file starts on a bar line; *Trim to bar 1* starts the file on bar 1. Channels, normalizing and bit
 depth are the slicer's.
 
-The first play renders the warp in the worker; after that the render is reused, for playing and for
-saving, until something it depends on changes (a pin, the meter, the loop when only the loop is warped,
-the material, the grid tempo, the transients in Drums mode). A change while playing is rendered again
-once the changes settle, and playback carries on from the same place.
+The first play renders the warp in the worker (`app/features/warp-render.ts`); after that the render is
+reused, for playing and for saving, until something it depends on changes (a pin, the meter, the loop
+when only the loop is warped, the material, the grid tempo, the quantize, the grid and shuffle it quantizes to, the transients in
+Drums mode). A change
+while playing is rendered again once the changes settle (350 ms without another, so dragging a slider
+renders once, when it stops), and playback carries on from the same place.
+Until the new take plays, the one playing is what is drawn and clicked, so the screen never runs ahead
+of the speakers. A warp that can't be rendered leaves the switch as it is: the original plays, the
+switch dims, and a change to the warp tries again.
 
 The editor stays on the tempo map's timeline, so the playhead moves through the original: fast where a
-bar is being slowed down, slow where it is sped up, and always on the hit you are hearing (`Take` in
-`app/features/playback.ts` maps the two timelines both ways). The grid is drawn where the tempo map
+bar is being slowed down, slow where it is sped up, and always on the hit you are hearing (`WarpOut`
+in `app/warp-out.ts` maps the two timelines both ways, for the audio, the timeline and the exports alike). The grid is drawn where the tempo map
 has it. What is drawn over it follows what is heard (`App.timeline`, see
 [architecture.md](architecture.md#time-on-screen)): heard warped, the waveform, the transients and the
 playhead are drawn where the warp puts them, so a quantized hit is drawn on its line; heard as the
@@ -72,7 +77,9 @@ Warp markers (`core/warp/markers.ts`) are laid over the pins to make the map the
 from it; the tempo map of Beats is left as it was, so its MIDI and bars don't change. A pin a
 marker contradicts gives way to it, markers can't cross each other, and the map past its ends keeps the
 pins' tempo, so a marker near bar 1 doesn't stretch the lead-in. They are in the undoable document and in
-the session file (`warp.markers`, written only when there are some), unlike the other Warp settings.
+the session file (`warp.markers`, written only when there are some). The other Warp settings (material,
+grid tempo, what is warped, the Warped switch, quantize strength) are saved beside them, each only when
+it isn't the default, and a newly opened file starts from the defaults.
 
 ## One method per material
 
@@ -105,7 +112,6 @@ frame's shift in the others.
 ## Later
 
 - A view of the warped waveform itself, on the straight grid.
-- Saving the other warp settings (tempo, material, range) with the session; only the warp markers are kept for now.
 - Other stretchers worth trying: phase gradient heap integration ([Průša & Holighaus 2017][pghi]),
   which needs no peak picking or transient handling.
 

@@ -17,10 +17,11 @@ export default tseslint.config(
   },
   {
     // Where things sit in time comes from the timeline (core/timeline.ts, App.timeline): what is drawn
-    // is then what is heard. Its axis meets pixels only in the renderer and the pointer, and the warp's
-    // alignment (not a tempo) is read only where the warp is made.
+    // is then what is heard. Its axis meets pixels only in `ui/canvas/screen.ts` (and the renderer and
+    // the pointer, which zoom and scroll it), and the warp's alignment (not a tempo) is read only where
+    // the warp is made.
     files: ['src/app/**/*.ts', 'src/ui/**/*.ts'],
-    ignores: ['src/ui/canvas/editor-renderer.ts', 'src/ui/input/pointer.ts', 'src/app/app.ts', 'src/app/features/warp.ts'],
+    ignores: ['src/ui/canvas/screen.ts', 'src/ui/canvas/editor-renderer.ts', 'src/ui/input/pointer.ts', 'src/app/app.ts', 'src/app/features/warp.ts'],
     rules: {
       'no-restricted-syntax': ['error',
         {

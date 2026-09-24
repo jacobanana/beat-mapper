@@ -10,6 +10,7 @@ import { Playback } from './playback';
 import { type KeyValueStore, Sessions } from './sessions';
 import { Slicer } from './slicer';
 import { Warp } from './warp';
+import { WarpRender } from './warp-render';
 import { Workflow } from './workflow';
 
 /** Every feature of the editor, wired to one App. The UI calls these; they change the App. */
@@ -22,6 +23,8 @@ export interface Features {
   exports: Exports;
   slicer: Slicer;
   warp: Warp;
+  /** The warp rendered, and what plays following what is wanted. */
+  warpRender: WarpRender;
   groove: Groove;
   sessions: Sessions;
   loader: Loader;
@@ -34,10 +37,11 @@ export function createFeatures(app: App, analyzer: Analyzer, store: KeyValueStor
   const beats = new Beats(app, playback);
   const exports = new Exports(app, beats);
   const groove = new Groove(app, analyzer, exports, playback);
-  const warp = new Warp(app, analyzer, beats, playback);
-  const slicer = new Slicer(app, playback, exports, warp);
+  const warpRender = new WarpRender(app, analyzer, playback);
+  const warp = new Warp(app, beats, warpRender);
+  const slicer = new Slicer(app, playback, exports, warpRender);
   const workflow = new Workflow(app, markers, beats, slicer, warp, groove);
   const sessions = new Sessions(app, markers, playback, workflow, store);
   const loader = new Loader(app, analyzer, playback, sessions, workflow);
-  return { playback, mixer, markers, beats, workflow, exports, slicer, warp, groove, sessions, loader };
+  return { playback, mixer, markers, beats, workflow, exports, slicer, warp, warpRender, groove, sessions, loader };
 }

@@ -1,56 +1,32 @@
 // Step 3, Warp: the audio re-timed so that the tempo map becomes a straight grid at one tempo, heard
 // here and saved as a .wav that drops into a DAW with no tempo map at all. The tempo map is made in
-// Beats; here it is only read.
+// Beats; here it is only read. What is warped and how is set here; rendering it is `WarpRender`'s.
 import { fmtBpm, fmtTime, safeName } from '../../core/format';
 import { renderSlice } from '../../core/slices/slices';
-import { type Grid, type Meter, barQ, beatQ } from '../../core/tempo/meter';
-import type { TimeRange } from '../../core/types';
-import { averageBpm, gridBeats } from '../../core/warp/map';
-import { type Alignment, placeWarpMarker, quantizeTransients, removeWarpMarker, warpMarkerAt } from '../../core/warp/markers';
+import { type Meter, barQ, beatQ } from '../../core/tempo/meter';
+import { averageBpm } from '../../core/warp/map';
+import { placeWarpMarker, removeWarpMarker, warpMarkerAt } from '../../core/warp/markers';
 import { WARP_MODE_INFO, type WarpMode } from '../../core/warp/modes';
-import type { Analyzer } from '../../analysis/analyzer';
-import { bufferFrom } from '../../engine/audio-context';
 import { saveError, saveFile } from '../../io/download';
 import { wavEncode } from '../../io/formats/wav';
 import type { ProjectDoc } from '../../state/project';
-import { type WarpSettings, defaultBeats, defaultWarp } from '../../state/settings';
-import type { App, WarpPlan } from '../app';
+import { type WarpSettings, defaultBeats, defaultWarp, sliceRenderOptions } from '../../state/settings';
+import type { App } from '../app';
+import { stepRules } from '../steps';
+import type { WarpPlan } from '../warp-out';
 import type { Beats } from './beats';
-import type { Playback, Take, TakeSource } from './playback';
-import { sliceRenderOptions } from './slicer';
+import type { WarpRender } from './warp-render';
 
-export type { WarpPlan } from '../app';
-
-/** A render of the warp and everything it was made from, so hearing it, slicing it and saving it render it once. */
-export interface Render {
-  inputs: readonly unknown[];
-  plan: WarpPlan;
-  chans: Float32Array[];
-  take: Take | null;
-}
+export type { WarpPlan } from '../warp-out';
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
-export class Warp implements TakeSource {
-  private last: Render | null = null;
-  private running: { inputs: readonly unknown[]; done: Promise<Render | null> } | null = null;
-  private restart: ReturnType<typeof setTimeout> | null = null;
-
+export class Warp {
   constructor(
     private readonly app: App,
-    private readonly analyzer: Analyzer,
     private readonly beats: Beats,
-    private readonly playback: Playback,
-  ) {
-    playback.setTakeSource(this);
-    // What plays follows what is wanted: the original in Transients and Beats or with Original chosen,
-    // and a fresh take after a change to the warp.
-    app.bus.on(['doc', 'warp', 'export', 'transport', 'step', 'candidates', 'detection', 'audio'], () => this.follow());
-    // While Quantize is on, a new grid or shuffle lines the transients up on it again; leaving the step
-    // ends it, so a grid changed in Beats doesn't move them unseen.
-    app.bus.on('beats', () => { if (this.quantizing && this.quantizing.grid !== app.grid) this.requantize(); });
-    app.bus.on('step', () => { if (app.step !== 3) this.endQuantize(); });
-  }
+    private readonly rendered: WarpRender,
+  ) {}
 
   update(patch: Partial<WarpSettings>): void { this.app.set('warp', patch); }
 
@@ -70,7 +46,7 @@ export class Warp implements TakeSource {
     const { app } = this;
     this.setListen(!app.warp.listen);
     const what = app.warp.listen ? 'Warped: Warp, Slice and Groove use the audio on the grid' : 'Original: Warp, Slice and Groove use the audio as it is';
-    app.notify.toast(app.step < 3 ? what + '. Transients and Beats always use the original.' : what);
+    app.notify.toast(!stepRules(app.step).hearsWarp ? what + '. Transients and Beats always use the original.' : what);
   }
 
   setRange(range: WarpSettings['range']): void {
@@ -100,14 +76,13 @@ export class Warp implements TakeSource {
 
   /**
    * Back to how the step starts: the averaged tempo, the whole file, the full-mix method, heard warped,
-   * no warp markers, a straight grid and quantize at full strength. The shuffle is the Beats grid's
+   * no warp markers, a straight grid and no quantize. The shuffle is the Beats grid's
    * too, but it is set here, so it goes back here as well.
    */
   reset(): void {
     if (!this.changed) return;
-    this.quantizing = null;
     this.app.edit((d) => (d.warpMarkers.length ? { ...d, warpMarkers: [] } : d));
-    this.app.set('beats', { shuffle: defaultBeats().shuffle });
+    this.beats.setShuffle(defaultBeats().shuffle);
     this.update(defaultWarp());
     this.app.notify.toast('Warp reset: the whole file at the tempo it averages. Undo brings the warp markers back.');
   }
@@ -201,99 +176,12 @@ export class Warp implements TakeSource {
     this.remove(t);
   }
 
-  // A quantize whose strength is still being set: what it started from, and the document it last made,
-  // so each move of the slider quantizes again from the start as one undo step, and any other edit ends it.
-  private quantizing: {
-    base: ProjectDoc['warpMarkers'];
-    map: Alignment;
-    range: TimeRange;
-    grid: Grid;
-    doc: ProjectDoc;
-    recorded: boolean;
-  } | null = null;
-
   /**
-   * Q: every transient of what is warped towards the grid line nearest it, as far as the strength
-   * says. Returns whether there was anything to line up, so the strength can then be set.
+   * How far every transient of what is warped moves to the grid line nearest it, in percent: 0 leaves
+   * them where they are, 100 puts them on it. The warp follows at once, and what plays once it settles.
    */
-  quantize(): boolean {
-    const { app } = this, p = this.plan();
-    this.quantizing = null;
-    if (!app.hasMap || !p) return this.say(app.hasMap ? 'Switch the loop on to warp just the loop.' : 'Map the beats first (step 2).');
-    if (!app.markers.length) return this.say('No transients to line up. Raise the sensitivity in step 1.');
-    const base = app.doc.warpMarkers, map = app.alignment, range = { a: p.map.src[0], b: p.map.src[p.map.src.length - 1] };
-    if (quantizeTransients(map, app.grid, app.markers.map((m) => m.t), range, base).length === base.length) return this.say('Every transient is already lined up.');
-    this.quantizing = { base, map, range, grid: app.grid, doc: app.doc, recorded: false };
-    const n = this.requantize(), pct = app.warp.quantize;
-    app.notify.toast(n > 0 ? `${n} transients lined up on the grid${pct < 100 ? ` at ${pct} %` : ''} · Quantize again takes them back` : 'Strength 0 %: raise it to line the transients up.');
-    return true;
-  }
-
-  private say(msg: string): false {
-    this.app.notify.toast(msg);
-    return false;
-  }
-
-  /** The quantize just made can still be changed: nothing has been edited since. */
-  get quantizeOpen(): boolean { return this.quantizing?.doc === this.app.doc; }
-
-  /** How far Quantize moves the transients, in percent; the quantize just made follows it. */
   setQuantizeStrength(pct: number): void {
     this.update({ quantize: clamp(Math.round(pct), 0, 100) });
-    this.requantize();
-  }
-
-  /** The grid changed, or the strength: the quantize just made is made again. The number added, or -1 if it has ended. */
-  requantize(): number {
-    const { app } = this, q = this.quantizing;
-    if (!q || !this.quantizeOpen) {
-      this.quantizing = null;
-      return -1;
-    }
-    q.grid = app.grid;
-    const out = quantizeTransients(q.map, app.grid, app.markers.map((m) => m.t), q.range, q.base, app.warp.quantize / 100);
-    if (!q.recorded) {
-      if (out.length === q.base.length) return 0;
-      app.checkpoint();
-      q.recorded = true;
-    }
-    // Noted before the edit announces it, so whoever listens sees the quantize still open.
-    const next = { ...app.doc, warpMarkers: out };
-    q.doc = next;
-    app.edit(() => next, false);
-    return out.length - q.base.length;
-  }
-
-  /** The strength is set: the next change to the warp markers is a new edit. */
-  endQuantize(): void {
-    if (!this.quantizing) return;
-    this.quantizing = null;
-    this.app.bus.emit('warp');
-  }
-
-  /**
-   * Quantize as a switch: on lines the transients up, off puts back the warp markers there were
-   * before, as long as nothing has been edited since. The undo it takes leaves a redo to turn it on again.
-   */
-  toggleQuantize(): void {
-    if (!this.quantizeOpen) {
-      this.quantize();
-      return this.app.bus.emit('warp');
-    }
-    const recorded = this.quantizing!.recorded;
-    this.quantizing = null;
-    if (recorded) this.app.undo();
-    this.app.bus.emit('warp');
-    this.app.notify.toast('Quantize off');
-  }
-
-  /** Every warp marker off: only the pins are warped onto the grid again. */
-  clearMarkers(): void {
-    const { app } = this;
-    if (!app.doc.warpMarkers.length) return;
-    this.setMarkers([]);
-    app.select(null);
-    app.notify.toast('Warp markers cleared · undo brings them back');
   }
 
   /** One line for the panel: what is warped, to what, and how far it is stretched. */
@@ -305,125 +193,9 @@ export class Warp implements TakeSource {
     const pct = (r: number) => Math.round(r * 100) + ' %', [lo, hi] = p.ratios;
     const what = p.loop ? 'The loop' : 'The file';
     const stretch = Math.abs(hi - lo) < 0.005 ? `stretched to ${pct(lo)}` : `stretched ${pct(lo)}–${pct(hi)}`;
-    const n = app.doc.warpMarkers.length, lined = n ? ` · ${n} transient${n === 1 ? '' : 's'} lined up` : '';
+    const n = app.doc.warpMarkers.length, q = app.warp.quantize;
+    const lined = (q ? ` · quantized ${q} %` : '') + (n ? ` · ${n} transient${n === 1 ? '' : 's'} lined up by hand` : '');
     return `${what} averages ${fmtBpm(+p.avgBpm.toFixed(2))} BPM · warped to ${fmtBpm(p.bpm)} BPM, ${stretch} · ${fmtTime(p.srcDur)} → ${fmtTime(p.outDur)}${lined}`;
-  }
-
-  // ---------- the take heard in the Warp step ----------
-  wanted(): boolean {
-    return this.app.hearingWarp;
-  }
-
-  current(): Take | null {
-    const r = this.fresh();
-    if (!r) return null;
-    return (r.take ??= this.makeTake(r));
-  }
-
-  async prepare(): Promise<boolean> {
-    try {
-      return !!(await this.render());
-    } catch (e) {
-      console.error(e);
-      this.update({ listen: false });
-      this.app.notify.toast("Couldn't warp the audio to play it – loop a shorter part and try again.");
-      return false;
-    }
-  }
-
-  private makeTake(r: Render): Take {
-    const { app } = this, { map, q0, bpm } = r.plan, a = map.src[0], b = map.src[map.src.length - 1], meter = app.doc.meter;
-    return {
-      buffer: bufferFrom(r.chans, app.audio!.sr),
-      toTake: (t) => map.dstAt(clamp(t, a, b)),
-      toSource: (t) => clamp(map.srcAt(t), 0, app.dur),
-      clicks: (t0, t1, emit) => gridBeats(q0, bpm, meter, t0, t1, emit),
-    };
-  }
-
-  // Switches what plays when it no longer matches what is wanted. A take made stale by an edit is
-  // remade once the edits settle, so a run of nudges costs one render.
-  private follow(): void {
-    const pb = this.playback;
-    // A render of another file is only memory now.
-    if (this.last && this.last.inputs[0] !== this.app.audio) this.last = null;
-    if (!pb.playing) return;
-    const want = this.wanted(), take = want ? this.current() : null;
-    // Nothing to switch when what plays is what is wanted. A take wanted but not rendered yet is not the
-    // original playing, though neither is a take: comparing them alone left the original playing.
-    if (want ? !!take && pb.playingTake === take : !pb.playingTake) return;
-    if (this.restart) clearTimeout(this.restart);
-    this.restart = null;
-    if (!want || take) return pb.play(pb.now());
-    const later = () => {
-      this.restart = setTimeout(() => {
-        this.restart = null;
-        if (this.app.dragging) return later();
-        if (pb.playing && this.wanted() && !this.current()) pb.play(pb.now());
-      }, 350);
-    };
-    later();
-  }
-
-  // ---------- rendering ----------
-  // Everything a render depends on; a render is reused while each of these is the same object or value.
-  private inputs(p: WarpPlan): unknown[] {
-    const { app } = this, mode = app.warp.mode;
-    return [app.audio, p, mode, mode === 'beats' ? app.markers : null];
-  }
-
-  private fresh(): Render | null {
-    const p = this.plan(), r = this.last;
-    return p && r && same(r.inputs, this.inputs(p)) ? r : null;
-  }
-
-  // Where Drums mode cuts: the transients of step 1, or the sixteenths of the tempo map when there are none.
-  private transients(): number[] {
-    const { app } = this, m = app.markers;
-    if (m.length) return m.map((k) => k.t);
-    const map = app.tempoMap, out: number[] = [];
-    for (let q = Math.ceil(map.timeToPos(0) * 4) / 4; ; q += 0.25) {
-      const t = map.posToTime(q);
-      if (t >= app.dur || out.length > 100000) break;
-      if (t >= 0) out.push(t);
-    }
-    return out;
-  }
-
-  /** The warp as it stands, rendered unless the last render still holds. Null without a plan, or if an edit overtook it. */
-  async render(): Promise<Render | null> {
-    const { app } = this, a = app.audio, p = this.plan();
-    if (!a || !p) return null;
-    const hit = this.fresh();
-    if (hit) return hit;
-    const inputs = this.inputs(p);
-    if (this.running && same(this.running.inputs, inputs)) return this.running.done;
-    const done: Promise<Render | null> = this.renderNow(p, inputs).finally(() => { if (this.running?.done === done) this.running = null; });
-    this.running = { inputs, done };
-    return done;
-  }
-
-  private async renderNow(p: WarpPlan, inputs: readonly unknown[]): Promise<Render | null> {
-    const { app } = this, a = app.audio!, mode: WarpMode = app.warp.mode, label = 'Warping · ' + WARP_MODE_INFO[mode].label;
-    app.notify.busy(label, 0.01);
-    try {
-      const n = Math.max(1, Math.round(p.outDur * a.sr));
-      // Only the part being warped goes to the worker, with half a second either side for the frames
-      // that reach past its ends; times are moved to match.
-      const len = a.chans[0].length, s0 = Math.max(0, Math.floor((p.map.src[0] - 0.5) * a.sr));
-      const s1 = Math.min(len, Math.ceil((p.map.src[p.map.src.length - 1] + 0.5) * a.sr)), off = s0 / a.sr;
-      const transients = mode === 'beats' ? this.transients().filter((t) => t >= off && t < s1 / a.sr).map((t) => t - off) : [];
-      const chans = await this.analyzer.warp(
-        { chans: a.chans.map((c) => c.subarray(s0, s1)), sr: a.sr, src: p.map.src.map((t) => t - off), dst: [...p.map.dst], n, mode, transients },
-        (f) => app.notify.busy(label, 0.01 + 0.97 * f),
-      );
-      const r: Render = { inputs, plan: p, chans, take: null };
-      // Kept unless a render of something newer landed first.
-      if (!this.fresh()) this.last = r;
-      return this.fresh() === r ? r : null;
-    } finally {
-      app.notify.idle();
-    }
   }
 
   /** name_warped_120bpm.wav, or name_4bars_120bpm_warped.wav for a loop, as loops are named. */
@@ -440,7 +212,7 @@ export class Warp implements TakeSource {
     this.beats.ensureDownbeat();
     if (!this.plan()) return app.notify.toast('Set bar 1 and at least a tempo in step 2 first.');
     try {
-      const r = await this.render();
+      const r = await this.rendered.render();
       if (!r) return app.notify.toast('The audio changed while it was warping – save again.');
       const p = r.plan, n = r.chans[0].length;
       // Channels, level and bit depth as the slicer has them; a warped file is one long sample.
@@ -464,4 +236,3 @@ function posLabel(q: number, meter: Meter): string {
   return `bar ${bar + 1}, beat ${+beat.toFixed(3)}`;
 }
 
-const same = (a: readonly unknown[], b: readonly unknown[]) => a.length === b.length && a.every((v, i) => v === b[i]);

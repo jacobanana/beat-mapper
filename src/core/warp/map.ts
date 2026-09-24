@@ -2,7 +2,7 @@
 // straight lines between pins, so a straight grid is reached by moving every pin to where a steady
 // tempo would put it: the warp is exact between pins with one point per pin.
 import { barQ, beatQ, type Meter } from '../tempo/meter';
-import { type PositionMap, TempoMap } from '../tempo/tempo-map';
+import { type PositionMap, TempoMap, eachStep } from '../tempo/tempo-map';
 import type { TimeRange } from '../types';
 
 /**
@@ -90,7 +90,8 @@ export function planWarp(map: PositionMap, r: WarpRange, bpm: number): WarpMap {
  * bar 1, wherever that falls, since the MIDI and REAPER writers start from the pin there.
  */
 export function gridMap(q0: number, bpm: number): TempoMap {
-  return new TempoMap([{ q: 0, t: (-q0 * 60) / bpm, manual: true }], bpm);
+  // 0 - …, so that with bar 1 at the start its time is 0 and not -0.
+  return new TempoMap([{ q: 0, t: (0 - q0 * 60) / bpm, manual: true }], bpm);
 }
 
 /**
@@ -98,10 +99,10 @@ export function gridMap(q0: number, bpm: number): TempoMap {
  * `emit(time, downbeat)`. Output time 0 is quarter note `q0`.
  */
 export function gridBeats(q0: number, bpm: number, meter: Meter, a: number, b: number, emit: (t: number, down: boolean) => void): void {
-  const bq = beatQ(meter), spq = 60 / bpm;
-  for (let k = Math.ceil((q0 + a / spq) / bq - 1e-9) || 0; ; k++) {
-    const t = (k * bq - q0) * spq;
-    if (t >= b) break;
-    if (t >= a) emit(t, ((k % meter.num) + meter.num) % meter.num === 0);
-  }
+  beatsOf(gridMap(q0, bpm), meter, a, b, emit);
+}
+
+/** The beats of any tempo map between times a and b, lead-in included: `emit(time, downbeat)`. */
+export function beatsOf(map: PositionMap, meter: Meter, a: number, b: number, emit: (t: number, down: boolean) => void): void {
+  eachStep(map, beatQ(meter), a, b, (t, k) => emit(t, ((k % meter.num) + meter.num) % meter.num === 0));
 }

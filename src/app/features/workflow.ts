@@ -1,5 +1,6 @@
 // The steps: Transients, Beats, Warp, Slice, Groove.
-import type { Step } from '../../io/session';
+import { STEP, type Step } from '../../state/steps';
+import { stepRules } from '../steps';
 import type { App } from '../app';
 import type { Beats } from './beats';
 import type { Groove } from './groove';
@@ -20,11 +21,11 @@ export class Workflow {
   /** Whether the current step has anything to reset. */
   get canReset(): boolean {
     switch (this.app.step) {
-      case 1: return this.markers.changed;
-      case 2: return this.beats.changed;
-      case 3: return this.warp.changed;
-      case 4: return this.slicer.changed;
-      case 5: return this.groove.changed;
+      case STEP.transients: return this.markers.changed;
+      case STEP.beats: return this.beats.changed;
+      case STEP.warp: return this.warp.changed;
+      case STEP.slice: return this.slicer.changed;
+      case STEP.groove: return this.groove.changed;
       default: return false;
     }
   }
@@ -32,20 +33,20 @@ export class Workflow {
   /** Starts the current step again, as it was on arriving. */
   resetStep(): void {
     switch (this.app.step) {
-      case 1: void this.markers.reset(); break;
-      case 2: this.beats.reset(); break;
-      case 3: this.warp.reset(); break;
-      case 4: this.slicer.reset(); break;
-      case 5: this.groove.reset(); break;
+      case STEP.transients: void this.markers.reset(); break;
+      case STEP.beats: this.beats.reset(); break;
+      case STEP.warp: this.warp.reset(); break;
+      case STEP.slice: this.slicer.reset(); break;
+      case STEP.groove: this.groove.reset(); break;
     }
   }
 
   goTo(step: Step): void {
-    if (step > 1 && !this.app.audio) return this.app.notify.toast('Open an audio file first.');
-    // Beats, Warp and Groove need bar 1; it starts on the first transient.
-    if (step === 2 || step === 3 || step === 5) this.beats.ensureDownbeat();
+    if (step !== STEP.transients && !this.app.audio) return this.app.notify.toast('Open an audio file first.');
+    // Bar 1 starts on the first transient.
+    if (stepRules(step).needsBar1) this.beats.ensureDownbeat();
     this.app.setStep(step);
-    if (step === 3 && this.app.doc.tempo.anchors.length < 2) this.app.notify.toast('Only bar 1 is pinned: the map is one steady tempo. Map the beats in step 2 so the warp can straighten them.');
-    if (step === 5) void this.groove.ensureDrums();
+    if (step === STEP.warp && this.app.doc.tempo.anchors.length < 2) this.app.notify.toast('Only bar 1 is pinned: the map is one steady tempo. Map the beats in step 2 so the warp can straighten them.');
+    if (step === STEP.groove) void this.groove.ensureDrums();
   }
 }

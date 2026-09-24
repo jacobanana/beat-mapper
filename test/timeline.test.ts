@@ -35,10 +35,7 @@ function mapBeats(s: Setup): void {
 function arrange(s: Setup): void {
   const { f } = t;
   f.beats.setShuffle(s.shuffle);
-  if (s.strength != null) {
-    f.warp.setQuantizeStrength(s.strength);
-    f.warp.toggleQuantize();
-  }
+  if (s.strength != null) f.warp.setQuantizeStrength(s.strength);
   f.warp.setListen(s.listen);
 }
 
@@ -53,7 +50,7 @@ describe('the timeline', () => {
       arrange(s);
       const tl = app.timeline, map = app.tempoMap, meter = app.doc.meter, p = app.warpPlan!;
       expect(app.hearingWarp).toBe(s.listen);
-      if (s.strength) expect(app.doc.warpMarkers.length).toBeGreaterThan(20);
+      if (s.strength) expect(app.warpMarkers.length).toBeGreaterThan(20);
 
       // The music is untouched: the same tempo map, the same bars.
       expect(map).toBe(before.map);
@@ -91,7 +88,7 @@ describe('the timeline', () => {
       }
 
       // A warp marker is drawn on its line while the warp is heard.
-      if (s.listen) for (const w of app.doc.warpMarkers) close(tl.axisAt(w.t), tl.axisOfPos(w.q));
+      if (s.listen) for (const w of app.warpMarkers) close(tl.axisAt(w.t), tl.axisOfPos(w.q));
     });
   }
 
@@ -115,6 +112,63 @@ describe('the timeline', () => {
         expect(app.timeline.movesAudio).toBe(false);
       }
     }
+  });
+
+  // What plays is what Playback tells the app (`app.playing`); these stand in for it without Web Audio.
+  const mapped: Setup = { name: '', mapped: true, strength: 100, shuffle: 0, listen: true };
+
+  it('draws the original while it still plays and the warp is being rendered', () => {
+    const { app, f } = t;
+    mapBeats(mapped);
+    arrange(mapped);
+    expect(app.hearingWarp).toBe(true);
+    // Entering Warp mid-play: the original plays on until the take is ready.
+    app.playing = { out: null };
+    const tl = app.timeline, map = app.tempoMap, meter = app.doc.meter;
+    expect(tl.movesAudio).toBe(false);
+    for (let u = 0.5; u < app.dur - 0.5; u += 0.173) {
+      close(tl.posOf(u), map.timeToPos(u));
+      close(tl.bpmAt(u), map.bpmAt(u), 1e-9);
+    }
+    // Its clicks are the tempo map's beats, on the lines drawn.
+    const clicks: number[] = [];
+    f.playback['clicksIn'](0, app.dur, (u) => clicks.push(u));
+    expect(clicks.length).toBeGreaterThan(50);
+    for (const u of clicks) close(tl.axisAt(u), tl.axisOfPos(Math.round(tl.posOf(u) / beatQ(meter)) * beatQ(meter)));
+    // Once it stops, what would play is drawn: the warp.
+    app.playing = undefined;
+    expect(app.timeline.movesAudio).toBe(true);
+  });
+
+  it('draws the take playing after an edit until the new one plays', () => {
+    const { app, f } = t;
+    mapBeats(mapped);
+    arrange(mapped);
+    const old = app.warpOut!;
+    app.playing = { out: old };
+    f.warp.setQuantizeStrength(30);
+    expect(app.warpOut).not.toBe(old);
+    // The old take is heard, so it is what is drawn: each moment on the position it plays at.
+    const tl = app.timeline, p = old.plan;
+    for (let u = 0.5; u < app.dur - 0.5; u += 0.173) close(tl.posOf(u), old.at(u) * (p.bpm / 60) + p.q0);
+    // The new take plays: drawn as the new warp.
+    app.playing = { out: app.warpOut };
+    const now = app.warpOut!;
+    for (let u = 0.5; u < app.dur - 0.5; u += 0.173) close(app.timeline.posOf(u), now.at(u) * (now.plan.bpm / 60) + now.plan.q0);
+  });
+
+  it('clicks the transients in Slice where the warp plays them', () => {
+    const { app, f } = t;
+    mapBeats(mapped);
+    arrange(mapped);
+    f.workflow.goTo(4);
+    const out = app.warpOut!;
+    f.playback['take'] = { buffer: null as unknown as AudioBuffer, out };
+    const clicks: number[] = [];
+    f.playback['clicksIn'](0, out.plan.outDur, (o) => clicks.push(o));
+    const inside = app.markers.filter((m) => m.t >= out.range.a && m.t < out.range.b);
+    expect(clicks.length).toBe(inside.length);
+    clicks.forEach((o, i) => close(o, out.at(inside[i].t)));
   });
 
   it('keeps the tempo the warp is made at, whatever quantize, its strength and the shuffle do', () => {

@@ -13,17 +13,20 @@
 import type { Meter } from './tempo/meter';
 import { barQ } from './tempo/meter';
 import type { TempoMap } from './tempo/tempo-map';
+import type { TimeRange } from './types';
 import type { Alignment } from './warp/markers';
 
 export class Timeline {
   /**
    * `map` is the music. `moved` is the alignment when the warp is heard, so the audio is drawn where
-   * the warp puts it, else null. `bpm` is the steady tempo heard when the warp is, else null.
+   * the warp puts it, else null. `bpm` is the steady tempo heard when the warp is, else null, and
+   * `warped` the part of the audio it covers (all of it, or a loop warped on its own).
    */
   constructor(
     readonly map: TempoMap,
     private readonly moved: Alignment | null = null,
     private readonly bpm: number | null = null,
+    private readonly warped: TimeRange | null = null,
   ) {}
 
   /** The audio is drawn somewhere other than where it is. */
@@ -56,8 +59,11 @@ export class Timeline {
     return this.map.barBeatAt(this.axisAt(t), meter);
   }
 
-  /** The tempo heard at source time t: the warp's grid when it is heard, else the tempo map's. */
-  bpmAt(t: number): number { return this.bpm ?? this.map.bpmAt(this.axisAt(t)); }
+  /** The tempo heard at source time t: the warp's grid where it is heard, else the tempo map's. */
+  bpmAt(t: number): number {
+    const w = this.warped;
+    return this.bpm != null && (!w || (t >= w.a && t <= w.b)) ? this.bpm : this.map.bpmAt(this.axisAt(t));
+  }
 
   /** The bar heard around source time t, as source times, clipped to the audio; null before bar 1. */
   barRangeAt(t: number, meter: Meter, dur: number): { bar: number; a: number; b: number } | null {

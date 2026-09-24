@@ -37,7 +37,7 @@ export function bindMixerPanel(app: App, f: Features): void {
   const syncMutes = () => { for (const ch of MIX_CHANNELS) setPressed($('mute-' + ch), f.mixer.isOn(ch)); };
   // The kit only plays in the Groove step, once the drums are found; elsewhere its row says so.
   const syncDrums = () => {
-    const live = app.step === 5 && !!app.drums;
+    const live = f.playback.kitLive;
     $('mixDrums').classList.toggle('idle', !live);
     $('mixHint').hidden = live;
   };

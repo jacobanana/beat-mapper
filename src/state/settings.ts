@@ -3,6 +3,7 @@ import type { Algo, Band } from '../core/dsp/onset';
 import type { MapSettings } from '../core/beats/edit';
 import type { DrumSource } from '../core/drums/detect';
 import type { PerVoice } from '../core/drums/voices';
+import type { RenderOptions } from '../core/slices/slices';
 import type { GrooveGrid } from '../core/groove/pocket';
 import type { GridDivision } from '../core/tempo/meter';
 import type { TimeRange } from '../core/types';
@@ -41,10 +42,7 @@ export interface ExportSettings {
   rppAudio: boolean;
 }
 
-/**
- * How the audio is warped onto a straight grid. Only the quantize strength is saved with the session so
- * far; the rest is kept for this visit only.
- */
+/** How the audio is warped onto a straight grid. Belongs to the file: saved with its session. */
 export interface WarpSettings {
   mode: WarpMode;
   /** The grid's tempo; null takes the tempo the audio averages, to the nearest whole BPM. */
@@ -56,7 +54,7 @@ export interface WarpSettings {
    * makes. Transients and Beats always work on the original: the warp is made from them.
    */
   listen: boolean;
-  /** How far Quantize moves each transient to its grid line, in percent: 100 is onto it. */
+  /** How far every transient of what is warped moves to its grid line, in percent: 0 is as played, 100 onto it. */
   quantize: number;
 }
 
@@ -133,12 +131,17 @@ export type GrooveChartMode = 'pocket' | 'midi';
 export const defaultDetection = (): DetectionSettings => ({ sens: 55, gap: 60, band: 'full', algo: 'flux', showOdf: true });
 export const defaultBeats = (): BeatSettings => ({ grid: '16', mapEvery: 'beat', tol: 20, snapTo: 'markers', loopBars: null, shuffle: 0 });
 export const defaultExport = (): ExportSettings => ({ lead: 'full', res: 'pins', clicks: true, rppAudio: true });
-export const defaultWarp = (): WarpSettings => ({ mode: 'music', bpm: null, range: 'file', listen: true, quantize: 100 });
+export const defaultWarp = (): WarpSettings => ({ mode: 'music', bpm: null, range: 'file', listen: true, quantize: 0 });
 export const defaultSlicer = (): SlicerSettings => ({
   mode: 'gap', len: 500, tail: 0, fadeIn: 1, fadeOut: 8, min: 40, mono: false, bits: 16, norm: false, target: -1, naming: 'num', csv: true,
 });
 export const defaultTransport = (): TransportState => ({ loop: null, loopOn: false, start: 0, playhead: 0, stay: false, click: false, scrubMode: false });
 export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', exaggerate: true, chart: 'pocket' });
+/** What every rendered slice gets; the warped .wav gets the same channels and level. */
+export function sliceRenderOptions(o: SlicerSettings): RenderOptions {
+  return { fadeIn: o.fadeIn / 1000, fadeOut: o.fadeOut / 1000, mono: o.mono, normalize: o.norm, target: Math.pow(10, o.target / 20) };
+}
+
 export const defaultMix = (): MixSettings => ({ audio: 100, click: 100, drums: 100 });
 export const defaultMute = (): MuteSettings => ({ audio: false, drums: true });
 

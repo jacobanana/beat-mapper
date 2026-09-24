@@ -139,14 +139,15 @@ try {
     await page.mouse.move(b.x + x + 10, b.y + 80, { steps: 3 });
     await page.mouse.move(b.x + x + 20, b.y + 80, { steps: 3 });
     await page.mouse.up();
-    assert.match(await text('wSum'), / · 1 transient lined up$/);
-    assert.equal(await page.isDisabled('#wClearMarkers'), false);
+    assert.match(await text('wSum'), / · 1 transient lined up by hand$/);
     await page.keyboard.press('Control+z');
     assert.doesNotMatch(await text('wSum'), /lined up/);
-    await page.keyboard.press('q');
-    assert.match(await text('wSum'), / · \d+ transients lined up$/);
-    await page.click('#wClearMarkers');
-    assert.doesNotMatch(await text('wSum'), /lined up/);
+    // The quantize slider is the quantize: the warp follows it, with nothing to press.
+    const strength = (v) => page.$eval('#qStrength', (e, v) => { e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }, v);
+    await strength('100');
+    assert.match(await text('wSum'), / · quantized 100 %$/);
+    await strength('0');
+    assert.doesNotMatch(await text('wSum'), /quantized/);
   });
   await step('Warp: Reset goes back to the average', async () => {
     await page.click('#resetW');

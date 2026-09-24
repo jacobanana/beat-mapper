@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { isSessionJson, parseSession, toSessionJson } from '../src/io/session';
+import { defaultWarp } from '../src/state/settings';
 
 const legacy = JSON.parse(readFileSync(new URL('./fixtures/legacy-session.json', import.meta.url), 'utf8'));
 const fb = { band: 'full' as const, algo: 'flux' as const, baseBpm: 120 };
@@ -22,18 +23,48 @@ describe('session files', () => {
     expect(back.warpMarkers).toEqual(withMarkers.warpMarkers);
   });
 
-  it('carries the shuffle and the quantize settings, and leaves them out at their defaults', () => {
+  it('carries the shuffle and the quantize strength, and leaves them out at their defaults', () => {
     const s = parseSession(legacy, legacy.audio.duration, fb);
     expect(s.beats.shuffle).toBe(0);
-    expect(s.warpQuantize).toBe(100);
-    const set = { ...s, beats: { ...s.beats, shuffle: 60 }, warpQuantize: 40 };
+    expect(s.warp.quantize).toBe(0);
+    const set = { ...s, beats: { ...s.beats, shuffle: 60 }, warp: { ...s.warp, quantize: 40 } };
     const json = toSessionJson(set) as { warp: object };
-    expect(json.warp).toEqual({ quantize: 40 });
+    expect(json.warp).toEqual({ strength: 40 });
     const back = parseSession(JSON.parse(JSON.stringify(json)), legacy.audio.duration, fb);
     expect(back.beats.shuffle).toBe(60);
-    expect(back.warpQuantize).toBe(40);
-    const odd = parseSession({ ...legacy, beats: { ...legacy.beats, shuffle: 400 }, warp: { quantize: 'x' } }, legacy.audio.duration, fb);
-    expect([odd.beats.shuffle, odd.warpQuantize]).toEqual([100, 100]);
+    expect(back.warp.quantize).toBe(40);
+    const odd = parseSession({ ...legacy, beats: { ...legacy.beats, shuffle: 400 }, warp: { strength: 'x' } }, legacy.audio.duration, fb);
+    expect([odd.beats.shuffle, odd.warp.quantize]).toEqual([100, 0]);
+  });
+
+  it("opens an older file's quantize slider as no quantize: it only set how far the Quantize button went", () => {
+    const old = { ...legacy, warp: { markers: [{ t: 2, q: 4 }], quantize: 40 } };
+    const s = parseSession(old, legacy.audio.duration, fb);
+    expect(s.warp.quantize).toBe(0);
+    expect(s.warpMarkers).toEqual([{ t: 2, q: 4 }]);
+    expect((toSessionJson(s) as { warp: object }).warp).toEqual({ markers: [{ t: 2, q: 4 }] });
+  });
+
+  it('carries the Warp step\'s material, grid tempo, range and switch, and leaves them out at their defaults', () => {
+    const s = parseSession(legacy, legacy.audio.duration, fb);
+    expect(s.warp).toEqual(defaultWarp());
+    const set = { ...s, warp: { mode: 'beats' as const, bpm: 96.5, range: 'loop' as const, listen: false, quantize: 0 } };
+    const json = toSessionJson(set) as { warp: object };
+    expect(json.warp).toEqual({ mode: 'beats', bpm: 96.5, range: 'loop', listen: false });
+    expect(parseSession(JSON.parse(JSON.stringify(json)), legacy.audio.duration, fb).warp).toEqual(set.warp);
+    const odd = parseSession({ ...legacy, warp: { mode: 'x', bpm: 9000, range: 'y', listen: 'no' } }, legacy.audio.duration, fb);
+    expect(odd.warp).toEqual({ ...defaultWarp(), bpm: 400 });
+  });
+
+  it('carries the drum hits edited by hand, and leaves them out when there are none', () => {
+    const s = parseSession(legacy, legacy.audio.duration, fb);
+    expect(s.hits).toEqual({ manual: [], removed: [] });
+    expect('drums' in toSessionJson(s)).toBe(false);
+    const hits = { manual: [{ voice: 'kick' as const, t: 1.5, a: 0.3 }], removed: [{ voice: 'hat' as const, t: 2.25 }] };
+    const json = JSON.parse(JSON.stringify(toSessionJson({ ...s, hits })));
+    expect(parseSession(json, legacy.audio.duration, fb).hits).toEqual(hits);
+    const odd = parseSession({ ...legacy, drums: { manual: [{ voice: 'cowbell', t: 1, a: 1 }, { voice: 'snare', t: -3, a: 1 }, null], removed: 'x' } }, legacy.audio.duration, fb);
+    expect(odd.hits).toEqual({ manual: [], removed: [] });
   });
 
   it("still opens a session with the Groove step's old quantize, and saves it without", () => {

@@ -9,6 +9,8 @@ import { lowerBound } from '../../core/search';
 import type { TimeRange } from '../../core/types';
 import type { EditorRenderer } from '../canvas/editor-renderer';
 import { type Zone, laneAt, zoneAt } from '../canvas/layout';
+import { STEP } from '../../state/steps';
+import { screen } from '../canvas/screen';
 
 type Hit = Exclude<Hover, null>;
 interface LoopDrag { mode: 'a' | 'b' | 'move' | 'new'; orig: TimeRange | null; t0: number }
@@ -59,16 +61,16 @@ export class PointerInput {
   }
 
   // The audio under x, and where the audio at t is, as the timeline draws it; and the same for the grid.
-  private tOf(x: number): number { return this.app.timeline.sourceAt(this.app.view.tOf(x)); }
-  private xOf(t: number): number { return this.app.view.xOf(this.app.timeline.axisAt(t)); }
-  private posOf(x: number): number { return this.app.timeline.posAtAxis(this.app.view.tOf(x)); }
-  private xAtPos(q: number): number { return this.app.view.xOf(this.app.timeline.axisOfPos(q)); }
+  private tOf(x: number): number { return screen(this.app).tOf(x); }
+  private xOf(t: number): number { return screen(this.app).xOf(t); }
+  private posOf(x: number): number { return screen(this.app).posOf(x); }
+  private xAtPos(q: number): number { return screen(this.app).xAtPos(q); }
 
   // ---------- hit testing ----------
   private hitTest(x: number, y: number, touch: boolean): Hit | null {
     const { app } = this, r = touch ? 14 : 6;
     if (!app.audio) return null;
-    if (app.step === 5) {
+    if (app.step === STEP.groove) {
       const voice = laneAt(this.renderer.layout(), y), H = voice && app.drumHits?.[voice];
       if (!voice || !H) return null;
       let best = null, bd = r + 1;
@@ -79,7 +81,7 @@ export class PointerInput {
       }
       return best ? { kind: 'hit', voice, t: best.t } : null;
     }
-    if (app.step === 1) {
+    if (app.step === STEP.transients) {
       const M = app.markers;
       let best = null, bd = r + 1;
       for (let i = lowerBound(M, this.tOf(x - r - 1)); i < M.length; i++) {
@@ -89,7 +91,7 @@ export class PointerInput {
       }
       return best ? { kind: 'marker', id: best.id } : null;
     }
-    if (app.step === 3 && app.hasMap) {
+    if (app.step === STEP.warp && app.hasMap) {
       // A transient, or a warp marker that no longer has one under it (the sensitivity changed).
       let best: number | null = null, bd = r + 1;
       const M = app.markers, near = (t: number) => { const d = Math.abs(this.xOf(t) - x); if (d < bd) { bd = d; best = t; } };
@@ -97,7 +99,7 @@ export class PointerInput {
       for (const w of app.doc.warpMarkers) near(w.t);
       return best == null ? null : { kind: 'warp', t: best };
     }
-    if (app.step === 2 && app.hasMap) {
+    if (app.step === STEP.beats && app.hasMap) {
       let best = null, bd = r + 1;
       for (const a of app.tempoMap.anchors) { const d = Math.abs(this.xAtPos(a.q) - x); if (d < bd) { bd = d; best = a; } }
       if (best) return { kind: 'anchor', q: best.q };
@@ -151,7 +153,7 @@ export class PointerInput {
   // In Beats the playhead follows the magnet, so it can be dropped exactly on a beat or a transient.
   // Elsewhere a tap lands where it is aimed – in Transients that is where the next marker goes.
   private tapT(x: number, d: Drag, e: PointerEvent): number {
-    return this.app.step === 2 ? this.snapT(x, d.touch, e.altKey) : this.tOf(x);
+    return this.app.step === STEP.beats ? this.snapT(x, d.touch, e.altKey) : this.tOf(x);
   }
 
   // ---------- events ----------
@@ -309,23 +311,23 @@ export class PointerInput {
     }
     if (dbl && (d.zone === 'edit' || d.zone === 'bars') && !app.transport.scrubMode) {
       const h = d.hit;
-      if (app.step === 1 && d.zone === 'edit') {
+      if (app.step === STEP.transients && d.zone === 'edit') {
         const m = h?.kind === 'marker' ? app.markers.find((k) => k.id === h.id) : undefined;
         if (m) f.markers.remove(m); else f.markers.add(t);
-      } else if (app.step === 5 && d.zone === 'edit') {
+      } else if (app.step === STEP.groove && d.zone === 'edit') {
         const voice = laneAt(this.renderer.layout(), y);
         if (h?.kind === 'hit') f.groove.removeHit(h.voice, h.t);
         else if (voice) f.groove.addHit(voice, this.hitT(x, d.touch, e.altKey, true));
-      } else if (app.step === 3) {
+      } else if (app.step === STEP.warp) {
         if (h?.kind === 'warp') { if (f.warp.isMarker(h.t)) f.warp.remove(h.t); else f.warp.snap(h.t); }
-      } else if (app.step === 2) {
+      } else if (app.step === STEP.beats) {
         if (h?.kind === 'anchor') { const a = app.doc.tempo.anchors.find((k) => k.q === h.q); if (a) f.beats.unpin(a); }
         else if (h?.kind === 'grid') f.beats.pinAt(app.timeline.sourceOfPos(h.q), h.q);
         else if (d.zone === 'edit') f.beats.pinAt(t);
       }
       return;
     }
-    if (app.step === 4 && (d.zone === 'edit' || d.zone === 'nav') && !app.transport.scrubMode) {
+    if (app.step === STEP.slice && (d.zone === 'edit' || d.zone === 'nav') && !app.transport.scrubMode) {
       const i = f.slicer.at(t);
       if (i >= 0) {
         f.slicer.select(i);

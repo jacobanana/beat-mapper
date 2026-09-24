@@ -1,5 +1,7 @@
 // The editor canvas, top to bottom: loop strip, bar ruler, waveform (edit half above, move half
 // below up to Warp), tempo lane once there is a map, time ruler.
+import { stepRules } from '../../app/steps';
+import { STEP, type Step } from '../../state/steps';
 
 export const LOOPH = 20;
 export const RULH = 22;
@@ -32,12 +34,12 @@ export function layout(w: number, h: number, hasMap: boolean): Layout {
 export type Zone = 'loop' | 'bars' | 'edit' | 'nav' | 'time';
 
 /** What a touch at height y does. In the Groove step the whole waveform is the drum lanes, all editable. */
-export function zoneAt(L: Layout, y: number, step: number): Zone {
+export function zoneAt(L: Layout, y: number, step: Step): Zone {
   if (y < LOOPH) return 'loop';
   if (y < RUL) return 'bars';
   if (y > L.h - TIME) return 'time';
-  if (step === 5) return y < L.ly ? 'edit' : 'nav';
-  return step <= 3 && y < RUL + L.wh * EDIT ? 'edit' : 'nav';
+  if (step === STEP.groove) return y < L.ly ? 'edit' : 'nav';
+  return stepRules(step).editable && y < RUL + L.wh * EDIT ? 'edit' : 'nav';
 }
 
 /** The Groove step's drum lanes, top to bottom. */

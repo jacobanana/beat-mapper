@@ -54,6 +54,7 @@ label.btn{user-select:none}
 @media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .btn.primary{color:#fff}}
 .btn.on{border-color:var(--beat);color:var(--beat);box-shadow:inset 0 0 0 1px var(--beat)}
 #sessBtn.on{border-color:var(--beat);color:var(--beat)}
+#warpBtn.on.idle{opacity:.5}
 #loopBtn.on,#scrubBtn.on,#stayBtn.on{border-color:var(--start);color:var(--start);box-shadow:inset 0 0 0 1px var(--start)}
 
 /* The mixer: a popover under the top bar, over the waveform. */

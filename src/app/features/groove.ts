@@ -189,9 +189,8 @@ export class Groove {
   drumMidi(): { bytes: Uint8Array; notes: readonly DrumNote[] } | null {
     const { app } = this, g = app.pocket, out = app.warpOut;
     if (!app.audio || !g) return null;
-    const notes: DrumNote[] = g.hits.map((h) => ({ t: out ? out.at(h.t) : h.t, note: GM_NOTE[h.voice], vel: h.vel }));
-    const on = out ? { map: out.exportMap, dur: out.plan.outDur, trimmed: false } : {};
-    return { bytes: buildMidi({ ...this.exports.options(), ...on, clicks: false, notes }).bytes, notes };
+    const notes: DrumNote[] = g.hits.map((h) => ({ t: app.placed(h.t), note: GM_NOTE[h.voice], vel: h.vel }));
+    return { bytes: buildMidi({ ...this.exports.options(out), clicks: false, notes }).bytes, notes };
   }
 
   async saveMidi(): Promise<void> {
