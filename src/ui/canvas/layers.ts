@@ -26,6 +26,8 @@ export interface Frame {
   beatsMode: boolean;
   /** Steps 1 to 3 have an edit half. */
   editable: boolean;
+  /** Drums mode's gaps in view, from x0 to x1, `len` seconds long: where a piece has ended and the next not begun. */
+  gaps: { x0: number; x1: number; len: number }[];
 }
 
 export function background({ g, L, C, editable }: Frame): void {
@@ -80,6 +82,30 @@ export function grid({ g, app, L, C, xAtPos }: Frame): 0 | 1 | 2 {
     if (xd > 60 && app.step === STEP.beats) { g.fillStyle = C.dim; g.font = '13px ' + FONT; g.fillText('lead-in', 6, wy + 12); }
   }
   return visLevel;
+}
+
+/**
+ * Drums mode's gaps: where a hit moved later leaves silence before it. Left silent, a red band with
+ * its length; filled, hatched in the waveform's colour, since what is heard there is the hit before
+ * it ringing on.
+ */
+export function gaps({ g, app, L, C, gaps }: Frame): void {
+  if (!gaps.length) return;
+  const { w, wy, ly } = L, fill = app.warp.fill, col = fill ? C.wave : C.down, top = wy + 1, h = ly - wy - 1;
+  g.font = '500 12px ' + FONT; g.textBaseline = 'middle';
+  for (const { x0, x1, len } of gaps) {
+    if (x1 < 0 || x0 > w) continue;
+    const gw = Math.max(1, x1 - x0);
+    g.fillStyle = rgba(col, fill ? 0.1 : 0.16); g.fillRect(x0, top, gw, h);
+    if (fill && gw >= 4) {
+      g.save(); g.beginPath(); g.rect(x0, top, gw, h); g.clip();
+      g.strokeStyle = rgba(col, 0.35); g.lineWidth = 1; g.beginPath();
+      for (let x = x0 - h; x < x1; x += 7) { g.moveTo(x, top + h); g.lineTo(x + h, top); }
+      g.stroke(); g.restore();
+    }
+    if (!fill) { g.strokeStyle = rgba(col, 0.55); g.lineWidth = 1; g.beginPath(); g.moveTo(x0, (top + ly) / 2 + 0.5); g.lineTo(x0 + gw, (top + ly) / 2 + 0.5); g.stroke(); }
+    if (gw >= 40) { g.fillStyle = rgba(col, 0.95); g.fillText(Math.round(len * 1000) + ' ms', x0 + 4, ly - 12); }
+  }
 }
 
 // Transientness: the detection function the markers come from, rising from the bottom of the wave

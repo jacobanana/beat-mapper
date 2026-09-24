@@ -49,6 +49,14 @@ export class Warp {
     app.notify.toast(!stepRules(app.step).hearsWarp ? what + '. Transients and Beats always use the original.' : what);
   }
 
+  /** Drums mode: fill the gaps left where a hit is moved away from the next, or leave them silent. */
+  setFill(fill: boolean): void {
+    const { app } = this;
+    this.update({ fill });
+    if (app.warp.mode !== 'beats') app.notify.toast('Filling the gaps is for Drums mode, which cuts instead of stretching: choose Drums under Warp.');
+    else app.notify.toast(fill ? 'Gaps filled: each hit rings on into the next' : 'Gaps left silent');
+  }
+
   setRange(range: WarpSettings['range']): void {
     this.update({ range });
     if (range === 'loop' && !this.app.activeLoop) this.app.notify.toast('Switch the loop on to warp just the loop (drag in the top strip to draw one).');
@@ -70,13 +78,13 @@ export class Warp {
   /** Something in this step differs from how it starts. */
   get changed(): boolean {
     const w = this.app.warp, w0 = defaultWarp();
-    return !!this.app.audio && (w.mode !== w0.mode || w.bpm !== w0.bpm || w.range !== w0.range || w.quantize !== w0.quantize ||
+    return !!this.app.audio && (w.mode !== w0.mode || w.bpm !== w0.bpm || w.range !== w0.range || w.quantize !== w0.quantize || w.fill !== w0.fill ||
       this.app.beats.shuffle !== defaultBeats().shuffle || this.app.doc.warpMarkers.length > 0);
   }
 
   /**
    * Back to how the step starts: the averaged tempo, the whole file, the full-mix method, heard warped,
-   * no warp markers, a straight grid and no quantize. The shuffle is the Beats grid's
+   * no warp markers, a straight grid, no quantize and Drums mode's gaps left silent. The shuffle is the Beats grid's
    * too, but it is set here, so it goes back here as well.
    */
   reset(): void {
@@ -195,6 +203,13 @@ export class Warp {
     const stretch = Math.abs(hi - lo) < 0.005 ? `stretched to ${pct(lo)}` : `stretched ${pct(lo)}–${pct(hi)}`;
     const n = app.doc.warpMarkers.length, q = app.warp.quantize;
     const lined = (q ? ` · quantized ${q} %` : '') + (n ? ` · ${n} transient${n === 1 ? '' : 's'} lined up by hand` : '');
+    // Drums mode moves the hits rather than stretching anything, so what it leaves is gaps.
+    const cuts = p.cuts;
+    if (cuts) {
+      const gaps = cuts.gaps(), longest = gaps.reduce((m, [a, b]) => Math.max(m, b - a), 0);
+      const holes = gaps.length ? ` · ${gaps.length} gap${gaps.length === 1 ? '' : 's'}, longest ${Math.round(longest * 1000)} ms${app.warp.fill ? ', filled' : ''}` : ' · no gaps';
+      return `${what} averages ${fmtBpm(+p.avgBpm.toFixed(2))} BPM · warped to ${fmtBpm(p.bpm)} BPM, cut at ${cuts.pieces.length} transients · ${fmtTime(p.srcDur)} → ${fmtTime(p.outDur)}${holes}${lined}`;
+    }
     return `${what} averages ${fmtBpm(+p.avgBpm.toFixed(2))} BPM · warped to ${fmtBpm(p.bpm)} BPM, ${stretch} · ${fmtTime(p.srcDur)} → ${fmtTime(p.outDur)}${lined}`;
   }
 

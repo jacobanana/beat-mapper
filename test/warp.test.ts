@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { synthDemo } from '../src/core/demo';
 import { TempoMap } from '../src/core/tempo/tempo-map';
 import { WarpMap, averageBpm, gridBeats, planWarp, warpRange } from '../src/core/warp/map';
+import { heardLen, planCuts } from '../src/core/warp/beats';
 import { WARP_MODES, type WarpMode, renderWarp } from '../src/core/warp/modes';
 
 const sr = 22050;
@@ -108,4 +109,54 @@ describe('each warp mode', () => {
       expect(errs[Math.floor(errs.length * 0.9)]).toBeLessThan(tolMs[mode]);
     });
   }
+});
+
+describe('Drums mode', () => {
+  // The demo slowed from its own tempo to 90 BPM: every piece has room to spare, so each leaves a gap.
+  const r = warpRange(demoMap, meter, demo.dur, { lead: 'trim', loop: null });
+  const slow = planWarp(demoMap, r, 90), n = Math.round(slow.outDur * sr);
+  const cuts = planCuts(slow, demo.onsets, demo.dur, slow.outDur);
+  const render = (fill: boolean) => renderWarp({ chans: [demo.x], sr, src: [...slow.src], dst: [...slow.dst], n, mode: 'beats', transients: demo.onsets, fill })[0];
+  const peak = (y: Float32Array, a: number, b: number) => { let m = 0; for (let i = Math.ceil(a * sr); i < Math.floor(b * sr); i++) m = Math.max(m, Math.abs(y[i])); return m; };
+
+  it('lays every piece down whole, at its own speed, where it is drawn', () => {
+    const y = render(false);
+    for (const p of cuts.pieces.slice(1, 40)) {
+      // A piece is the source played as it is, from where the warp puts its cut.
+      const d0 = Math.round(p.d * sr), s0 = Math.round(p.s * sr);
+      for (const j of [40, 200, 600]) if (j < heardLen(p) * sr - 100) expect(y[d0 + j]).toBeCloseTo(demo.x[s0 + j], 6);
+      expect(cuts.dstAt(p.s + 0.01)).toBeCloseTo(p.d + 0.01, 9);
+      expect(cuts.srcAt(p.d + 0.01)).toBeCloseTo(p.s + 0.01, 9);
+    }
+  });
+
+  it('leaves the gaps silent, and says where they are', () => {
+    const y = render(false), gaps = cuts.gaps();
+    expect(gaps.length).toBeGreaterThan(20);
+    for (const [a, b] of gaps.filter(([a, b]) => b - a > 0.01)) {
+      expect(peak(y, a + 0.001, b - 0.001)).toBe(0);
+      // Nothing is heard there, so nothing is drawn there.
+      expect(cuts.heard(a + 0.001, b - 0.001)).toEqual([]);
+    }
+  });
+
+  it('fills the gaps with the hit ringing on, never the next hit early', () => {
+    // A held tone with a click on every cut: filled, the tone carries on through each gap and dies away,
+    // and the next click is heard only where its piece starts.
+    const x = new Float32Array(demo.x.length).map((_, i) => 0.3 * Math.sin((2 * Math.PI * 220 * i) / sr));
+    for (const t of demo.onsets) x[Math.round(t * sr)] = 1;
+    const go = (fill: boolean) => renderWarp({ chans: [x], sr, src: [...slow.src], dst: [...slow.dst], n, mode: 'beats', transients: demo.onsets, fill })[0];
+    const y = go(true), dry = go(false), gaps = cuts.gaps().filter(([a, b]) => b - a > 0.01);
+    expect(gaps.length).toBeGreaterThan(20);
+    for (const [a, b] of gaps) {
+      expect(peak(dry, a + 0.001, b - 0.001)).toBe(0);
+      expect(peak(y, a + 0.001, a + 0.004)).toBeGreaterThan(0.1);
+      // Only the tone is heard there: the click is at the piece's start and nowhere else.
+      expect(peak(y, a, b)).toBeLessThanOrEqual(0.3 + 1e-6);
+      // And it dies away into the next piece.
+      expect(peak(y, b - 0.002, b)).toBeLessThan(peak(y, a + 0.001, a + 0.004));
+    }
+    // The hits are where they were.
+    for (const p of cuts.pieces.slice(1, 40)) { const i = Math.round(p.d * sr); expect(y[i]).toBeCloseTo(dry[i], 6); }
+  });
 });

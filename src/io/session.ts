@@ -33,7 +33,7 @@ export interface SessionContent {
   excluded: number[];
   /** Transients put on a grid line in the Warp step, sorted by time. */
   warpMarkers: WarpMarker[];
-  /** The Warp step's settings: the material, the grid tempo, what is warped, whether it is heard, quantize's strength. */
+  /** The Warp step's settings: the material, the grid tempo, what is warped, whether it is heard, quantize's strength, filling Drums mode's gaps. */
   warp: WarpSettings;
   /** Drum hits edited by hand in the Groove step: added (with their loudness) and deleted, by time. */
   hits: { manual: { voice: Voice; t: number; a: number }[]; removed: { voice: Voice; t: number }[] };
@@ -79,6 +79,7 @@ function warpJson(s: SessionContent): object {
     ...(w.bpm !== w0.bpm ? { bpm: w.bpm } : {}),
     ...(w.range !== w0.range ? { range: w.range } : {}),
     ...(w.listen !== w0.listen ? { listen: w.listen } : {}),
+    ...(w.fill !== w0.fill ? { fill: w.fill } : {}),
   };
   return Object.keys(out).length ? { warp: out } : {};
 }
@@ -193,6 +194,7 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
       range: w.range === 'loop' ? 'loop' : w0.range,
       listen: typeof w.listen === 'boolean' ? w.listen : w0.listen,
       quantize: clamp(Math.round(fin(w.strength, w0.quantize)), 0, 100),
+      fill: typeof w.fill === 'boolean' ? w.fill : w0.fill,
     },
     hits,
   };

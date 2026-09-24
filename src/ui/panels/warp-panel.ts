@@ -5,7 +5,7 @@ import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { type GridDivision, swings } from '../../core/tempo/meter';
 import { WARP_MODES, type WarpMode } from '../../core/warp/modes';
-import { $, $btn, $in, $sel, setText, setValue } from '../dom';
+import { $, $btn, $in, $sel, setPressed, setText, setValue } from '../dom';
 
 export function bindWarpPanel(app: App, f: Features, refocus: () => void): void {
   const w = f.warp;
@@ -20,6 +20,8 @@ export function bindWarpPanel(app: App, f: Features, refocus: () => void): void 
   $in('warpShuffle').oninput = (e) => f.beats.setShuffle(+(e.target as HTMLInputElement).value);
   $sel('warpRange').onchange = (e) => w.setRange((e.target as HTMLSelectElement).value === 'loop' ? 'loop' : 'file');
   $sel('warpModeB').onchange = (e) => w.setMode((e.target as HTMLSelectElement).value as WarpMode);
+  // Only Drums mode cuts, so only it leaves gaps to fill.
+  $('wFill').onclick = () => { w.setFill(!app.warp.fill); refocus(); };
   $in('warpBpmB').onchange = (e) => {
     const s = (e.target as HTMLInputElement).value.trim(), v = +s;
     w.update({ bpm: s !== '' && Number.isFinite(v) && v >= 20 && v <= 400 ? v : null });
@@ -39,6 +41,8 @@ export function bindWarpPanel(app: App, f: Features, refocus: () => void): void 
     setText($('qStrengthO'), s.quantize + '%');
     setValue($sel('warpRange'), s.range);
     if ((WARP_MODES as readonly string[]).includes(s.mode)) setValue($sel('warpModeB'), s.mode);
+    $btn('wFill').disabled = s.mode !== 'beats' || !p;
+    setPressed($btn('wFill'), s.fill);
     const bpm = $in('warpBpmB');
     if (document.activeElement !== bpm) bpm.value = s.bpm == null ? '' : String(s.bpm);
     bpm.placeholder = p ? String(Math.round(p.avgBpm)) : '';

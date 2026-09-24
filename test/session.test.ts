@@ -45,14 +45,14 @@ describe('session files', () => {
     expect((toSessionJson(s) as { warp: object }).warp).toEqual({ markers: [{ t: 2, q: 4 }] });
   });
 
-  it('carries the Warp step\'s material, grid tempo, range and switch, and leaves them out at their defaults', () => {
+  it('carries the Warp step\'s material, grid tempo, range, switch and gap filling, and leaves them out at their defaults', () => {
     const s = parseSession(legacy, legacy.audio.duration, fb);
     expect(s.warp).toEqual(defaultWarp());
-    const set = { ...s, warp: { mode: 'beats' as const, bpm: 96.5, range: 'loop' as const, listen: false, quantize: 0 } };
+    const set = { ...s, warp: { mode: 'beats' as const, bpm: 96.5, range: 'loop' as const, listen: false, quantize: 0, fill: true } };
     const json = toSessionJson(set) as { warp: object };
-    expect(json.warp).toEqual({ mode: 'beats', bpm: 96.5, range: 'loop', listen: false });
+    expect(json.warp).toEqual({ mode: 'beats', bpm: 96.5, range: 'loop', listen: false, fill: true });
     expect(parseSession(JSON.parse(JSON.stringify(json)), legacy.audio.duration, fb).warp).toEqual(set.warp);
-    const odd = parseSession({ ...legacy, warp: { mode: 'x', bpm: 9000, range: 'y', listen: 'no' } }, legacy.audio.duration, fb);
+    const odd = parseSession({ ...legacy, warp: { mode: 'x', bpm: 9000, range: 'y', listen: 'no', fill: 'yes' } }, legacy.audio.duration, fb);
     expect(odd.warp).toEqual({ ...defaultWarp(), bpm: 400 });
   });
 

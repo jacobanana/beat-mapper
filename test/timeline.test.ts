@@ -14,13 +14,17 @@ beforeEach(async () => {
   await openDemo(t);
 });
 
-type Setup = { name: string; mapped: boolean; strength: number | null; shuffle: number; listen: boolean };
+type Setup = { name: string; mapped: boolean; strength: number | null; shuffle: number; listen: boolean; drums?: boolean };
 const SETUPS: Setup[] = [];
 for (const mapped of [false, true])
   for (const strength of [null, 100, 40])
     for (const shuffle of [0, 60])
       for (const listen of [true, false])
         SETUPS.push({ name: `${mapped ? 'mapped' : 'bar 1 only'}, quantize ${strength ?? 'off'}, shuffle ${shuffle}, ${listen ? 'warped' : 'original'}`, mapped, strength, shuffle, listen });
+// Drums mode cuts rather than stretches: each hit is heard whole where the warp puts it.
+for (const mapped of [false, true])
+  for (const strength of [null, 100, 40])
+    SETUPS.push({ name: `Drums, ${mapped ? 'mapped' : 'bar 1 only'}, quantize ${strength ?? 'off'}, warped`, mapped, strength, shuffle: 0, listen: true, drums: true });
 
 // The beats mapped (or only bar 1), then the Warp step at 1/16.
 function mapBeats(s: Setup): void {
@@ -34,6 +38,7 @@ function mapBeats(s: Setup): void {
 // What the Warp step is set to: shuffle, quantize and its strength, what is heard.
 function arrange(s: Setup): void {
   const { f } = t;
+  if (s.drums) f.warp.setMode('beats');
   f.beats.setShuffle(s.shuffle);
   if (s.strength != null) f.warp.setQuantizeStrength(s.strength);
   f.warp.setListen(s.listen);
@@ -57,10 +62,22 @@ describe('the timeline', () => {
       expect(app.bars).toBe(before.bars);
 
       // What the engine plays at source time u, as a position: the warp plays it at its output time on
-      // a straight grid, the original at the tempo map's position.
-      const heard = (u: number) => (s.listen ? p.map.dstAt(u) * (p.bpm / 60) + p.q0 : map.timeToPos(u));
+      // a straight grid, the original at the tempo map's position. Drums mode plays each piece from
+      // where the warp puts its cut, at its own speed, and not at all past where the next one starts.
+      const cutsAt = app.cutPoints, out = (u: number): number | null => {
+        if (!s.drums) return p.map.dstAt(u);
+        let i = -1;
+        while (i + 1 < cutsAt.length && cutsAt[i + 1] <= u) i++;
+        const c = i < 0 ? 0 : cutsAt[i], o = p.map.dstAt(c) + (u - c);
+        return i + 1 < cutsAt.length && o >= p.map.dstAt(cutsAt[i + 1]) ? null : o;
+      };
+      const heard = (u: number) => { const o = out(u); return o == null ? null : s.listen ? o * (p.bpm / 60) + p.q0 : map.timeToPos(u); };
+      let unheard = 0;
       for (let u = 0.5; u < app.dur - 0.5; u += 0.173) {
         const q = heard(u);
+        if (q == null) { unheard++; continue; }
+        // The engine is told the same: the warp it plays places the moment there.
+        if (s.listen) close(app.warpOut!.at(u), out(u)!);
         // The playhead is drawn on the grid position heard, and read back from there.
         close(tl.axisAt(u), tl.axisOfPos(q));
         close(tl.posOf(u), q);
@@ -75,6 +92,17 @@ describe('the timeline', () => {
         // Looping the bar heard loops the bar drawn.
         const bar = tl.barRangeAt(u, meter, app.dur);
         if (bar) close(tl.axisAt(bar.a), tl.axisOfPos(bar.bar * bq));
+      }
+
+      if (s.drums) {
+        // Some of what is cut is cut off, and the gaps are left where nothing is heard.
+        const gaps = tl.gaps(0, app.dur);
+        expect(unheard + gaps.length).toBeGreaterThan(0);
+        for (const g of gaps) expect(tl.heard(g.a + 1e-4, g.b - 1e-4)).toEqual([]);
+        // Every cut is heard on the line the warp puts it on, and a warp marker too.
+        for (const c of cutsAt) if (c > 0.5 && c < app.dur - 0.5) close(tl.posOf(c), heard(c)!);
+        for (const w of app.warpMarkers) close(tl.axisAt(w.t), tl.axisOfPos(w.q));
+        return;
       }
 
       // Every click falls on a beat line drawn.
