@@ -22,10 +22,11 @@ with no tempo map at all.
   or lets a warp marker go; <kbd>Delete</kbd> removes the selected one. **Quantize** (<kbd>Q</kbd>)
   puts every transient of what is warped on its nearest line, the closer of two taking a line they
   both reach for (a flam), and **Clear** takes every warp marker off. All of it is undoable.
-  Quantize opens a **Strength** slider beside it (100% by default): below 100% each transient moves
-  only that part of the way to its line, keeping some of the feel. Moving the slider quantizes again
-  from where the button started, as the same undo step, until the popover closes; <kbd>Q</kbd>
-  quantizes at the strength last set.
+  Quantize is a switch, and the **strength** slider sits beside the shuffle, always there (100% by
+  default): below 100% each transient moves only that part of the way to its line, keeping some of
+  the feel. While Quantize is on, moving the slider or the grid quantizes again from where it
+  started, as the same undo step; turning it off (the button or <kbd>Q</kbd>) puts the warp markers
+  back as they were. Any other edit, or leaving the step, keeps the quantize and turns the switch off.
   **shuffle**, beside the grid (and beside it in Beats, since it is the same grid), swings every
   second line of a 1/8, 1/16 or 1/32 grid late: 100% puts it two thirds of the way through its pair,
   a triplet shuffle. What is drawn, snapped, pinned and quantized follows it. Triplet grids and grids

@@ -67,8 +67,6 @@ label.btn{user-select:none}
 .pop > .hint{margin:0;font-size:13px;color:var(--dim)}
 .pop .acts{display:flex;flex-wrap:wrap;gap:6px}
 #sessPop{width:min(300px,calc(100vw - 16px))}
-/* Quantize's strength: fixed, so the scrolling panel doesn't clip it; placed by warp-panel.ts. */
-#qPop{position:fixed;right:auto;width:min(300px,calc(100vw - 16px));z-index:20}
 .ch .hint{grid-column:1/-1;margin:0;font-size:13px;color:var(--dim)}
 .ch .mute{padding:3px;min-height:28px;min-width:28px;border-color:transparent;background:none;color:var(--dim)}
 .ch .mute.on{box-shadow:none;border-color:transparent;color:var(--beat)}

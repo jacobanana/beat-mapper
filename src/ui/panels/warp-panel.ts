@@ -14,34 +14,14 @@ export function bindWarpPanel(app: App, f: Features, refocus: () => void): void 
   // The same grid as Beats: one setting, drawn in both steps.
   $sel('warpGrid').onchange = (e) => f.beats.setGrid((e.target as HTMLSelectElement).value as GridDivision);
 
-  // Quantize applies at once and opens its strength beside it; moving the slider quantizes again, as
-  // the same undo step, until the popover closes.
-  const pop = $('qPop'), qBtn = $btn('wQuantize'), strength = $in('qStrength');
-  const show = (open: boolean) => {
-    pop.hidden = !open;
-    qBtn.setAttribute('aria-expanded', String(open));
-    qBtn.classList.toggle('on', open);
-    if (!open) return w.endQuantize();
-    // Under the button when there is room, else over it (the panel sits at the bottom of the screen), kept on screen.
-    const r = qBtn.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
-    pop.style.left = Math.max(8, Math.min(innerWidth - pw - 8, r.left)) + 'px';
-    pop.style.top = (r.bottom + 4 + ph <= innerHeight - 8 ? r.bottom + 4 : Math.max(8, r.top - 4 - ph)) + 'px';
-  };
-  qBtn.onclick = () => {
-    if (!pop.hidden) return show(false);
-    if (w.quantize()) show(true);
-  };
+  // Quantize is a switch, on while the quantize it made is the last edit; the strength beside the
+  // shuffle is always there, and moving it (or the grid) while Quantize is on quantizes again as the same undo step.
+  const qBtn = $btn('wQuantize'), strength = $in('qStrength');
+  qBtn.onclick = () => { w.toggleQuantize(); refocus(); };
   strength.oninput = () => w.setQuantizeStrength(+strength.value);
-  $('qDone').onclick = () => { show(false); refocus(); };
-  document.addEventListener('pointerdown', (e) => {
-    const t = e.target as Node;
-    if (!pop.hidden && !pop.contains(t) && !qBtn.contains(t)) show(false);
-  });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !pop.hidden) show(false); });
-  // Another edit (an undo, a dragged transient) ends the quantize the slider was changing.
-  app.bus.on(['doc', 'step'], () => { if (!pop.hidden && (!w.quantizeOpen || app.step !== 3)) show(false); });
-  // A new grid while the strength is open lines the transients up on it instead.
-  app.bus.on('beats', () => { if (!pop.hidden) w.requantize(); });
+  // Leaving the step ends it, so a grid changed in Beats doesn't move the transients unseen.
+  app.bus.on('step', () => { if (app.step !== 3) w.endQuantize(); });
+  app.bus.on('beats', () => { if (w.quantizeOpen) w.requantize(); });
   $in('warpShuffle').oninput = (e) => f.beats.setShuffle(+(e.target as HTMLInputElement).value);
   $('wClearMarkers').onclick = () => w.clearMarkers();
   $sel('warpRange').onchange = (e) => w.setRange((e.target as HTMLSelectElement).value === 'loop' ? 'loop' : 'file');
@@ -62,7 +42,8 @@ export function bindWarpPanel(app: App, f: Features, refocus: () => void): void 
     setValue($in('warpShuffle'), app.beats.shuffle);
     $in('warpShuffle').disabled = !swings(app.beats.grid, app.grid.beatQ);
     setText($('warpShuffleO'), app.beats.shuffle + '%');
-    $btn('wQuantize').disabled = !p;
+    qBtn.disabled = !p;
+    setPressed(qBtn, !!p && w.quantizeOpen);
     setValue(strength, s.quantize);
     setText($('qStrengthO'), s.quantize + '%');
     $btn('wClearMarkers').disabled = !app.doc.warpMarkers.length;
