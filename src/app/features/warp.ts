@@ -349,7 +349,9 @@ export class Warp implements TakeSource {
     if (this.last && this.last.inputs[0] !== this.app.audio) this.last = null;
     if (!pb.playing) return;
     const want = this.wanted(), take = want ? this.current() : null;
-    if (pb.playingTake === take) return;
+    // Nothing to switch when what plays is what is wanted. A take wanted but not rendered yet is not the
+    // original playing, though neither is a take: comparing them alone left the original playing.
+    if (want ? !!take && pb.playingTake === take : !pb.playingTake) return;
     if (this.restart) clearTimeout(this.restart);
     this.restart = null;
     if (!want || take) return pb.play(pb.now());

@@ -1,6 +1,6 @@
 // The app and its features end to end, without a browser: demo audio in, the same numbers the UI
 // shows out. Playback is the only part not covered (it needs Web Audio).
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { barQ } from '../src/core/tempo/meter';
 import { buildMidi } from '../src/io/formats/midi';
 import { MemoryStore, type TestApp, createTestApp, openDemo } from './helpers';
@@ -459,6 +459,39 @@ describe('the Warp step', () => {
     // Slice and Groove hear it too; Transients and Beats, the original the warp is made from.
     for (const step of [4, 5] as const) { f.workflow.goTo(step); expect(f.warp.wanted()).toBe(true); }
     for (const step of [1, 2] as const) { f.workflow.goTo(step); expect(f.warp.wanted()).toBe(false); }
+  });
+
+  it('switches to the warp while the original plays: entering Warp, and after Quantize', () => {
+    const { f } = t, pb = f.playback, plays: number[] = [];
+    let take: object | null = null;
+    // Playback needs Web Audio: stand in for it, playing the original from the start.
+    Object.defineProperty(pb, 'playing', { get: () => true });
+    Object.defineProperty(pb, 'playingTake', { get: () => take });
+    pb.now = () => 1;
+    // Playing takes up the take wanted when it is made, else the original.
+    pb.play = (from: number) => { plays.push(from); take = f.warp.wanted() ? f.warp.current() : null; };
+    vi.useFakeTimers();
+    try {
+      f.workflow.goTo(2);
+      f.beats.autoMap();
+      expect(plays).toEqual([]);
+      // In Warp, heard warped, with the original still playing and no take yet: once the edits settle,
+      // play again from where it is, which renders the take and plays it.
+      f.workflow.goTo(3);
+      vi.advanceTimersByTime(400);
+      expect(plays).toEqual([1]);
+      // The take plays; Quantize makes it stale, so it is made again.
+      take = {};
+      f.warp.toggleQuantize();
+      vi.advanceTimersByTime(400);
+      expect(plays).toEqual([1, 1]);
+      // Back in Beats, with the new take playing, the original is wanted again, at once.
+      take = {};
+      f.workflow.goTo(2);
+      expect(plays).toEqual([1, 1, 1]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('takes the grid tempo from a looped section and warps the whole file to it', () => {
