@@ -24,7 +24,7 @@ with no tempo map at all.
   both reach for (a flam), and **Clear** takes every warp marker off. All of it is undoable.
   Quantize is a switch, and the **strength** slider sits beside the shuffle, always there (100% by
   default): below 100% each transient moves only that part of the way to its line, keeping some of
-  the feel. While Quantize is on, moving the slider or the grid quantizes again from where it
+  the feel. While Quantize is on, moving the slider, the shuffle or the grid quantizes again from where it
   started, as the same undo step; turning it off (the button or <kbd>Q</kbd>) puts the warp markers
   back as they were. Any other edit, or leaving the step, keeps the quantize and turns the switch off.
   **shuffle**, beside the grid (and beside it in Beats, since it is the same grid), swings every

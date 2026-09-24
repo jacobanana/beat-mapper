@@ -299,6 +299,32 @@ describe('the Warp step', () => {
     expect(app.doc.warpMarkers.length).toBeGreaterThan(100);
   });
 
+  it('quantizes again as the shuffle or the grid moves while quantize is on, as one undo step', () => {
+    const { app, f } = t;
+    f.workflow.goTo(2);
+    f.beats.autoMap();
+    f.workflow.goTo(3);
+    f.beats.setGrid('8');
+    const before = app.doc;
+    f.warp.toggleQuantize();
+    const straight = app.doc.warpMarkers;
+    f.beats.setShuffle(100);
+    expect(f.warp.quantizeOpen).toBe(true);
+    // Every off-beat eighth swings two thirds of the way through its beat.
+    const off = app.doc.warpMarkers.filter((w) => Math.abs((w.q % 1) - 2 / 3) < 1e-6);
+    expect(off.length).toBeGreaterThan(10);
+    expect(app.doc.warpMarkers).not.toEqual(straight);
+    f.beats.setShuffle(0);
+    expect(app.doc.warpMarkers).toEqual(straight);
+    f.beats.setGrid('4');
+    expect(app.doc.warpMarkers.every((w) => Math.abs(w.q - Math.round(w.q)) < 1e-6)).toBe(true);
+    app.undo();
+    expect(app.doc).toBe(before);
+    // Off, the shuffle only sets the grid.
+    f.beats.setShuffle(50);
+    expect(app.doc).toBe(before);
+  });
+
   it('resets the shuffle and the quantize strength with the warp', () => {
     const { app, f } = t;
     f.workflow.goTo(2);

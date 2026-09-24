@@ -15,13 +15,10 @@ export function bindWarpPanel(app: App, f: Features, refocus: () => void): void 
   $sel('warpGrid').onchange = (e) => f.beats.setGrid((e.target as HTMLSelectElement).value as GridDivision);
 
   // Quantize is a switch, on while the quantize it made is the last edit; the strength beside the
-  // shuffle is always there, and moving it (or the grid) while Quantize is on quantizes again as the same undo step.
+  // shuffle is always there, and moving it, the shuffle or the grid while Quantize is on quantizes again as the same undo step.
   const qBtn = $btn('wQuantize'), strength = $in('qStrength');
   qBtn.onclick = () => { w.toggleQuantize(); refocus(); };
   strength.oninput = () => w.setQuantizeStrength(+strength.value);
-  // Leaving the step ends it, so a grid changed in Beats doesn't move the transients unseen.
-  app.bus.on('step', () => { if (app.step !== 3) w.endQuantize(); });
-  app.bus.on('beats', () => { if (w.quantizeOpen) w.requantize(); });
   $in('warpShuffle').oninput = (e) => f.beats.setShuffle(+(e.target as HTMLInputElement).value);
   $('wClearMarkers').onclick = () => w.clearMarkers();
   $sel('warpRange').onchange = (e) => w.setRange((e.target as HTMLSelectElement).value === 'loop' ? 'loop' : 'file');
