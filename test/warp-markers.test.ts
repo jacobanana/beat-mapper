@@ -75,4 +75,31 @@ describe('warp markers', () => {
     const kept = quantizeTransients(demoMap, grid, ts, { a: 0, b: demo.dur }, [{ t: offBeats[0], q: 0.75 }]);
     expect(kept.find((w) => w.t === offBeats[0])!.q).toBe(0.75);
   });
+
+  it('quantizes part of the way at a lower strength, and not at all at 0', () => {
+    const grid = new Grid(meter, '8'), ts = demo.onsets, all = { a: 0, b: demo.dur };
+    const full = quantizeTransients(demoMap, grid, ts, all, []);
+    const half = quantizeTransients(demoMap, grid, ts, all, [], 0.5);
+    expect(half.length).toBe(full.length);
+    half.forEach((w, i) => expect(w.q).toBeCloseTo((full[i].q + demoMap.timeToPos(w.t)) / 2, 9));
+    expect(quantizeTransients(demoMap, grid, ts, all, [], 0)).toEqual([]);
+  });
+});
+
+describe('shuffle', () => {
+  it('swings every second line of a straight grid finer than the beat, up to a triplet', () => {
+    const g8 = new Grid(meter, '8', 1), g16 = new Grid(meter, '16', 0.5);
+    expect(g8.at(1)).toBeCloseTo(2 / 3, 9);
+    expect(g8.at(2)).toBe(1);
+    expect(g16.at(3)).toBeCloseTo(0.75 + 0.25 / 6, 9);
+    // A late hat still finds its swung eighth; a straight one is nearer the swung line than the beat.
+    expect(g8.nearest(0.62)).toBeCloseTo(2 / 3, 9);
+    expect(g8.nearest(4.5)).toBeCloseTo(4 + 2 / 3, 9);
+    // Nothing to swing: triplets and beats stay straight.
+    expect(new Grid(meter, '8t', 1).at(1)).toBeCloseTo(1 / 3, 9);
+    expect(new Grid(meter, '4', 1).at(1)).toBe(1);
+    // Quantized onto the swung grid, the demo's off-beat hats land on the shuffle.
+    const out = quantizeTransients(demoMap, g8, offBeats, { a: 0, b: demo.dur }, []);
+    for (const w of out) expect(w.q % 1).toBeCloseTo(2 / 3, 9);
+  });
 });

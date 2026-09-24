@@ -4,6 +4,8 @@
 import { fmtBpm, fmtTime, safeName } from '../../core/format';
 import { renderSlice } from '../../core/slices/slices';
 import { type Meter, barQ, beatQ } from '../../core/tempo/meter';
+import type { TempoMap } from '../../core/tempo/tempo-map';
+import type { TimeRange } from '../../core/types';
 import { averageBpm, gridBeats } from '../../core/warp/map';
 import { placeWarpMarker, quantizeTransients, removeWarpMarker, warpMarkerAt } from '../../core/warp/markers';
 import { WARP_MODE_INFO, type WarpMode } from '../../core/warp/modes';
@@ -185,17 +187,69 @@ export class Warp implements TakeSource {
     this.remove(t);
   }
 
-  /** Q: every transient of what is warped onto the grid line nearest it. */
-  quantize(): void {
+  // A quantize whose strength is still being set: what it started from, and the document it last made,
+  // so each move of the slider quantizes again from the start as one undo step, and any other edit ends it.
+  private quantizing: {
+    base: ProjectDoc['warpMarkers'];
+    map: TempoMap;
+    range: TimeRange;
+    doc: ProjectDoc;
+    recorded: boolean;
+  } | null = null;
+
+  /**
+   * Q: every transient of what is warped towards the grid line nearest it, as far as the strength
+   * says. Returns whether there was anything to line up, so the strength can then be set.
+   */
+  quantize(): boolean {
     const { app } = this, p = this.plan();
-    if (!app.hasMap || !p) return app.notify.toast(app.hasMap ? 'Switch the loop on to warp just the loop.' : 'Map the beats first (step 2).');
-    if (!app.markers.length) return app.notify.toast('No transients to line up. Raise the sensitivity in step 1.');
-    const before = app.doc.warpMarkers.length, range = { a: p.map.src[0], b: p.map.src[p.map.src.length - 1] };
-    const out = quantizeTransients(app.warpTempo, app.grid, app.markers.map((m) => m.t), range, app.doc.warpMarkers);
-    if (out.length === before) return app.notify.toast('Every transient is already lined up.');
-    this.setMarkers(out);
-    app.notify.toast(`${out.length - before} transients lined up on the grid · undo takes them back`);
+    this.quantizing = null;
+    if (!app.hasMap || !p) return this.say(app.hasMap ? 'Switch the loop on to warp just the loop.' : 'Map the beats first (step 2).');
+    if (!app.markers.length) return this.say('No transients to line up. Raise the sensitivity in step 1.');
+    const base = app.doc.warpMarkers, map = app.warpTempo, range = { a: p.map.src[0], b: p.map.src[p.map.src.length - 1] };
+    if (quantizeTransients(map, app.grid, app.markers.map((m) => m.t), range, base).length === base.length) return this.say('Every transient is already lined up.');
+    this.quantizing = { base, map, range, doc: app.doc, recorded: false };
+    const n = this.requantize(), pct = app.warp.quantize;
+    app.notify.toast(n > 0 ? `${n} transients lined up on the grid${pct < 100 ? ` at ${pct} %` : ''} · undo takes them back` : 'Strength 0 %: raise it to line the transients up.');
+    return true;
   }
+
+  private say(msg: string): false {
+    this.app.notify.toast(msg);
+    return false;
+  }
+
+  /** The quantize just made can still be changed: nothing has been edited since. */
+  get quantizeOpen(): boolean { return this.quantizing?.doc === this.app.doc; }
+
+  /** How far Quantize moves the transients, in percent; the quantize just made follows it. */
+  setQuantizeStrength(pct: number): void {
+    this.update({ quantize: clamp(Math.round(pct), 0, 100) });
+    this.requantize();
+  }
+
+  /** The grid changed, or the strength: the quantize just made is made again. The number added, or -1 if it has ended. */
+  requantize(): number {
+    const { app } = this, q = this.quantizing;
+    if (!q || !this.quantizeOpen) {
+      this.quantizing = null;
+      return -1;
+    }
+    const out = quantizeTransients(q.map, app.grid, app.markers.map((m) => m.t), q.range, q.base, app.warp.quantize / 100);
+    if (!q.recorded) {
+      if (out.length === q.base.length) return 0;
+      app.checkpoint();
+      q.recorded = true;
+    }
+    // Noted before the edit announces it, so whoever listens sees the quantize still open.
+    const next = { ...app.doc, warpMarkers: out };
+    q.doc = next;
+    app.edit(() => next, false);
+    return out.length - q.base.length;
+  }
+
+  /** The strength is set: the next change to the warp markers is a new edit. */
+  endQuantize(): void { this.quantizing = null; }
 
   /** Every warp marker off: only the pins are warped onto the grid again. */
   clearMarkers(): void {

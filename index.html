@@ -200,6 +200,7 @@
             <div class="row2">
               <span class="cap">Fix</span><span class="items">
               <label class="sl" title="Grid (G): the lines drawn, and which one Pin takes">grid<select id="grid" aria-label="Grid"><option value="bar">Bar</option><option value="2">1/2</option><option value="4">1/4</option><option value="8">1/8</option><option value="16" selected>1/16</option><option value="32">1/32</option><option value="4t">1/4T</option><option value="8t">1/8T</option><option value="16t">1/16T</option></select></label>
+              <label class="sl" title="Shuffle: every second line of the grid swings late, 100% a triplet shuffle (1/8, 1/16 and 1/32 only)">shuffle<input type="range" id="shuffle" min="0" max="100" step="5" value="0" aria-label="Shuffle"><output id="shuffleO">0%</output></label>
               <label class="sl" title="Magnet (S): what the playhead and dragged pins land on"><svg class="ic"><use href="#i-snap"/></svg><select id="snapTo" aria-label="Snap to"><option value="markers">transients</option><option value="grid">grid</option><option value="off">nothing</option></select></label></span>
             </div>
           </details>
@@ -221,7 +222,13 @@
           <div class="row2">
             <span class="cap" title="Drag a transient onto a grid line to line it up there">Align</span><span class="items">
               <label class="sl" title="Grid (G): the lines a transient is lined up on">grid<select id="warpGrid" aria-label="Grid"><option value="bar">Bar</option><option value="2">1/2</option><option value="4">1/4</option><option value="8">1/8</option><option value="16" selected>1/16</option><option value="32">1/32</option><option value="4t">1/4T</option><option value="8t">1/8T</option><option value="16t">1/16T</option></select></label>
-              <button class="btn" id="wQuantize" title="Quantize: every transient onto the grid line nearest it (Q)" aria-label="Quantize every transient to the grid">Quantize</button>
+              <label class="sl" title="Shuffle: every second line of the grid swings late, 100% a triplet shuffle (1/8, 1/16 and 1/32 only)">shuffle<input type="range" id="warpShuffle" min="0" max="100" step="5" value="0" aria-label="Shuffle"><output id="warpShuffleO">0%</output></label>
+              <button class="btn" id="wQuantize" title="Quantize: every transient towards the grid line nearest it, as far as the strength says (Q)" aria-label="Quantize every transient to the grid" aria-controls="qPop" aria-expanded="false">Quantize</button>
+              <div class="pop" id="qPop" role="group" aria-label="Quantize strength" hidden>
+                <div class="ch"><span class="chn">Strength</span><input type="range" id="qStrength" min="0" max="100" step="5" value="100" aria-label="Quantize strength"><output id="qStrengthO">100%</output></div>
+                <p class="hint">How far each transient moves to its grid line: 100% puts it on the line, less keeps some of the feel. Undo takes the whole quantize back.</p>
+                <div class="acts"><button class="btn primary" id="qDone">Done</button></div>
+              </div>
               <button class="btn" id="wClearMarkers" title="Clear the warp markers: only the pins are lined up" aria-label="Clear the warp markers">Clear</button>
             </span>
           </div>
@@ -288,9 +295,9 @@
             </span>
           </div>
           <div class="row2">
-            <span class="cap" title="What each hit is measured against">Grid</span><span class="items">
+            <span class="cap" title="The grid each hit is measured against">Grid</span><span class="items">
               <select id="gGrid" title="Grid each hit is placed on" aria-label="Grid"><option value="8">1/8</option><option value="16" selected>1/16</option><option value="8t">1/8T</option><option value="16t">1/16T</option></select>
-              <select id="gRef" title="What the pocket is measured against, bar by bar. Auto: the hats when they keep time, else the tempo map's grid" aria-label="Measured against"><option value="auto">vs auto</option><option value="hat">vs hats</option><option value="kick">vs kick</option><option value="snare">vs snare</option><option value="kit">vs whole kit</option><option value="grid">vs grid</option></select>
+              <label class="sl" title="Quantize: the drums the kit plays, the MIDI chart and the MIDI export moved onto this grid, 0% as played, 100% on it. The pocket is always measured as played">quantize<input type="range" id="gQuant" min="0" max="100" step="5" value="0" aria-label="Quantize the drums"><output id="gQuantO">0%</output></label>
             </span>
           </div>
           <div class="row2">
@@ -409,7 +416,7 @@
     <div><span>Original · Warped</span><span>What plays. Warped plays it with the click on the grid; the playhead follows the original, so it sits on the hit you hear</span><span><kbd>W</kbd></span></div>
     <div><svg class="ic"><use href="#i-loop"/></svg><span>From loop: loop a section that is played right, and the grid takes the tempo it averages, to the nearest BPM. Or type a tempo; empty takes the average of what is warped</span><span><kbd>F</kbd></span></div>
     <div><span>Align: drag a transient in the upper half onto a grid line, and the warp puts that hit exactly on it, stretching the audio either side to fit. Double-tap a transient to put it on the nearest line, or a warp marker to let it go. Alt drops it off the grid</span><span></span></div>
-    <div><span>Quantize: every transient of what is warped onto the grid line nearest it. Clear takes the warp markers off; undo brings them back</span><span><kbd>Q</kbd></span></div>
+    <div><span>Quantize: every transient of what is warped towards the grid line nearest it, as far as the strength says (100% by default). Clear takes the warp markers off; undo brings them back</span><span><kbd>Q</kbd></span></div>
     <div><span>whole file · just the loop</span><span>What is warped, heard and saved. Drawing a loop to take its tempo doesn't make it the loop alone</span><span></span></div>
     <div><span>Material</span><span>How it is stretched: Drums cut at the transients, Mono and Vocal overlap-add, Poly a phase vocoder, Full mix both, Re-pitch like a turntable</span><span></span></div>
     <div><svg class="ic"><use href="#i-reset"/></svg><span>Reset: the whole file at the tempo it averages, Full mix</span><span></span></div>
@@ -430,11 +437,10 @@
     <div><svg class="ic"><use href="#i-groove"/></svg><span>Kick, snare and hats are found in the audio, and each hit is measured against the beat. The waveform shows them in three lanes, each with a tail back to its grid line. Map the beats first (step 2) if the take drifts</span><span></span></div>
     <div><span>Source</span><span>Drums only, or a full mix (experimental: the other instruments are modelled apart from the drums, but expect misses)</span></div>
     <div><span>K S H</span><span>Sensitivity per voice, with how many hits each has. Raise the snare's for ghost notes</span></div>
-    <div><span>vs</span><span>What the pocket is measured against, bar by bar: the hats (the timekeeper), one of the others, the whole kit, or the tempo map's grid. Measuring against a grid found from the same hits is circular, so auto takes the hats when they keep time</span></div>
     <div><svg class="ic"><use href="#i-reset"/></svg><span>Reset: the hits as found at the starting sensitivities, measured as they start</span><span></span></div>
     <div><svg class="ic"><use href="#i-mix"/></svg><span>Hear the drums as MIDI on a synth kit: in the mixer, tap its icon to unmute it, and the audio's to hear the kit alone</span><span><kbd>M</kbd></span></div>
     <div><span>Chart</span><span>Left: where each voice sits, ahead or behind – every hit, its middle half, and its median. Right: the typical bar – dot size is velocity, faint dots are steps played in only some bars, tails show the lean</span></div>
-    <div><svg class="ic"><use href="#i-export"/></svg><span>Save the drums as MIDI (every hit where it was played, on the tempo map), or the typical bar as a Pocket Science groove file: in Export</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
+    <div><svg class="ic"><use href="#i-export"/></svg><span>Save the drums as MIDI (on the tempo map, as heard: where they were played, or quantized as far as the Groove step's quantize says), or the typical bar as a Pocket Science groove file: in Export</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
   </div>
   <h2 style="margin-top:18px">Keyboard shortcuts</h2>
   <div class="keys">

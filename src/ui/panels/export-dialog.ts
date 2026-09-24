@@ -31,6 +31,8 @@ interface Format {
   run(): Promise<void>;
 }
 
+/** The groove grids as the Groove step names them. */
+const GRID_NAMES = { '8': '1/8', '16': '1/16', '8t': '1/8T', '16t': '1/16T' } as const;
 const OPEN_FIRST = { text: 'Open an audio file first.', ok: false };
 const kb = (b: number) => (b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.round(b / 1024) + ' KB');
 
@@ -129,11 +131,12 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
       run: () => f.slicer.saveLoopWav(),
     },
     drumsMidi: {
-      desc: 'The kick, snare and hats as MIDI: every hit where it was played, on the tempo map.',
+      desc: 'The kick, snare and hats as MIDI on the tempo map, as they are heard in the Groove step: where they were played, or quantized as far as its quantize says.',
       save: 'Save .mid',
       info: () => drumsInfo(() => {
-        const h = app.pocket!.hits;
-        return plural(h.length, 'note') + ' · ' + VOICES.map((v) => `${v} ${h.filter((x) => x.voice === v).length}`).join(', ');
+        const h = app.pocket!.hits, k = app.groove.quantize / 100;
+        return plural(h.length, 'note') + ' · ' + VOICES.map((v) => `${v} ${h.filter((x) => x.voice === v).length}`).join(', ')
+          + (k ? ` · quantized ${Math.round(k * 100)}% to the ${GRID_NAMES[app.groove.grid]} grid` : ' · as played');
       }),
       run: () => f.groove.saveMidi(),
     },

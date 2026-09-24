@@ -52,7 +52,7 @@ export class Sessions {
       },
       meter: app.doc.meter,
       tempo: { anchors: [...app.doc.tempo.anchors], baseBpm: app.doc.tempo.baseBpm },
-      beats: { grid: app.beats.grid, mapEvery: app.beats.mapEvery, tol: app.beats.tol, snapTo: app.beats.snapTo },
+      beats: { grid: app.beats.grid, mapEvery: app.beats.mapEvery, tol: app.beats.tol, snapTo: app.beats.snapTo, shuffle: app.beats.shuffle },
       transport: { loop: t.loop, loopOn: t.loopOn, start: t.start, playhead: this.playback.playing ? t.start : t.playhead, stay: t.stay, click: t.click },
       view: app.view.range,
       step: app.step,
@@ -60,6 +60,8 @@ export class Sessions {
       slicer: app.slicer,
       excluded: app.excluded,
       warpMarkers: [...app.doc.warpMarkers],
+      warpQuantize: app.warp.quantize,
+      grooveQuantize: app.groove.quantize,
     };
   }
 
@@ -123,6 +125,8 @@ export class Sessions {
     app.set('transport', s.transport);
     app.set('export', s.export);
     app.set('slicer', s.slicer);
+    app.set('warp', { quantize: s.warpQuantize });
+    app.set('groove', { quantize: s.grooveQuantize });
     app.excluded = s.excluded;
     app.sliceSel = null;
     app.select(null);

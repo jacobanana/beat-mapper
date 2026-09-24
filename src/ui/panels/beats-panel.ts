@@ -3,9 +3,9 @@
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { fmtTime, plural } from '../../core/format';
-import type { GridDivision } from '../../core/tempo/meter';
+import { type GridDivision, swings } from '../../core/tempo/meter';
 import type { SnapMode } from '../../state/settings';
-import { $, $in, $sel, clampNum, setValue } from '../dom';
+import { $, $in, $sel, clampNum, setText, setValue } from '../dom';
 
 export function bindBeatsPanel(app: App, f: Features, refocus: () => void): void {
   const b = f.beats;
@@ -22,6 +22,7 @@ export function bindBeatsPanel(app: App, f: Features, refocus: () => void): void
   $in('loopBars').onchange = (e) => { const n = Math.round(+(e.target as HTMLInputElement).value); app.set('beats', { loopBars: n >= 1 ? n : null }); };
   $('autoMap').onclick = () => b.autoMap();
   $sel('mapEvery').onchange = (e) => app.set('beats', { mapEvery: (e.target as HTMLSelectElement).value === 'bar' ? 'bar' : 'beat' });
+  $in('shuffle').oninput = (e) => b.setShuffle(+(e.target as HTMLInputElement).value);
   $in('tol').oninput = (e) => app.set('beats', { tol: +(e.target as HTMLInputElement).value });
 
   const rows = $('barRows');
@@ -42,6 +43,10 @@ export function bindBeatsPanel(app: App, f: Features, refocus: () => void): void
     setValue($sel('den'), app.doc.meter.den);
     setValue($in('bpm'), +app.doc.tempo.baseBpm.toFixed(2));
     setValue($sel('grid'), app.beats.grid);
+    // Only a straight grid finer than the beat has pairs of lines to swing.
+    setValue($in('shuffle'), app.beats.shuffle);
+    $in('shuffle').disabled = !swings(app.beats.grid, app.grid.beatQ);
+    setText($('shuffleO'), app.beats.shuffle + '%');
     setValue($sel('snapTo'), app.beats.snapTo);
     setValue($sel('mapEvery'), app.beats.mapEvery);
     setValue($in('tol'), app.beats.tol);

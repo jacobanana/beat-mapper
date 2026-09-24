@@ -3,7 +3,7 @@ import type { Algo, Band } from '../core/dsp/onset';
 import type { MapSettings } from '../core/beats/edit';
 import type { DrumSource } from '../core/drums/detect';
 import type { PerVoice } from '../core/drums/voices';
-import type { GrooveGrid, Reference } from '../core/groove/pocket';
+import type { GrooveGrid } from '../core/groove/pocket';
 import type { GridDivision } from '../core/tempo/meter';
 import type { TimeRange } from '../core/types';
 import type { WarpMode } from '../core/warp/modes';
@@ -29,6 +29,8 @@ export interface BeatSettings extends MapSettings {
   snapTo: SnapMode;
   /** Bars in the loop for derive-from-loop; null works it out. Not saved. */
   loopBars: number | null;
+  /** How far the grid's every second line swings late, in percent: 100 is a triplet shuffle. */
+  shuffle: number;
 }
 
 export interface ExportSettings {
@@ -40,8 +42,8 @@ export interface ExportSettings {
 }
 
 /**
- * How the audio is warped onto a straight grid. Kept for this visit only, out of sessions, until the
- * session format takes it.
+ * How the audio is warped onto a straight grid. Only the quantize strength is saved with the session so
+ * far; the rest is kept for this visit only.
  */
 export interface WarpSettings {
   mode: WarpMode;
@@ -51,6 +53,8 @@ export interface WarpSettings {
   range: 'file' | 'loop';
   /** In the Warp step, play the warped audio rather than the original. */
   listen: boolean;
+  /** How far Quantize moves each transient to its grid line, in percent: 100 is onto it. */
+  quantize: number;
 }
 
 export interface SlicerSettings {
@@ -94,11 +98,16 @@ export interface GrooveSettings {
   /** Per voice, 0..100. */
   sens: PerVoice<number>;
   grid: GrooveGrid;
-  ref: Reference | 'auto';
   /** Draw offsets three times their size, as Pocket Science's pocket-emphasis mode does. */
   exaggerate: boolean;
   /** The chart under the controls: the pocket, or the hits as a MIDI transcript. */
   chart: GrooveChartMode;
+  /**
+   * How far the drums are moved onto the grid, in percent: 0 as played, 100 on the steps. What the kit
+   * plays, the transcript and the MIDI export follow it; the pocket is always measured as played.
+   * Saved with the session, unlike the rest of this group.
+   */
+  quantize: number;
 }
 
 /** How loud each thing that plays is, in percent of its natural level: 100 is as it always was. */
@@ -125,14 +134,14 @@ export const MIX_MAX = 150;
 export type GrooveChartMode = 'pocket' | 'midi';
 
 export const defaultDetection = (): DetectionSettings => ({ sens: 55, gap: 60, band: 'full', algo: 'flux', showOdf: true });
-export const defaultBeats = (): BeatSettings => ({ grid: '16', mapEvery: 'beat', tol: 20, snapTo: 'markers', loopBars: null });
+export const defaultBeats = (): BeatSettings => ({ grid: '16', mapEvery: 'beat', tol: 20, snapTo: 'markers', loopBars: null, shuffle: 0 });
 export const defaultExport = (): ExportSettings => ({ lead: 'full', res: 'pins', clicks: true, rppAudio: true });
-export const defaultWarp = (): WarpSettings => ({ mode: 'music', bpm: null, range: 'file', listen: true });
+export const defaultWarp = (): WarpSettings => ({ mode: 'music', bpm: null, range: 'file', listen: true, quantize: 100 });
 export const defaultSlicer = (): SlicerSettings => ({
   mode: 'gap', len: 500, tail: 0, fadeIn: 1, fadeOut: 8, min: 40, mono: false, bits: 16, norm: false, target: -1, naming: 'num', csv: true,
 });
 export const defaultTransport = (): TransportState => ({ loop: null, loopOn: false, start: 0, playhead: 0, stay: false, click: false, scrubMode: false });
-export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', ref: 'auto', exaggerate: true, chart: 'pocket' });
+export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', exaggerate: true, chart: 'pocket', quantize: 0 });
 export const defaultMix = (): MixSettings => ({ audio: 100, click: 100, drums: 100 });
 export const defaultMute = (): MuteSettings => ({ audio: false, drums: true });
 

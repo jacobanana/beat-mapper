@@ -22,6 +22,15 @@ with no tempo map at all.
   or lets a warp marker go; <kbd>Delete</kbd> removes the selected one. **Quantize** (<kbd>Q</kbd>)
   puts every transient of what is warped on its nearest line, the closer of two taking a line they
   both reach for (a flam), and **Clear** takes every warp marker off. All of it is undoable.
+  Quantize opens a **Strength** slider beside it (100% by default): below 100% each transient moves
+  only that part of the way to its line, keeping some of the feel. Moving the slider quantizes again
+  from where the button started, as the same undo step, until the popover closes; <kbd>Q</kbd>
+  quantizes at the strength last set.
+  **shuffle**, beside the grid (and beside it in Beats, since it is the same grid), swings every
+  second line of a 1/8, 1/16 or 1/32 grid late: 100% puts it two thirds of the way through its pair,
+  a triplet shuffle. What is drawn, snapped, pinned and quantized follows it. Triplet grids and grids
+  of a beat or coarser have no pairs to swing, so the slider greys out there. The shuffle and the
+  quantize strength are saved with the session.
 - **whole file · just the loop**: what is warped, heard and saved. Drawing a loop to take its tempo
   leaves this on the whole file. A loop warped alone starts the file and is exactly as many beats long
   as it holds at the new tempo, named like the loop export: `name_4bars_100bpm_warped.wav`.
@@ -83,7 +92,6 @@ frame's shift in the others.
 
 ## Later
 
-- A strength for Quantize (part of the way to the grid).
 - A view of the warped waveform itself, on the straight grid.
 - Saving the other warp settings (tempo, material, range) with the session; only the warp markers are kept for now.
 - Other stretchers worth trying: phase gradient heap integration ([Průša & Holighaus 2017][pghi]),

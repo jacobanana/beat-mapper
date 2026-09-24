@@ -4,7 +4,7 @@ import type { DrumSource } from '../../core/drums/detect';
 import { loudnessAt } from '../../core/drums/edit';
 import { GM_NOTE, VOICES, type Voice } from '../../core/drums/voices';
 import { safeName } from '../../core/format';
-import { type GrooveGrid, type Reference, describeGroove } from '../../core/groove/pocket';
+import { type GrooveGrid, describeGroove, quantizedTime } from '../../core/groove/pocket';
 import { nearest } from '../../core/search';
 import { hasBridge, saveError, saveFile } from '../../io/download';
 import { grooveJson } from '../../io/formats/groove';
@@ -67,9 +67,10 @@ export class Groove {
   }
 
   setGrid(grid: GrooveGrid): void { this.app.set('groove', { grid }); }
-  setReference(ref: Reference | 'auto'): void { this.app.set('groove', { ref }); }
   toggleExaggerate(): void { this.app.set('groove', { exaggerate: !this.app.groove.exaggerate }); }
   setChart(chart: GrooveChartMode): void { this.app.set('groove', { chart }); }
+  /** Moves the drums heard, charted and exported `pct` percent of the way onto the grid. */
+  setQuantize(pct: number): void { this.app.set('groove', { quantize: clamp(Math.round(pct), 0, 100) }); }
   toggleChart(): void { this.setChart(this.app.groove.chart === 'pocket' ? 'midi' : 'pocket'); }
 
   // ---------- editing hits ----------
@@ -124,7 +125,7 @@ export class Groove {
   /** Something in this step differs from how it starts: a hit edited, or a sensitivity or measure changed. */
   get changed(): boolean {
     const { app } = this, g = app.groove, g0 = defaultGroove(), e = app.doc.drums;
-    return !!app.audio && (e.manual.length > 0 || e.removed.length > 0 || g.grid !== g0.grid || g.ref !== g0.ref || VOICES.some((v) => g.sens[v] !== g0.sens[v]));
+    return !!app.audio && (e.manual.length > 0 || e.removed.length > 0 || g.grid !== g0.grid || g.quantize !== g0.quantize || VOICES.some((v) => g.sens[v] !== g0.sens[v]));
   }
 
   /**
@@ -135,8 +136,8 @@ export class Groove {
     const { app } = this;
     if (!this.changed) return;
     this.resetHits();
-    const { sens, grid, ref } = defaultGroove();
-    app.set('groove', { sens, grid, ref });
+    const { sens, grid, quantize } = defaultGroove();
+    app.set('groove', { sens, grid, quantize });
     app.select(null);
     app.notify.toast('Groove reset: the hits as found. Undo brings your hit edits back.');
   }
@@ -182,11 +183,15 @@ export class Groove {
   // ---------- export ----------
   private base(): string { return safeName(this.app.audio?.name || 'audio'); }
 
-  /** Every hit as a note, where it was played, with the tempo map: the take as MIDI. */
+  /**
+   * Every hit as a note with the tempo map: the take as MIDI, as it is heard here, where it was played
+   * or moved onto the grid as far as the quantize says.
+   */
   async saveMidi(): Promise<void> {
     const { app } = this, g = app.pocket;
     if (!app.audio || !g) return app.notify.toast('Nothing to export yet – find the drums and map the beats first.');
-    const notes: DrumNote[] = g.hits.map((h) => ({ t: h.t, note: GM_NOTE[h.voice], vel: h.vel }));
+    const k = app.groove.quantize / 100;
+    const notes: DrumNote[] = g.hits.map((h) => ({ t: quantizedTime(h, k), note: GM_NOTE[h.voice], vel: h.vel }));
     let bytes: Uint8Array;
     try { bytes = buildMidi({ ...this.exports.options(), clicks: false, notes }).bytes; } catch (e) { console.error(e); return app.notify.toast('Nothing to export yet – map the beats first.'); }
     const base = this.base() + '-drums';
@@ -195,7 +200,7 @@ export class Groove {
       return app.notify.toast(r.ok ? 'Saved. Unzip it to get the .mid file.' : saveError(r.code, "This viewer couldn't save the file."));
     }
     await saveFile(base + '.mid', bytes as BlobPart, 'audio/midi');
-    app.notify.toast(`Drum MIDI saved: ${notes.length} notes on ${VOICES.filter((v) => g.hits.some((h) => h.voice === v)).length} voices.`);
+    app.notify.toast(`Drum MIDI saved: ${notes.length} notes on ${VOICES.filter((v) => g.hits.some((h) => h.voice === v)).length} voices${k ? `, quantized ${Math.round(k * 100)} %` : ''}.`);
   }
 
   /** The typical bar as a Pocket Science groove file. */

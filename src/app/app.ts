@@ -5,7 +5,7 @@ import type { DrumAnalysis } from '../core/drums/detect';
 import { type EditedHit, type HitEdits, applyHitEdits } from '../core/drums/edit';
 import { selectHits } from '../core/drums/select';
 import type { DrumHit, PerVoice, Voice } from '../core/drums/voices';
-import { type Groove, type VoiceNote, analyseGroove, transcribe } from '../core/groove/pocket';
+import { type Groove, type VoiceNote, analyseGroove, quantizeNotes, transcribe } from '../core/groove/pocket';
 import { detectMarkers, filterMarkers, sensToThr } from '../core/markers/detect';
 import { type Slice, isExcluded, loopInfo, planSlices, sliceKey } from '../core/slices/slices';
 import { Grid, barQ } from '../core/tempo/meter';
@@ -119,8 +119,8 @@ export class App {
   private readonly _map = memo((t: ProjectDoc['tempo']) => new TempoMap(t.anchors, t.baseBpm));
   get tempoMap(): TempoMap { return this._map(this.doc.tempo); }
 
-  private readonly _grid = memo((m: ProjectDoc['meter'], g: BeatSettings['grid']) => new Grid(m, g));
-  get grid(): Grid { return this._grid(this.doc.meter, this.beats.grid); }
+  private readonly _grid = memo((m: ProjectDoc['meter'], g: BeatSettings['grid'], sh: number) => new Grid(m, g, sh / 100));
+  get grid(): Grid { return this._grid(this.doc.meter, this.beats.grid, this.beats.shuffle); }
 
   private readonly _detected = memo((c: readonly Candidate[], sens: number, gap: number) => detectMarkers(c, sensToThr(sens), gap / 1000));
   private readonly _markers = memo((c: readonly Candidate[], det: number[], removed: readonly number[], manual: ProjectDoc['markers']['manual']) => {
@@ -165,15 +165,20 @@ export class App {
   /** The drum hits the sensitivities let through, with the ones added, moved and deleted by hand. */
   get drumHits(): PerVoice<EditedHit[]> | null { return this._drumHits(this.detectedHits, this.doc.drums); }
 
-  private readonly _drumNotes = memo((hits: PerVoice<EditedHit[]> | null) => (hits ? transcribe(hits) : []));
-  /** The drum hits as notes over the whole take, sorted by time: what the synth kit plays. */
-  get drumNotes(): readonly VoiceNote[] { return this._drumNotes(this.drumHits); }
+  private readonly _playedNotes = memo((hits: PerVoice<EditedHit[]> | null) => (hits ? transcribe(hits) : []));
+  private readonly _drumNotes = memo((notes: readonly VoiceNote[], map: TempoMap, meter: ProjectDoc['meter'], grid: GrooveSettings['grid'], pct: number) =>
+    quantizeNotes(notes, map, meter, grid, pct / 100));
+  /** The drum hits as notes over the whole take, sorted by time, quantized as far as asked: what the synth kit plays. */
+  get drumNotes(): readonly VoiceNote[] {
+    return this._drumNotes(this._playedNotes(this.drumHits), this.tempoMap, this.doc.meter, this.groove.grid, this.groove.quantize);
+  }
 
-  private readonly _groove = memo((hits: PerVoice<EditedHit[]> | null, map: TempoMap, meter: ProjectDoc['meter'], grid: GrooveSettings['grid'], ref: GrooveSettings['ref'], range: TimeRange) =>
-    hits && !map.isEmpty ? analyseGroove(hits, { map, meter, grid, ref, range }) : null);
-  /** Where each voice sits against the beat, inside the loop when it is on. */
+  // Always against the grid: the tempo map the user set is the beat the drums are heard against.
+  private readonly _groove = memo((hits: PerVoice<EditedHit[]> | null, map: TempoMap, meter: ProjectDoc['meter'], grid: GrooveSettings['grid'], range: TimeRange) =>
+    hits && !map.isEmpty ? analyseGroove(hits, { map, meter, grid, ref: 'grid', range }) : null);
+  /** Where each voice sits against the grid, inside the loop when it is on. */
   get pocket(): Groove | null {
-    return this._groove(this.drumHits, this.tempoMap, this.doc.meter, this.groove.grid, this.groove.ref, this.sliceRange);
+    return this._groove(this.drumHits, this.tempoMap, this.doc.meter, this.groove.grid, this.sliceRange);
   }
 
   private readonly _warpTempo = memo((map: TempoMap, wm: readonly WarpMarker[]) => warpTempoMap(map, wm));
