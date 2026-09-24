@@ -178,6 +178,9 @@ try {
   });
   await step('Export on a phone: the formats are a dropdown', async () => {
     await page.setViewportSize({ width: 390, height: 844 });
+    // The header's button groups share the .grp class with the export groups; they stay rows.
+    const [open, undo] = await Promise.all(['#openBtn', '#undoBtn'].map((s) => page.locator(s).boundingBox()));
+    assert.ok(Math.abs(open.y - undo.y) < 2, 'Open and Undo sit on one row');
     await page.keyboard.press('Control+e');
     assert.equal(await page.isVisible('#fmtList'), false);
     // It opens on the format last chosen in this step.
