@@ -1,0 +1,59 @@
+name: Notes benchmark
+
+# On demand only, from the Actions tab ("Run workflow"): the note detector scored on BabySlakh, with
+# the report on the run's summary page and every table in its artifact. About 30 minutes with a
+# comparison.
+on:
+  workflow_dispatch:
+    inputs:
+      compare:
+        description: Branch, tag or commit to compare against (empty for none)
+        default: main
+      tracks:
+        description: Songs to score, 1 to 20 (empty for all)
+        default: ''
+      classes:
+        description: Instrument classes, comma-separated (empty for all)
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # A comparison checks out the other commit beside this one.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The dataset never changes; download it once and keep it.
+      - uses: actions/cache@v4
+        with:
+          path: .dev/babyslakh_16k
+          key: babyslakh-16k-v1
+      - name: Score
+        env:
+          COMPARE: ${{ inputs.compare }}
+          TRACKS: ${{ inputs.tracks }}
+          CLASSES: ${{ inputs.classes }}
+        run: |
+          args=()
+          [[ -n "$COMPARE" ]] && args+=(--compare "$COMPARE")
+          [[ -n "$TRACKS" ]] && args+=(--tracks "$TRACKS")
+          [[ -n "$CLASSES" ]] && args+=(--classes "$CLASSES")
+          bash scripts/eval_notes.sh "${args[@]}"
+      - name: Report
+        if: always()
+        run: '[[ -f .dev/eval/report.md ]] && cat .dev/eval/report.md >> "$GITHUB_STEP_SUMMARY" || true'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: notes-benchmark
+          path: .dev/eval/

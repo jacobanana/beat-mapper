@@ -26,7 +26,11 @@ export interface LineResult {
   tuning: number;
 }
 
-/** Frames every 10 ms. The start and end of a note are timed on the envelope, not on these. */
+/**
+ * Frames about every 10 ms. The start and end of a note are timed on the envelope, not on these. The
+ * hop is a whole number of samples, 110 at 11025 Hz, so a frame is 9.98 ms there: times are read from
+ * the hop itself, since counting 10 ms a frame puts a note 0.2 s late by the second minute.
+ */
 const HOP = 0.01;
 /** Pitch states 10 cents apart. */
 const BIN = 10;
@@ -48,6 +52,8 @@ interface Frames {
   prob: Float32Array;
   C: number;
   n: number;
+  /** Seconds from one frame to the next. */
+  dt: number;
 }
 
 /** pYIN's first half: candidate pitches and their probabilities, frame by frame. */
@@ -120,7 +126,7 @@ async function candidates(y: Float32Array, sr: number, fmin: number, fmax: numbe
       if (o.yieldToEventLoop) await new Promise((r) => setTimeout(r, 0));
     }
   }
-  return { cents, prob, C, n };
+  return { cents, prob, C, n, dt: hop / sr };
 }
 
 /**
@@ -232,13 +238,11 @@ export async function detectLine(x: Float32Array, sr: number, o: LineOptions = {
   const tuning = tuningOf(cents, voicing);
   const env = envelope(x, sr), sharp = attacks(x, sr);
   const segs = segments(cents, tuning);
-  const notes = cut(segs, cents, voicing, tuning, x, sr, env, sharp);
+  const notes = cut(segs, cents, voicing, tuning, x, sr, env, sharp, fr.dt);
   o.onProgress?.(1);
   return { notes, tuning };
 }
 
-// Frame f's pitch is measured on a window centred at f·HOP.
-const timeOf = (f: number) => f * HOP;
 
 /**
  * Stretches on one semitone into notes. Two stretches that meet are two notes when there is an
@@ -246,7 +250,9 @@ const timeOf = (f: number) => f * HOP;
  * a pitch that glides across is one note bent, and a stretch too short to be a note belongs to the
  * one it is part of. One stretch holds two notes when it is plucked again on the same pitch.
  */
-function cut(segs: Seg[], cents: Float32Array, voicing: Float32Array, tuning: number, x: Float32Array, sr: number, env: Envelope, sharp: Attacks): Note[] {
+function cut(segs: Seg[], cents: Float32Array, voicing: Float32Array, tuning: number, x: Float32Array, sr: number, env: Envelope, sharp: Attacks, dt: number): Note[] {
+  // Frame f's pitch is measured on a window centred at f·dt.
+  const timeOf = (f: number) => f * dt;
   // Runs of voiced frames: a note never spans unvoiced frames.
   const groups: Seg[][] = [];
   for (const s of segs) {
@@ -260,9 +266,9 @@ function cut(segs: Seg[], cents: Float32Array, voicing: Float32Array, tuning: nu
     // same pitch is plucked again.
     const starts: { f: number; t: number }[] = [{ f: g[0].a, t: timeOf(g[0].a) }];
     for (let i = 1; i < g.length; i++) {
-      const s = g[i], len = (s.b - s.a) * HOP;
+      const s = g[i], len = (s.b - s.a) * dt;
       if (len < MIN_NOTE && i < g.length - 1) continue;
-      const at = startAt(cents, s.a);
+      const at = startAt(cents, s.a, dt);
       // A step: the pitch crosses most of a semitone within 30 ms.
       const c0 = cents[Math.max(g[0].a, s.a - 2)], c1 = cents[Math.min(s.b - 1, s.a + 1)];
       const step = Math.abs(c1 - c0) >= 70;
@@ -273,7 +279,7 @@ function cut(segs: Seg[], cents: Float32Array, voicing: Float32Array, tuning: nu
     for (const s of g) {
       for (let t = timeOf(s.a) + 0.08; t < timeOf(s.b) - 0.05; t += 0.02) {
         const r = attackAt(env, t);
-        if (r.rise >= 6 && !starts.some((k) => Math.abs(k.t - r.t) < 0.07)) starts.push({ f: Math.round(r.t / HOP), t: r.t });
+        if (r.rise >= 6 && !starts.some((k) => Math.abs(k.t - r.t) < 0.07)) starts.push({ f: Math.round(r.t / dt), t: r.t });
       }
     }
     starts.sort((p, q) => p.t - q.t);
@@ -302,7 +308,7 @@ function cut(segs: Seg[], cents: Float32Array, voicing: Float32Array, tuning: nu
     const peak = peakDb(env, start.t, Math.min(limit, start.t + 0.15));
     const end = placeEnd(env, start.t, Math.min(limit, timeOf(r.b)), peak, limit);
     if (end - start.t < 0.03) continue;
-    const bend = bendOf(cents, r.a, r.b, pitch, tuning);
+    const bend = bendOf(cents, r.a, r.b, pitch, tuning, dt);
     notes.push({ pitch, t: start.t, end, s: pv / (r.b - r.a), a: Math.pow(10, peak / 20), ...(bend ? { bend } : {}) });
   }
   // Clarity folds in loudness against the take's loud notes, so a quiet rumble counts for less.
@@ -311,8 +317,8 @@ function cut(segs: Seg[], cents: Float32Array, voicing: Float32Array, tuning: nu
 }
 
 // Where the pitch crossed into the stretch starting at frame f: halfway between the frames either side.
-function startAt(cents: Float32Array, f: number): number {
-  return f > 0 && !Number.isNaN(cents[f - 1]) ? timeOf(f - 0.5) : timeOf(f);
+function startAt(cents: Float32Array, f: number, dt: number): number {
+  return (f > 0 && !Number.isNaN(cents[f - 1]) ? f - 0.5 : f) * dt;
 }
 
 // How much the loudness climbs near time t (within 40 ms either side), dB.
@@ -334,7 +340,7 @@ function attackAt(e: Envelope, t: number): { t: number; rise: number } {
 }
 
 /** The pitch's moves off the note, every 20 ms, when it leaves it by more than 20 cents at all. */
-function bendOf(cents: Float32Array, a: number, b: number, pitch: number, tuning: number): BendPoint[] | null {
+function bendOf(cents: Float32Array, a: number, b: number, pitch: number, tuning: number, dt: number): BendPoint[] | null {
   const pts: BendPoint[] = [];
   let far = 0;
   // Past the attack: a pluck's first few milliseconds are sharp and settle, which isn't a bend.
@@ -342,7 +348,7 @@ function bendOf(cents: Float32Array, a: number, b: number, pitch: number, tuning
     if (Number.isNaN(cents[f])) continue;
     const dev = Math.max(-200, Math.min(200, cents[f] - tuning - 100 * pitch));
     far = Math.max(far, Math.abs(dev));
-    pts.push({ t: timeOf(f), cents: Math.round(dev) });
+    pts.push({ t: f * dt, cents: Math.round(dev) });
   }
   if (far < 20) return null;
   const out: BendPoint[] = [];

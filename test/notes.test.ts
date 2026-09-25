@@ -46,6 +46,16 @@ describe('one line at a time', () => {
     }
   });
 
+  // Frames are a whole number of samples apart, 110 at 11025 Hz: 9.98 ms, not 10. Counted as 10 ms,
+  // a note two minutes in was placed a quarter of a second late, and the short parts never showed it.
+  it('keeps two minutes in as well timed as the first bar', async () => {
+    const long = synthBass(SR, 80), r = await detectNotes(long.x, SR, { mode: 'line', yieldToEventLoop: false });
+    const late = long.notes.filter((n) => n.t > long.dur - 10);
+    const err = match(late, r.notes).pairs.map((p) => (p.m ? Math.abs(p.m.t - p.n.t) * 1000 : Infinity));
+    expect(late.length).toBeGreaterThan(20);
+    expect(median(err)).toBeLessThan(2);
+  }, 60_000);
+
   it('measures the tuning, 20 cents flat', () => {
     expect(line.tuning).toBeCloseTo(bass.tuning, 0);
   });

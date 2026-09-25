@@ -4,7 +4,7 @@
 # Every target is one line that shells out; the script stays the truth.
 .DEFAULT_GOAL := help
 
-.PHONY: help install ready dev preview stop shots checks build e2e pre-pr clean
+.PHONY: help install ready dev preview stop shots checks build e2e pre-pr eval-notes clean
 
 help:
 	@echo ""
@@ -20,6 +20,7 @@ help:
 	@echo "    make build      typecheck + production build"
 	@echo "    make e2e        the Playwright smoke test against dist/"
 	@echo "    make pre-pr     checks, build, e2e — run before opening a pull request"
+	@echo "    make eval-notes score the note detector on BabySlakh, e.g. ARGS='--compare main'"
 	@echo ""
 	@echo "    make clean      remove node_modules, dist and .dev"
 	@echo ""
@@ -56,6 +57,9 @@ e2e:
 	CHROMIUM_PATH=$${CHROMIUM_PATH:-$$(test -x /opt/pw-browsers/chromium && echo /opt/pw-browsers/chromium)} npm run e2e
 
 pre-pr: checks build e2e
+
+eval-notes:
+	bash scripts/eval_notes.sh $(ARGS)
 
 clean:
 	rm -rf node_modules dist .dev

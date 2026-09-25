@@ -83,8 +83,50 @@ What it doesn't do yet:
   factorisation gives the D5 comb little of it: the note is found, but quieter than it is.
 - **Octave doublings.** As a chord rings, the lower note takes over the upper one's partials.
 - **Bends in chords.** Only a line has bends: bends on several notes at once need MPE.
-- **Real recordings with ground truth.** Everything above is measured on synthetic parts. The
-  datasets at the end of this page are the next check.
+
+### On rendered instruments: BabySlakh
+
+`bench/` scores both modes on BabySlakh [40]: the first 20 songs of Slakh2100 [35], every stem
+rendered from MIDI with a sample-based instrument and kept beside that MIDI. Bass stems are read as
+one line; piano, guitar, organ and mallet stems as chords. The scores are mir_eval's [33]: a note
+matches when its pitch is right and its onset within 50 ms, and "F, ends" also needs its end within
+20% of its length or 50 ms. 40 of the 115 stems sound an octave or two from their MIDI (a bass or
+guitar patch played as it is written, an octave up), so each stem is scored at the whole number of
+octaves it matches best at.
+
+```bash
+bash scripts/eval_notes.sh                  # this checkout; fetches the dataset (900 MB) the first time
+bash scripts/eval_notes.sh --compare main   # this checkout and main, side by side
+bash scripts/eval_notes.sh --tracks 3       # the first three songs: a look in two minutes
+```
+
+A run of all 20 songs takes about 15 minutes; the report is `.dev/eval/report.md`, beside each run's
+per-stem table. In a Claude session, asking for the notes benchmark runs it and sends the report
+(`.claude/skills/notes-benchmark`). Without one, the **Notes benchmark** workflow in the Actions tab
+runs the same script and puts the report on the run's summary page.
+
+At the starting sensitivity (55), before and after the change to chords described above, which
+also found line mode placing every note late:
+
+| | stems | F before | F now | precision now | recall now | F, ends now | onset error, median |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| piano, chords | 32 | 41.8 | 62.9 | 61.5 | 64.3 | 19.2 | 7 ms |
+| guitar, chords | 43 | 22.7 | 36.5 | 31.4 | 43.5 | 10.8 | 15 ms |
+| organ, chords | 9 | 20.9 | 36.1 | 28.0 | 50.7 | 25.6 | 2 ms |
+| mallets, chords | 9 | 21.2 | 35.5 | 30.9 | 41.9 | 4.3 | 7 ms |
+| bass, one line | 22 | 19.7 | 75.5 | 80.0 | 71.5 | 71.9 | 12 ms |
+
+Line mode's frames are 110 samples apart at 11025 Hz, 9.98 ms, and were counted as 10 ms: a note
+was placed 0.23% late, a quarter of a second by the second minute, past the 50 ms any score allows.
+The synthetic parts are 15 seconds long and never showed it. What the numbers say is left to do:
+
+- **Chords' ends.** A chord's notes are found, but where they end is right for under a third of them
+  (a line's: nearly all). Why is not measured yet.
+- **Chords at a lower sensitivity.** Chords score F 51.5 at 30 against 47.0 at 55: the one starting
+  sensitivity both modes share lets through more than chords want.
+- **Guitar, organ and mallets** score about half what piano does, finding 1.4 to 1.8 times as many notes as
+  there are. Why is not measured yet: strums spreading a chord wider than one onset and distortion's
+  partials are the first two things to look at.
 
 ## What the drum detector already gives us
 
@@ -413,3 +455,5 @@ built, and will be asked about then.
 38. Z. Duan, B. Pardo. "Soundprism: An online system for score-informed source separation of music
     audio." IEEE J. Selected Topics in Signal Processing 5(6), 2011 (the Bach10 dataset).
 39. S. Böck, G. Widmer. "Maximum filter vibrato suppression for onset detection." DAFx-13, 2013.
+40. E. Manilow et al. BabySlakh, the first 20 songs of Slakh2100 at 16 kHz. CC BY 4.0.
+    <https://zenodo.org/records/4603870>
