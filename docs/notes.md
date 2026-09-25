@@ -95,9 +95,15 @@ guitar patch played as it is written, an octave up), so each stem is scored at t
 octaves it matches best at.
 
 ```bash
-bash scripts/fetch_slakh.sh   # once: about 900 MB into .dev/
-make eval-notes               # 15 minutes; the report, per class and per stem, lands in .dev/eval/
+bash scripts/eval_notes.sh                  # this checkout; fetches the dataset (900 MB) the first time
+bash scripts/eval_notes.sh --compare main   # this checkout and main, side by side
+bash scripts/eval_notes.sh --tracks 3       # the first three songs: a look in two minutes
 ```
+
+A run of all 20 songs takes about 15 minutes; the report is `.dev/eval/report.md`, beside each run's
+per-stem table. In a Claude session, asking for the notes benchmark runs it and sends the report
+(`.claude/skills/notes-benchmark`). Without one, the **Notes benchmark** workflow in the Actions tab
+runs the same script and puts the report on the run's summary page.
 
 At the starting sensitivity (55), before and after the change to chords described above, which
 also found line mode placing every note late:

@@ -3,11 +3,13 @@
 // MIDI with a sample-based instrument and saved beside that MIDI. Bass stems are read as one line;
 // piano, guitar, organ and mallet stems as chords.
 //
-//   bash scripts/fetch_slakh.sh      # once: about 900 MB into .dev/
-//   make eval-notes                  # a few minutes; the report lands in .dev/eval/
+//   bash scripts/eval_notes.sh [--compare main]   # fetches the dataset the first time; report in .dev/eval/
 //
-// Not part of `npm test`: it needs the dataset and takes minutes. SLAKH points at another copy, LABEL
-// names the report, CLASSES narrows the instrument classes (comma-separated), TRACKS the number of songs.
+// Not part of `npm test`: it needs the dataset and takes minutes. `scripts/eval_notes.sh` runs it, and
+// can run it on another commit beside this one. SLAKH points at another copy of the dataset, LABEL names
+// the report, OUT is where it goes (.dev/eval), CLASSES narrows the instrument classes (comma-separated)
+// and TRACKS the number of songs. The report is written twice: as Markdown to read, and as JSON for
+// `bench/compare.mjs` to set two runs side by side.
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { it } from 'vitest';
@@ -19,9 +21,10 @@ import { readMidi } from './midi-read';
 import { type Score, prf, score, sum } from './score';
 import { readWav } from './wav-read';
 
-const ROOT = process.env.SLAKH ?? '.dev/babyslakh_16k', LABEL = process.env.LABEL ?? 'current';
+const ROOT = process.env.SLAKH ?? '.dev/babyslakh_16k', LABEL = process.env.LABEL ?? 'current', OUT = process.env.OUT ?? '.dev/eval';
 const MODES: Record<string, NoteMode> = { Bass: 'line', Piano: 'chords', Guitar: 'chords', Organ: 'chords', 'Chromatic Percussion': 'chords' };
-const CLASSES = process.env.CLASSES?.split(',') ?? Object.keys(MODES);
+// Empty is the same as unset: the script passes every option, set or not.
+const CLASSES = process.env.CLASSES ? process.env.CLASSES.split(',') : Object.keys(MODES);
 const SENS = [30, 55, 80];
 // What the app runs at: the browser decodes a file at the audio context's rate.
 const SR = 44100;
@@ -56,7 +59,7 @@ it('transcribes BabySlakh', async () => {
     console.warn(`No dataset at ${ROOT}: run bash scripts/fetch_slakh.sh first.`);
     return;
   }
-  const tracks = readdirSync(ROOT).filter((d) => d.startsWith('Track')).sort().slice(0, +(process.env.TRACKS ?? 99));
+  const tracks = readdirSync(ROOT).filter((d) => d.startsWith('Track')).sort().slice(0, +(process.env.TRACKS || 99));
   const rows: { stem: Stem; mode: NoteMode; at: Record<number, Score>; ms: number; dur: number; shift: number }[] = [];
   for (const track of tracks) {
     for (const stem of stems(track).filter((s) => CLASSES.includes(s.cls) && MODES[s.cls])) {
@@ -87,22 +90,30 @@ it('transcribes BabySlakh', async () => {
     '| class | mode | stems | true notes | found at 55 | P | R | F | F, ends | onset error, median | F at 30 / 80 | time per minute |',
     '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
   ];
-  const groups = [...new Set(rows.map((r) => r.stem.cls)), 'all chords', 'all'];
-  for (const g of groups) {
+  const groups = [...new Set(rows.map((r) => r.stem.cls)), 'all chords', 'all'].flatMap((g) => {
     const rs = rows.filter((r) => r.stem.cls === g || g === 'all' || (g === 'all chords' && r.mode === 'chords'));
-    if (!rs.length) continue;
+    if (!rs.length) return [];
     const s55 = sum(rs.map((r) => r.at[55])), q = prf(s55);
-    const f30 = prf(sum(rs.map((r) => r.at[30]))).f, f80 = prf(sum(rs.map((r) => r.at[80]))).f;
-    const perMin = rs.reduce((a, r) => a + r.ms, 0) / 1000 / (rs.reduce((a, r) => a + r.dur, 0) / 60);
-    const modes = [...new Set(rs.map((r) => r.mode))].join(', ');
-    lines.push(`| ${g} | ${modes} | ${rs.length} | ${s55.truth} | ${s55.found} | ${pct(q.p)} | ${pct(q.r)} | ${pct(q.f)} | ${pct(q.fEnds)} | ${median(s55.errors).toFixed(1)} ms | ${pct(f30)} / ${pct(f80)} | ${perMin.toFixed(1)} s |`);
+    return [{
+      name: g, modes: [...new Set(rs.map((r) => r.mode))].join(', '), stems: rs.length, truth: s55.truth, found: s55.found,
+      p: q.p, r: q.r, f: q.f, fEnds: q.fEnds, error: median(s55.errors),
+      f30: prf(sum(rs.map((r) => r.at[30]))).f, f80: prf(sum(rs.map((r) => r.at[80]))).f,
+      perMin: rs.reduce((a, r) => a + r.ms, 0) / 1000 / (rs.reduce((a, r) => a + r.dur, 0) / 60),
+    }];
+  });
+  for (const g of groups) {
+    lines.push(`| ${g.name} | ${g.modes} | ${g.stems} | ${g.truth} | ${g.found} | ${pct(g.p)} | ${pct(g.r)} | ${pct(g.f)} | ${pct(g.fEnds)} | ${g.error.toFixed(1)} ms | ${pct(g.f30)} / ${pct(g.f80)} | ${g.perMin.toFixed(1)} s |`);
   }
   lines.push('', '| stem | class | mode | MIDI | true | found | P | R | F | F, ends |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
-  for (const r of rows) {
+  const stemRows = rows.map((r) => {
     const q = prf(r.at[55]);
-    lines.push(`| ${r.stem.track}/${r.stem.id} | ${r.stem.cls} | ${r.mode} | ${r.shift ? (r.shift > 0 ? '+' : '') + r.shift : ''} | ${r.at[55].truth} | ${r.at[55].found} | ${pct(q.p)} | ${pct(q.r)} | ${pct(q.f)} | ${pct(q.fEnds)} |`);
+    return { stem: `${r.stem.track}/${r.stem.id}`, cls: r.stem.cls, mode: r.mode, shift: r.shift, truth: r.at[55].truth, found: r.at[55].found, p: q.p, r: q.r, f: q.f, fEnds: q.fEnds };
+  });
+  for (const r of stemRows) {
+    lines.push(`| ${r.stem} | ${r.cls} | ${r.mode} | ${r.shift ? (r.shift > 0 ? '+' : '') + r.shift : ''} | ${r.truth} | ${r.found} | ${pct(r.p)} | ${pct(r.r)} | ${pct(r.f)} | ${pct(r.fEnds)} |`);
   }
-  mkdirSync('.dev/eval', { recursive: true });
-  writeFileSync(`.dev/eval/notes-${LABEL}.md`, lines.join('\n') + '\n');
+  mkdirSync(OUT, { recursive: true });
+  writeFileSync(join(OUT, `notes-${LABEL}.md`), lines.join('\n') + '\n');
+  writeFileSync(join(OUT, `notes-${LABEL}.json`), JSON.stringify({ label: LABEL, songs: tracks.length, shifted: rows.filter((r) => r.shift).length, groups, stems: stemRows }, null, 1) + '\n');
   console.log(lines.slice(0, 6 + groups.length).join('\n'));
 }, 3_600_000);

@@ -20,7 +20,7 @@ help:
 	@echo "    make build      typecheck + production build"
 	@echo "    make e2e        the Playwright smoke test against dist/"
 	@echo "    make pre-pr     checks, build, e2e — run before opening a pull request"
-	@echo "    make eval-notes score the note detector on BabySlakh (scripts/fetch_slakh.sh first)"
+	@echo "    make eval-notes score the note detector on BabySlakh, e.g. ARGS='--compare main'"
 	@echo ""
 	@echo "    make clean      remove node_modules, dist and .dev"
 	@echo ""
@@ -59,7 +59,7 @@ e2e:
 pre-pr: checks build e2e
 
 eval-notes:
-	npx vitest run --config bench/vitest.config.ts
+	bash scripts/eval_notes.sh $(ARGS)
 
 clean:
 	rm -rf node_modules dist .dev
