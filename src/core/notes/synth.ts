@@ -106,3 +106,30 @@ export function synthKeys(sr: number): PitchedPart {
   notes.sort((a, b) => a.t - b.t || a.pitch - b.pitch);
   return { x, notes, beats, dur, tuning: 0 };
 }
+
+/**
+ * A piano part voiced low, as a sampled loop is: each chord over its root in octaves down at E1 to A1,
+ * held with the pedal, and a soft melody over it that hardly moves the level. Bright, strongly
+ * stretched partials, as a piano's bass strings have. What a factorisation spills most here is the low
+ * notes' energy into the combs a semitone away and onto their partials.
+ */
+export function synthPiano(sr: number): PitchedPart {
+  let seed = 4242;
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+  const bpm = 150, beats = beatsAt(bpm, 16, 0.2), beat = 60 / bpm;
+  // [beat, pitches, length in beats]: Em, Fmaj7, G, Am7.
+  const chords: [number, number[], number][] = [
+    [0, [28, 40, 55, 64], 3], [3, [29, 41, 48, 57, 64], 5], [8, [31, 43, 55, 59], 3], [11, [33, 45, 60, 67], 5],
+  ];
+  // [beat, pitch, length in beats]: the melody, played softer than the chords.
+  const melody: [number, number, number][] = [[1, 69, 0.5], [1.5, 72, 1.25], [8.5, 74, 0.5], [9, 72, 0.5], [9.5, 71, 0.5], [10, 64, 1], [14, 66, 1.5]];
+  const dur = beats[16] + 1, x = new Float32Array(Math.ceil(dur * sr)), notes: PlayedNote[] = [];
+  const play = (pitch: number, t: number, L: number, vel: number) => {
+    addNote(x, sr, hz(pitch), t, L, 0.2 * Math.pow(vel / 127, 1.6), { partials: 16, tilt: 0.8, decay: 0.8, inharm: pitch < 48 ? 4e-4 : 2e-4, click: 0.04, rnd });
+    notes.push({ pitch, t, end: t + L, vel });
+  };
+  for (const [b, ps, len] of chords) for (const p of ps) play(p, beats[b] + rnd() * 0.004, len * beat * 0.95, (p < 36 ? 80 : 95) + Math.round(rnd() * 15));
+  for (const [b, p, len] of melody) play(p, beats[0] + b * beat + rnd() * 0.004, len * beat * 0.9, 70);
+  notes.sort((a, b) => a.t - b.t || a.pitch - b.pitch);
+  return { x, notes, beats, dur, tuning: 0 };
+}

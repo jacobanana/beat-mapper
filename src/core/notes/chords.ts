@@ -12,8 +12,14 @@
 // low notes apart smears an attack over a fifth of a second, so each band is read with the shortest
 // window that still resolves it (a long one under 250 Hz, a short one above 700 Hz), all centred on the
 // same instants. The attack itself is then timed on the waveform, not on these frames.
+//
+// Which notes there are is decided chord by chord. A factorisation never splits a piano's energy
+// cleanly: the combs a semitone either side of a low note, and the combs on its partials, take some of
+// it too. Tracked one pitch at a time, each of those looks like a note. Asked together at each onset
+// (which pitches did this onset start, and which of them only rose because a louder one did), they fall
+// away.
 import { makeFFT } from '../dsp/fft';
-import { type Attacks, attackTimes, attacks, centsOf, decimate, hzOfCents, placeStart, tuningOf } from './common';
+import { type Attacks, attacks, centsOf, decimate, hzOfCents, placeStart, tuningOf } from './common';
 import type { Note } from './types';
 
 export interface ChordOptions {
@@ -38,12 +44,23 @@ const FMAX = 5000;
 /** Window lengths, seconds at the decimated rate, and the frequency each is used up to. */
 const SIZES = [{ N: 2048, upTo: 400 }, { N: 1024, upTo: Infinity }];
 /**
- * A note over a louder one by an octave, a twelfth, two octaves or a seventeenth, starting with it,
- * is that note's partial when it is this much quieter or more. The combs already expect a note's
- * partials; what an instrument has beyond them lands on these pitches, and on the synthetic keys that
- * stays under a tenth of the lower note, while a note really doubled reads 0.15 and up.
+ * A note on a louder one's partial (an octave, a twelfth, two octaves, a seventeenth and on up to three
+ * octaves over it) that starts with it is that partial, when it rose by under this fraction of what the
+ * lower note did; an octave, under half of it. The combs expect a note's partials at 1/h; what a piano
+ * has beyond that lands on these pitches, and reads up to 0.11 of the lower note. An octave really
+ * doubled reads 0.08 and up, since the lower comb takes some of it.
  */
 const GHOST = 0.12;
+const PARTIALS = [12, 19, 24, 28, 31, 34, 36];
+/**
+ * A note a semitone from a louder one that starts with it is the louder one's spill when it rose by
+ * under half as much; under 400 Hz a window can't tell two notes a whole tone apart either.
+ */
+const NEIGHBOUR = 0.5;
+/** A note that rose by under this fraction of the loudest note of its onset isn't one of the chord. */
+const QUIET = 0.03;
+/** The least rise a note needs, against the loudest activation of the take. */
+const ON = 0.015;
 /** A frame every 20 ms. */
 const HOP = 0.02;
 
@@ -220,64 +237,127 @@ export async function detectChords(x: Float32Array, sr: number, o: ChordOptions 
   const combs: { bins: Int32Array; w: Float64Array }[] = [];
   for (let p = lo; p <= hi; p++) combs.push(template(sp.m, ys, 100 * p + sp.tuning));
   const H = await factorise(sp, combs, o);
-  const notes = track(H, combs.length, sp.F, lo, ys, sp.hop / ys, sp.tuning, attacks(x, sr));
+  const notes = track(H, combs.length, sp.F, lo, ys, sp.hop / ys, sp.tuning, attacks(x, sr), onsets(y, ys));
   o.onProgress?.(1);
   return { notes, tuning: sp.tuning };
 }
 
 /**
- * Activations into notes, the onsets gating them (Hawthorne et al., "Onsets and Frames", ISMIR 2018):
- * a note starts at an attack found on the waveform, when its activation just after the attack is well
- * above what it was just before. "Just after" is once the analysis window has passed the attack
- * entirely: a strike's broadband click lights every template for as long as it is in the window, and
- * only a real note is still there when it has left. A note that swells in with no attack (a pad, a
- * slur) starts where its activation climbs past the level a note needs. A note ends where it has
- * fallen 20 dB under its own peak, or where the same pitch starts again. Then the ghosts go: a note an
- * octave, a twelfth, two octaves or a seventeenth over a much louder one that starts with it is that
- * note's partial.
+ * Where notes start: peaks of the spectral flux (Dixon, DAFx 2006) on 46 ms windows every 5 ms, each
+ * bin measured against the loudest of its neighbours 15 ms before, so a partial that wobbles in pitch
+ * doesn't read as a new note (Böck & Widmer's SuperFlux, DAFx 2013). The waveform's own envelope only
+ * shows a note that is loud over what is already ringing; a soft melody note over a held chord barely
+ * moves the level, but its partials are new, and the flux sees them.
  */
-function track(H: Float32Array, K: number, F: number, lo: number, sr: number, dt: number, tuning: number, A: Attacks): Note[] {
+function onsets(y: Float32Array, sr: number): number[] {
+  const N = 512, K = N / 2, hop = Math.round(0.005 * sr), F = Math.ceil(y.length / hop), fft = makeFFT(N);
+  const win = Float64Array.from({ length: N }, (_, i) => 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / N));
+  const re = new Float64Array(N), im = new Float64Array(N), S = new Float32Array(F * K);
+  let mx = 0;
+  for (let f = 0; f < F; f++) {
+    const st = f * hop - N / 2;
+    for (let i = 0; i < N; i++) { const k = st + i; re[i] = k >= 0 && k < y.length ? y[k] * win[i] : 0; im[i] = 0; }
+    fft(re, im);
+    for (let k = 0; k < K; k++) { const v = Math.hypot(re[k], im[k]); S[f * K + k] = v; if (v > mx) mx = v; }
+  }
+  // Compressed, so a soft note's partials count as much as a loud one's.
+  for (let i = 0; i < S.length; i++) S[i] = Math.log10(1 + (1000 * S[i]) / (mx || 1));
+  const mu = 3, k0 = Math.max(1, Math.floor((60 * N) / sr)), nov = new Float32Array(F);
+  let top = 0;
+  for (let f = mu; f < F; f++) {
+    const p = (f - mu) * K;
+    let s = 0;
+    for (let k = k0; k < K - 1; k++) { const d = S[f * K + k] - Math.max(S[p + k - 1], S[p + k], S[p + k + 1]); if (d > 0) s += d; }
+    nov[f] = s;
+    if (s > top) top = s;
+  }
+  // A peak, the highest within 30 ms, standing over the mean of the 150 ms before it by 5% of the
+  // highest of the take.
+  const W = Math.round(0.03 / 0.005), M = Math.round(0.15 / 0.005), out: number[] = [];
+  for (let f = 1; f < F; f++) {
+    let peak = nov[f] > 0;
+    for (let j = Math.max(0, f - W); peak && j <= Math.min(F - 1, f + W); j++) if (nov[j] > nov[f] || (nov[j] === nov[f] && j < f)) peak = false;
+    if (!peak) continue;
+    let mean = 0, n = 0;
+    for (let j = Math.max(0, f - M); j <= Math.min(F - 1, f + W); j++) { mean += nov[j]; n++; }
+    if (nov[f] >= mean / n + 0.05 * top) out.push((f * hop) / sr);
+  }
+  return out;
+}
+
+interface Start {
+  pitch: number;
+  t: number;
+  /** How much its activation rose at the onset, and the frame it rose from. */
+  gain: number;
+  f: number;
+}
+
+/**
+ * Activations into notes, the onsets gating them (Hawthorne et al., "Onsets and Frames", ISMIR 2018).
+ * At each onset every pitch is asked how far its activation rose: from just before the window reached
+ * the onset to the least it has once the window has passed it entirely. A strike's broadband click
+ * lights every template while it is in the window, and only a real note is still there when it has
+ * left. The pitches that rose are then taken loudest first, and one is left out when it is only the
+ * spill of a louder one a semitone away, or its partial, or too quiet beside the rest of the chord.
+ * A note ends where it has fallen 20 dB under its own peak, or where the same pitch starts again.
+ */
+function track(H: Float32Array, K: number, F: number, lo: number, sr: number, dt: number, tuning: number, A: Attacks, ons: number[]): Note[] {
   let top = 0;
   for (let i = 0; i < H.length; i++) if (H[i] > top) top = H[i];
-  const on = top * 0.03, atk = attackTimes(A), raw: { pitch: number; t: number; a: number; b: number; peak: number }[] = [];
-  const at = (h: Float32Array, t: number) => { const f = Math.max(0, Math.min(F - 1, Math.round(t / dt))); return h[f]; };
-  for (let k = 0; k < K; k++) {
-    const h = H.subarray(k * F, (k + 1) * F), f0 = hzOfCents(100 * (lo + k) + tuning);
-    // Half the longest window reading this note's lower partials.
-    const hw = SIZES[Math.max(0, SIZES.findIndex((z) => f0 < z.upTo))].N / 2 / sr;
-    const starts: { t: number; f: number }[] = [];
-    for (const o of atk) {
-      const pre = at(h, o.t - hw - dt), post = at(h, o.t + hw + dt), last = starts[starts.length - 1];
-      // Two starts of one pitch closer than the window can tell apart are one.
-      if (post >= on && post >= 2 * pre && !(last && o.t - last.t < 2 * hw)) starts.push({ t: o.t, f: Math.round(o.t / dt) });
+  const on = top * ON, at = (h: Float32Array, f: number) => h[Math.max(0, Math.min(F - 1, f))];
+  // Half the longest window reading each note's lower partials, in frames.
+  const half = Array.from({ length: K }, (_, k) => {
+    const f0 = hzOfCents(100 * (lo + k) + tuning);
+    return Math.max(1, Math.round(SIZES[Math.max(0, SIZES.findIndex((z) => f0 < z.upTo))].N / 2 / sr / dt));
+  });
+  const starts: Start[] = [], last = new Float64Array(K).fill(-Infinity);
+  // On the waveform where it shows the attack; a soft note under a loud chord stays where the flux put it.
+  const times = ons.map((o) => { const st = placeStart(A, o, 0.03, 0.03); return st.rise >= 6 ? st.t : o; });
+  times.forEach((t, i) => {
+    const f = Math.round(t / dt), next = i + 1 < times.length ? Math.round(times[i + 1] / dt) : Infinity, rose: Start[] = [];
+    for (let k = 0; k < K; k++) {
+      const h = H.subarray(k * F, (k + 1) * F), L = half[k];
+      // Two starts of one pitch closer than the window can tell apart are one: a note the last onset
+      // started is still filling the window at this one, and would pass for this one's.
+      if (f - last[k] < 2 * L) continue;
+      const pre = f - L - 1 < 0 ? 0 : Math.max(at(h, f - L - 1), at(h, f - L - 2));
+      // After this onset has left the window and before the next one is in it. Onsets closer together
+      // than the window leave no such frame: then the frame half way between, which still hears this
+      // onset's thump, and the first clear of it, which already hears the next note; a note of this
+      // onset is in both.
+      let post = Infinity;
+      const j1 = Math.min(f + 2 * L + 1, next - L - 1);
+      if (j1 < f + L + 1) post = Math.min(at(h, Math.round((f + next) / 2)), at(h, f + L + 1));
+      for (let j = f + L + 1; j <= j1; j++) post = Math.min(post, at(h, j));
+      if (post >= on && post >= 2 * pre && post - pre >= on) rose.push({ pitch: lo + k, t, gain: post - pre, f });
     }
-    // Swells: past the level a note needs, three times up on where it was. The window reaches a struck
-    // note up to half its length before the attack and takes as long again to be full of it, so a
-    // crossing that close to any attack is that attack's, whether or not it started this note.
-    for (let f = 1; f < F; f++) {
-      if (h[f] < on || h[f - 1] >= on) continue;
-      const t = f * dt, pre = at(h, t - 2 * hw - 0.1);
-      if (h[f] < 3 * pre || atk.some((o) => Math.abs(o.t - t) <= 1.5 * hw + 0.08)) continue;
-      // A note played over a loud chord may not climb over the chord's own peaks, so it isn't among
-      // the attacks; it still has an attack of its own on the waveform, looked for where the window
-      // reached it.
-      const st = placeStart(A, t, 0.03, hw + 0.03);
-      starts.push({ t: st.rise >= 6 ? st.t : t, f });
+    rose.sort((p, q) => q.gain - p.gain);
+    const chord: Start[] = [];
+    for (const c of rose) {
+      if (c.gain < QUIET * rose[0].gain) break;
+      const spill = chord.some((p) => { const d = Math.abs(c.pitch - p.pitch); return (d === 1 || (d === 2 && hzOfCents(100 * c.pitch) < 400)) && c.gain < NEIGHBOUR * p.gain; });
+      const partial = chord.some((p) => PARTIALS.includes(c.pitch - p.pitch) && c.gain < (c.pitch - p.pitch === 12 ? GHOST / 2 : GHOST) * p.gain);
+      if (!spill && !partial) chord.push(c);
     }
-    starts.sort((p, q) => p.t - q.t);
-    starts.forEach((s, i) => {
-      const stop = i + 1 < starts.length ? Math.round(starts[i + 1].t / dt) : F, full = Math.min(stop, s.f + Math.ceil((2 * hw) / dt) + 1);
-      // The peak once the window is full of the note; then on until it has faded 20 dB under it.
-      let peak = 0, f = s.f;
-      for (let j = s.f; j < full; j++) if (h[j] > peak) { peak = h[j]; f = j; }
-      for (; f < stop; f++) if (h[f] < peak * 0.1 || h[f] < on * 0.3) break;
-      const end = Math.min(stop * dt, f * dt);
-      if (end - s.t >= 0.06 && peak >= on) raw.push({ pitch: lo + k, t: s.t, a: s.f, b: f, peak });
-    });
+    for (const c of chord) {
+      last[c.pitch - lo] = c.f;
+      starts.push(c);
+    }
+  });
+  const found: { s: Start; b: number; peak: number }[] = [];
+  for (const s of starts) {
+    const k = s.pitch - lo, h = H.subarray(k * F, (k + 1) * F), L = half[k];
+    const next = starts.find((q) => q.pitch === s.pitch && q.f > s.f), stop = next ? next.f : F;
+    // The peak once the window is full of the note; then on until it has faded 20 dB under it.
+    let peak = 0, f = s.f;
+    for (let j = s.f; j < Math.min(stop, s.f + 2 * L + 2); j++) if (h[j] > peak) { peak = h[j]; f = j; }
+    for (; f < stop; f++) if (h[f] < peak * 0.1 || h[f] < on * 0.3) break;
+    if (f * dt - s.t >= 0.06) found.push({ s, b: f, peak });
   }
-  const ghost = (q: (typeof raw)[number]) => raw.some((p) => [12, 19, 24, 28].includes(q.pitch - p.pitch) && Math.abs(p.t - q.t) < 0.03 && q.peak < GHOST * p.peak);
-  const kept = raw.filter((q) => !ghost(q));
-  const peaks = kept.map((k) => k.peak).sort((a, b) => a - b), ref = peaks[Math.floor(peaks.length * 0.9)] || 1;
-  const notes = kept.map((r): Note => ({ pitch: r.pitch, t: r.t, end: Math.max(r.t + 0.04, r.b * dt), s: Math.sqrt(Math.min(1, r.peak / ref)), a: r.peak }));
+  // The strength the sensitivity reads: the rise against the loud notes of the take, a little
+  // compressed, so the starting sensitivity keeps notes down to about 25 dB under them.
+  const g = found.map((n) => n.s.gain).sort((a, b) => a - b), ref = g[Math.floor(g.length * 0.9)] || 1;
+  const notes = found.map(({ s, b, peak }): Note => ({ pitch: s.pitch, t: s.t, end: Math.max(s.t + 0.04, b * dt), s: Math.pow(Math.min(1, s.gain / ref), 0.8), a: peak }));
   return notes.sort((a, b) => a.t - b.t || a.pitch - b.pitch);
 }

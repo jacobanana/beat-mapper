@@ -102,31 +102,6 @@ export function placeStart(A: Attacks, tc: number, before = 0.06, after = 0.04):
 }
 
 /**
- * Every attack in the audio: where the sharp envelope climbs 8 dB or more over its last 30 ms, the strongest
- * climb within 50 ms either side, each placed to the sample. A chord struck is one attack for all its
- * notes; which notes it started is for the pitch to say.
- */
-export function attackTimes(A: Attacks, minRise = 8): { t: number; rise: number }[] {
-  const e = A.env, L = Math.max(2, Math.round(0.03 / e.blk)), G = Math.max(1, Math.round(0.05 / e.blk)), n = e.db.length;
-  // Measured against the loudest of the 30 ms before, not the quietest: partials beating in a held
-  // chord dip and swell by 10 dB in a 4 ms window, but never climb over their own recent peaks.
-  const rise = new Float32Array(n);
-  for (let k = 3; k < n; k++) {
-    let hi = -Infinity;
-    for (let j = Math.max(0, k - L); j < k - 2; j++) if (e.db[j] > hi) hi = e.db[j];
-    rise[k] = e.db[k] - hi;
-  }
-  const out: { t: number; rise: number }[] = [];
-  for (let k = 1; k < n; k++) {
-    if (rise[k] < minRise) continue;
-    let top = true;
-    for (let j = Math.max(0, k - G); top && j <= Math.min(n - 1, k + G); j++) if (rise[j] > rise[k] || (rise[j] === rise[k] && j < k)) top = false;
-    if (top) out.push(placeStart(A, k * e.blk, 0.03, 0.01));
-  }
-  return out;
-}
-
-/**
  * Where a note that sounds until about `tc` (by pitch) really ends: its loudness falling away. The
  * player damping a string drops the level 20 dB and more in a few tens of milliseconds, and that fall
  * is the end; otherwise the note ends where it has faded 30 dB under its peak, or at `tc`.
