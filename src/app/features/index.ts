@@ -6,6 +6,7 @@ import { Groove } from './groove';
 import { Loader } from './loader';
 import { Markers } from './markers';
 import { Mixer } from './mixer';
+import { Notes } from './notes';
 import { Playback } from './playback';
 import { type KeyValueStore, Sessions } from './sessions';
 import { Slicer } from './slicer';
@@ -26,6 +27,7 @@ export interface Features {
   /** The warp rendered, and what plays following what is wanted. */
   warpRender: WarpRender;
   groove: Groove;
+  notes: Notes;
   sessions: Sessions;
   loader: Loader;
 }
@@ -37,11 +39,12 @@ export function createFeatures(app: App, analyzer: Analyzer, store: KeyValueStor
   const beats = new Beats(app, playback);
   const exports = new Exports(app, beats);
   const groove = new Groove(app, analyzer, exports, playback);
+  const notes = new Notes(app, analyzer, exports, playback);
   const warpRender = new WarpRender(app, analyzer, playback);
   const warp = new Warp(app, beats, warpRender);
   const slicer = new Slicer(app, playback, exports, warpRender);
-  const workflow = new Workflow(app, markers, beats, slicer, warp, groove);
+  const workflow = new Workflow(app, markers, beats, slicer, warp, groove, notes);
   const sessions = new Sessions(app, markers, playback, workflow, store);
   const loader = new Loader(app, analyzer, playback, sessions, workflow);
-  return { playback, mixer, markers, beats, workflow, exports, slicer, warp, warpRender, groove, sessions, loader };
+  return { playback, mixer, markers, beats, workflow, exports, slicer, warp, warpRender, groove, notes, sessions, loader };
 }

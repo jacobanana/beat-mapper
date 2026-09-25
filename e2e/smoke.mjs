@@ -280,6 +280,47 @@ try {
     await page.keyboard.press('c');
     assert.equal(await page.getAttribute('#gChartPocket', 'aria-pressed'), 'true');
   });
+  await step('Notes: the bass demo\'s line found, heard on the synth, a note deleted, and saved as MIDI', async () => {
+    await page.keyboard.press('6');
+    await page.waitForFunction(() => document.getElementById('busy').hidden && document.getElementById('nN').textContent !== '', null, { timeout: 30000 });
+    // The drum loop has no line to speak of; the bass demo does. Its button is on the drop zone, shown
+    // here as it is before a file is open.
+    await page.evaluate(() => { document.getElementById('empty').hidden = false; });
+    await page.click('#bassDemoBtn');
+    await page.waitForFunction(() => document.getElementById('busy').hidden && document.getElementById('fileInfo').textContent === 'bass-demo', null, { timeout: 30000 });
+    await page.keyboard.press('6');
+    await page.waitForFunction(() => document.getElementById('busy').hidden && document.getElementById('nN').textContent !== '', null, { timeout: 30000 });
+    assert.equal(await text('nN'), '28');
+    assert.match(await text('nSum'), /^28 notes · E1–A2 · tuned −20 cents · 2 bent/);
+    assert.equal(await page.getAttribute('#nSynth', 'aria-pressed'), 'false');
+    await page.click('#nSynth');
+    assert.equal(await page.getAttribute('#nSynth', 'aria-pressed'), 'true');
+    await page.click('#nLegato');
+    assert.equal(await page.getAttribute('#nLegato', 'aria-pressed'), 'true');
+    // Tap the first note in the piano roll, then delete it; undo brings it back.
+    const r = await (await page.$('#notesCv')).boundingBox();
+    let hit = false;
+    for (let y = r.y + 20; y < r.y + r.height - 20 && !hit; y += 3) {
+      for (let x = r.x + 42; x < r.x + 140 && !hit; x += 4) {
+        await page.mouse.click(x, y);
+        hit = !(await page.isDisabled('#nDel'));
+      }
+    }
+    assert.equal(hit, true);
+    await page.click('#nDel');
+    assert.equal(await text('nN'), '27');
+    await page.keyboard.press('Control+z');
+    assert.equal(await text('nN'), '28');
+    await page.keyboard.press('Control+e');
+    assert.equal(await page.isVisible('[data-fmt=notesMidi]'), true);
+    assert.equal(await page.isVisible('[data-fmt=drumsMidi]'), false);
+    assert.match(await text('expInfo'), /^28 notes · E1–A2 · legato/);
+    const [d] = await Promise.all([page.waitForEvent('download'), page.click('#expSave')]);
+    assert.match(d.suggestedFilename(), /^bass-demo-notes(-warped)?\.mid$/);
+    await page.selectOption('#nMode', 'chords');
+    await page.waitForFunction(() => document.getElementById('busy').hidden, null, { timeout: 30000 });
+    assert.notEqual(await text('nN'), '');
+  });
   assert.deepEqual(errors, []);
   console.log('e2e smoke passed');
 } finally {

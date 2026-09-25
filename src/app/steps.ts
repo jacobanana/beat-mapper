@@ -12,6 +12,8 @@ export interface StepRules {
   clicks: 'transients' | 'beats';
   /** The synth kit plays the drums found, where they are drawn. */
   kit: boolean;
+  /** The synth voice plays the notes found. */
+  synth: boolean;
   /** The upper half of the waveform edits (transients, pins, warp markers); below it scrolls. */
   editable: boolean;
   /** The transients recede behind the grid. */
@@ -21,11 +23,12 @@ export interface StepRules {
 }
 
 const RULES: Record<Step, StepRules> = {
-  [STEP.transients]: { hearsWarp: false, clicks: 'transients', kit: false, editable: true, recede: false, needsBar1: false },
-  [STEP.beats]: { hearsWarp: false, clicks: 'beats', kit: false, editable: true, recede: true, needsBar1: true },
-  [STEP.warp]: { hearsWarp: true, clicks: 'beats', kit: false, editable: true, recede: true, needsBar1: true },
-  [STEP.slice]: { hearsWarp: true, clicks: 'transients', kit: false, editable: false, recede: true, needsBar1: false },
-  [STEP.groove]: { hearsWarp: true, clicks: 'beats', kit: true, editable: false, recede: true, needsBar1: true },
+  [STEP.transients]: { hearsWarp: false, clicks: 'transients', kit: false, synth: false, editable: true, recede: false, needsBar1: false },
+  [STEP.beats]: { hearsWarp: false, clicks: 'beats', kit: false, synth: false, editable: true, recede: true, needsBar1: true },
+  [STEP.warp]: { hearsWarp: true, clicks: 'beats', kit: false, synth: false, editable: true, recede: true, needsBar1: true },
+  [STEP.slice]: { hearsWarp: true, clicks: 'transients', kit: false, synth: false, editable: false, recede: true, needsBar1: false },
+  [STEP.groove]: { hearsWarp: true, clicks: 'beats', kit: true, synth: false, editable: false, recede: true, needsBar1: true },
+  [STEP.notes]: { hearsWarp: true, clicks: 'beats', kit: false, synth: true, editable: false, recede: true, needsBar1: true },
 };
 
 export const stepRules = (step: Step): StepRules => RULES[step];

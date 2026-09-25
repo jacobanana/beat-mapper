@@ -13,7 +13,7 @@ adding a control.
 | --- | --- | --- |
 | File | Open, Session, Export, file name | File actions come first in every editor and DAW. Session (save the work, or open a saved one) sits by Open since it is opened like a file and wanted from every step. |
 | Edit | Undo, Redo | Undo and redo are a pair next to the file actions, and grey out when there is nothing to undo or redo. |
-| Steps | Transients, Beats, Warp, Slice, Groove | Main navigation, as tabs; icon only, with a text label from 1520 px wide. |
+| Steps | Transients, Beats, Warp, Slice, Groove, Notes | Main navigation, as tabs; icon only, with a text label from 1520 px wide. |
 | Transport (middle) | Go to start ⏮, Play/Stop ▶ · Loop, Scrub, Stay-on-stop · Warped, Click, Mixer | DAWs put "go to start" left of play, then loop. Warped, the click and the mixer sit together, since all three are about what you hear. Warped shows from step 3 on only: Transients and Beats always use the original. Toggles show their state with `aria-pressed`. |
 | Readout | time · bar.beat · BPM | Next to the transport, as a DAW's position display is. |
 | View (right) | Zoom out, Zoom in, Fit | Zoom out and zoom in sit together, with fit after them. Zoom out/in are hidden on touch, where you pinch instead. |
@@ -34,7 +34,7 @@ moved down when Session joined the file group: ten 38 px buttons don't fit one r
 - Every step's panel is laid out in the order the work goes, one captioned row per stage, with what
   changes how a stage behaves folded under **Options** below them:
   Transients **Find · Fix**, Beats **Tempo · Map · Fix**, Warp **Tempo · Align · Warp**, Slice
-  **Cut · Pick**, Groove **Find · Grid · Chart · Fix**. Buttons in these rows carry a text label where
+  **Cut · Pick**, Groove **Find · Grid · Chart · Fix**, Notes **Find · Length · Hear · Fix**. Buttons in these rows carry a text label where
   there is room, since the caption and the label together say what a button does and what it changes.
 - Every step has a **Reset** with a text label, last in its bar: it starts that step again, as it was
   on arriving, greys out while there is nothing to reset, and asks first in a small dialog (not the
@@ -52,7 +52,7 @@ moved down when Session joined the file group: ten 38 px buttons don't fit one r
   default action at the bottom right. Escape and a click on the backdrop close it.
 - Every file a step makes goes out through the one Export window, never through a button in a panel.
   The window lists only what the current step makes (Beats: tempo map; Warp: warped audio; Slice:
-  samples; Groove: drums), and the Export button is off in Transients, which makes nothing of its
+  samples; Groove: drums; Notes: the notes as MIDI), and the Export button is off in Transients, which makes nothing of its
   own. The session is the exception: it is the work itself, so it has its own popover by Open.
 - On a phone the Export window's formats are a dropdown: a button showing the chosen format and a
   line on what it holds, opening the grouped list with that line under every format. Escape or a

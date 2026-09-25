@@ -3,14 +3,15 @@
 // Everything read back is validated and clamped, so a hand-edited or older file can't break the app.
 import { ALGOS, type Algo, BANDS, type Band } from '../core/dsp/onset';
 import { VOICES, type Voice } from '../core/drums/voices';
+import { NOTE_MODES, type NoteMode } from '../core/notes/types';
 import { DENOMINATORS, GRID_DIVISIONS, type GridDivision, type Meter } from '../core/tempo/meter';
 import type { Anchor, TimeRange } from '../core/types';
 import { type WarpMarker, placeWarpMarker } from '../core/warp/markers';
 import { WARP_MODES, type WarpMode } from '../core/warp/modes';
 import { WAV_RATES } from './formats/wav';
 import {
-  type BeatSettings, type DetectionSettings, type ExportSettings, SNAP_MODES, type SlicerSettings, type SnapMode, type TransportState, type WarpSettings,
-  defaultWarp,
+  type BeatSettings, type DetectionSettings, type ExportSettings, type NoteSettings, SNAP_MODES, type SlicerSettings, type SnapMode, type TransportState, type WarpSettings,
+  defaultNotes, defaultWarp,
 } from '../state/settings';
 import { STEPS, type Step } from '../state/steps';
 
@@ -38,6 +39,10 @@ export interface SessionContent {
   warp: WarpSettings;
   /** Drum hits edited by hand in the Groove step: added (with their loudness) and deleted, by time. */
   hits: { manual: { voice: Voice; t: number; a: number }[]; removed: { voice: Voice; t: number }[] };
+  /** The Notes step's settings: a line or chords, the sensitivity, Legato. */
+  notes: NoteSettings;
+  /** Notes deleted by hand in the Notes step, by pitch and start. */
+  removedNotes: { pitch: number; t: number }[];
 }
 
 /** The JSON written to disk (format version 1). */
@@ -68,6 +73,7 @@ export function toSessionJson(s: SessionContent): object {
     // read as a quantize it never had.
     ...warpJson(s),
     ...hitsJson(s),
+    ...notesJson(s),
   };
 }
 
@@ -83,6 +89,19 @@ function warpJson(s: SessionContent): object {
     ...(w.fill !== w0.fill ? { fill: w.fill } : {}),
   };
   return Object.keys(out).length ? { warp: out } : {};
+}
+
+// The Notes step came after the hit edits, and is written the same way: only what differs from how
+// the step starts, so a session that never opened it saves byte-identical.
+function notesJson(s: SessionContent): object {
+  const n0 = defaultNotes(), n = s.notes;
+  const out = {
+    ...(n.mode !== n0.mode ? { mode: n.mode } : {}),
+    ...(n.sens !== n0.sens ? { sens: n.sens } : {}),
+    ...(n.legato !== n0.legato ? { legato: n.legato } : {}),
+    ...(s.removedNotes.length ? { removed: s.removedNotes.map((r) => ({ pitch: r.pitch, t: r.t })) } : {}),
+  };
+  return Object.keys(out).length ? { notes: out } : {};
 }
 
 function hitsJson(s: SessionContent): object {
@@ -133,7 +152,7 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
     const r = placeWarpMarker(warpMarkers, w.t, w.q);
     if (r.ok) warpMarkers = r.markers;
   }
-  const w = d.warp || {}, w0 = defaultWarp(), dr = d.drums || {};
+  const w = d.warp || {}, w0 = defaultWarp(), dr = d.drums || {}, nt = d.notes || {}, n0 = defaultNotes();
   const V = (v: unknown): v is Voice => VOICES.includes(v as Voice);
   const hits: SessionContent['hits'] = {
     manual: (Array.isArray(dr.manual) ? dr.manual : []).filter((h: Json) => h && V(h.voice) && T(h.t)).slice(0, 20000)
@@ -166,7 +185,7 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
     },
     transport: { loop, loopOn: !!tr.loopOn && !!loop, start, playhead: T(tr.playhead) ? tr.playhead : start, stay: !!tr.stay, click: !!tr.click },
     view,
-    // Step 5 (Groove) came later; a version 1 reader that predates it falls back to 1.
+    // Steps 5 (Groove) and 6 (Notes) came later; a version 1 reader that predates them falls back to 1.
     step: oneOf<Step>(STEPS, d.step, 1),
     export: {
       lead: ex.lead === 'trim' ? 'trim' : 'full',
@@ -201,5 +220,13 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
       fill: typeof w.fill === 'boolean' ? w.fill : w0.fill,
     },
     hits,
+    notes: {
+      mode: oneOf<NoteMode>(NOTE_MODES, nt.mode, n0.mode),
+      sens: clamp(Math.round(fin(nt.sens, n0.sens)), 0, 100),
+      legato: typeof nt.legato === 'boolean' ? nt.legato : n0.legato,
+    },
+    removedNotes: (Array.isArray(nt.removed) ? nt.removed : [])
+      .filter((r: Json) => r && Number.isInteger(r.pitch) && r.pitch >= 0 && r.pitch <= 127 && T(r.t)).slice(0, 20000)
+      .map((r: Json) => ({ pitch: r.pitch, t: r.t })),
   };
 }

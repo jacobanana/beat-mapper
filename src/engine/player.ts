@@ -2,11 +2,14 @@ import type { Voice } from '../core/drums/voices';
 import type { TimeRange } from '../core/types';
 import { audioContext } from './audio-context';
 import { drumHit } from './drum-kit';
+import { type SynthNote, synthNote } from './synth-voice';
 
 /** Calls `emit(time, downbeat)` for every click due in [a, b) of the audio's timeline. */
 export type ClickSource = (a: number, b: number, emit: (t: number, down: boolean) => void) => void;
 /** Calls `emit(time, voice, velocity)` for every drum hit due in [a, b) of the audio's timeline. */
 export type HitSource = (a: number, b: number, emit: (t: number, voice: Voice, vel: number) => void) => void;
+/** Calls `emit(time, note)` for every note starting in [a, b) of the audio's timeline. */
+export type NoteSource = (a: number, b: number, emit: (t: number, note: SynthNote) => void) => void;
 
 /** What plays along with the audio, and how loud the audio itself is, asked for as it plays. */
 export interface PlayerSources {
@@ -14,17 +17,21 @@ export interface PlayerSources {
   clicksOn(): boolean;
   hits: HitSource;
   hitsOn(): boolean;
+  notes: NoteSource;
+  notesOn(): boolean;
   /** Gain of the audio: 0 mutes it, leaving only what plays along. */
   audioLevel(): number;
   /** Gain of the metronome. */
   clickLevel(): number;
   /** Gain of the drum hits. */
   hitLevel(): number;
+  /** Gain of the synth voice. */
+  noteLevel(): number;
 }
 
 /**
  * Plays an AudioBuffer from a position, optionally looping a range, with a metronome scheduled a
- * little ahead of time on the audio clock, and drum hits the same way. Knows nothing about markers,
+ * little ahead of time on the audio clock, and drum hits and notes the same way. Knows nothing about markers,
  * beats or drums: the times come from its sources.
  */
 export class Player {
@@ -32,6 +39,7 @@ export class Player {
   private gain: GainNode | null = null;
   private clickBus: GainNode | null = null;
   private hitBus: GainNode | null = null;
+  private noteBus: GainNode | null = null;
   private ctx0 = 0;
   private pos0 = 0;
   private loop: TimeRange | null = null;
@@ -40,6 +48,7 @@ export class Player {
   private level = 0.9;
   private clickLv = 1;
   private hitLv = 1;
+  private noteLv = 1;
   playing = false;
   /** Called when playback runs off the end of the audio. */
   onEnded: (() => void) | null = null;
@@ -63,6 +72,9 @@ export class Player {
     this.hitBus = this.hitBus || bus(c);
     this.hitBus.gain.cancelScheduledValues(0);
     this.hitBus.gain.value = this.hitLv = this.sources.hitLevel();
+    this.noteBus = this.noteBus || bus(c);
+    this.noteBus.gain.cancelScheduledValues(0);
+    this.noteBus.gain.value = this.noteLv = this.sources.noteLevel();
     src.connect(this.gain).connect(c.destination);
     this.loop = loop && from < loop.b - 0.005 ? { a: loop.a, b: loop.b } : null;
     if (this.loop) { src.loop = true; src.loopStart = this.loop.a; src.loopEnd = this.loop.b; }
@@ -113,12 +125,13 @@ export class Player {
   private schedule(): void {
     if (!this.playing) return;
     const c = audioContext(), eNow = c.currentTime - this.ctx0, S = this.sources;
-    const lv = S.audioLevel(), cl = S.clickLevel(), hl = S.hitLevel();
+    const lv = S.audioLevel(), cl = S.clickLevel(), hl = S.hitLevel(), nl = S.noteLevel();
     if (lv !== this.level && this.gain) { this.gain.gain.setTargetAtTime(lv, c.currentTime, 0.015); this.level = lv; }
     if (cl !== this.clickLv && this.clickBus) { this.clickBus.gain.setTargetAtTime(cl, c.currentTime, 0.015); this.clickLv = cl; }
     if (hl !== this.hitLv && this.hitBus) { this.hitBus.gain.setTargetAtTime(hl, c.currentTime, 0.015); this.hitLv = hl; }
-    const clicks = S.clicksOn(), hits = S.hitsOn();
-    if (!clicks && !hits) { this.schedE = eNow; return; }
+    if (nl !== this.noteLv && this.noteBus) { this.noteBus.gain.setTargetAtTime(nl, c.currentTime, 0.015); this.noteLv = nl; }
+    const clicks = S.clicksOn(), hits = S.hitsOn(), notes = S.notesOn();
+    if (!clicks && !hits && !notes) { this.schedE = eNow; return; }
     let ea = Math.max(this.schedE, eNow, 0);
     const eb = eNow + 0.16;
     let guard = 0;
@@ -131,6 +144,7 @@ export class Player {
       const at = (t: number) => Math.max(c.currentTime, this.ctx0 + e0 + (t - p0));
       if (clicks) S.clicks(p0, p0 + len, (t, down) => blip(at(t), down, this.clickBus!));
       if (hits) S.hits(p0, p0 + len, (t, voice, vel) => drumHit(voice, at(t), vel, this.hitBus!));
+      if (notes) S.notes(p0, p0 + len, (t, n) => synthNote(n, at(t), this.noteBus!));
       ea += len;
     }
     this.schedE = eb;

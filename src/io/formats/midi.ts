@@ -16,6 +16,8 @@ export interface ExportOptions {
   clicks?: boolean;
   /** Notes to write on a drum track (GM channel 10), at their own times: micro-timing and all. */
   notes?: readonly DrumNote[];
+  /** Pitched notes to write on a track of their own (channel 1), with their lengths and pitch bends. */
+  pitched?: readonly PitchedNote[];
 }
 
 export interface DrumNote {
@@ -23,6 +25,17 @@ export interface DrumNote {
   t: number;
   note: number;
   vel: number;
+}
+
+export interface PitchedNote {
+  /** Start and end, seconds in the audio. */
+  t: number;
+  end: number;
+  /** MIDI note number. */
+  pitch: number;
+  vel: number;
+  /** Bend points: seconds in the audio, cents off the note (within the ±2 semitones written). */
+  bend?: readonly { t: number; cents: number }[];
 }
 
 export interface TempoPoint {
@@ -155,24 +168,59 @@ export function buildMidi(o: ExportOptions): { bytes: Uint8Array; info: ExportIn
     for (let k = 0; k * beatQ < endQ && k < 200000; k++) add(leadTicks + Math.round(k * beatQ * ppq), k % o.meter.num === 0);
     tracks.push(track(nv));
   }
+  // A note's tick is its place on the tempo map, so it lands where it was played against the tempo
+  // track written above: exactly with a tempo change at every pin (the map is straight between pins),
+  // to within the rounding of one tick otherwise. In the lead-in the tempo is the lead-in's.
+  const t0 = plan.info.t0, tickOf = (t: number): number => {
+    const q = o.map.timeToPos(t);
+    const tick = q >= 0 ? leadTicks + Math.round(q * ppq) : !o.trimmed && t0 > 0 ? Math.round((t / t0) * leadTicks) : -1;
+    return Number.isFinite(tick) ? tick : -1;
+  };
   if (o.notes?.length) {
-    // A hit's tick is its place on the tempo map, so it lands where it was played against the tempo
-    // track written above: exactly with a tempo change at every pin (the map is straight between
-    // pins), to within the rounding of one tick otherwise. In the lead-in the tempo is the lead-in's.
-    const dv: MidiEvent[] = [{ tick: 0, pr: 0, data: metaText(3, 'Drums') }], t0 = plan.info.t0, len = ppq / 8;
+    const dv: MidiEvent[] = [{ tick: 0, pr: 0, data: metaText(3, 'Drums') }], len = ppq / 8;
     for (const n of o.notes) {
-      const q = o.map.timeToPos(n.t);
-      const tick = q >= 0 ? leadTicks + Math.round(q * ppq) : !o.trimmed && t0 > 0 ? Math.round((n.t / t0) * leadTicks) : -1;
-      if (tick < 0 || !Number.isFinite(tick)) continue;
+      const tick = tickOf(n.t);
+      if (tick < 0) continue;
       const v = Math.max(1, Math.min(127, Math.round(n.vel)));
       dv.push({ tick, pr: 4, data: [0x99, n.note, v] }, { tick: tick + len, pr: 3, data: [0x89, n.note, 0] });
     }
     tracks.push(track(dv));
   }
+  if (o.pitched?.length) tracks.push(track(pitchedEvents(o.pitched, tickOf)));
   const head = [0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 1, 0, tracks.length, (ppq >> 8) & 255, ppq & 255];
   const total = head.length + tracks.reduce((s, t) => s + t.length, 0), bytes = new Uint8Array(total);
   bytes.set(head, 0);
   let p = head.length;
   for (const t of tracks) { bytes.set(t, p); p += t.length; }
   return { bytes, info: plan.info };
+}
+
+// The pitched track: channel 1, the bend range set to ±2 semitones first (RPN 0, the General MIDI
+// default, written so no synth has to assume it), each note on and off, and its bend points between.
+// A bent note leaves the wheel where it was, so the next note puts it back to the middle first.
+function pitchedEvents(notes: readonly PitchedNote[], tickOf: (t: number) => number): MidiEvent[] {
+  const ev: MidiEvent[] = [
+    { tick: 0, pr: 0, data: metaText(3, 'Notes') },
+    { tick: 0, pr: 1, data: [0xb0, 101, 0] }, { tick: 0, pr: 1, data: [0xb0, 100, 0] },
+    { tick: 0, pr: 1, data: [0xb0, 6, 2] }, { tick: 0, pr: 1, data: [0xb0, 38, 0] },
+  ];
+  const wheel = (cents: number) => {
+    const v = Math.max(0, Math.min(16383, Math.round(8192 + (cents / 200) * 8192)));
+    return [0xe0, v & 127, v >> 7];
+  };
+  let bent = false;
+  for (const n of [...notes].sort((a, b) => a.t - b.t)) {
+    const on = tickOf(n.t), off = tickOf(n.end);
+    if (on < 0) continue;
+    const pitch = Math.max(0, Math.min(127, Math.round(n.pitch))), v = Math.max(1, Math.min(127, Math.round(n.vel)));
+    if (bent) { ev.push({ tick: on, pr: 4, data: wheel(0) }); bent = false; }
+    ev.push({ tick: on, pr: 5, data: [0x90, pitch, v] }, { tick: Math.max(on + 1, off), pr: 3, data: [0x80, pitch, 0] });
+    for (const b of n.bend ?? []) {
+      const tick = tickOf(b.t);
+      if (tick <= on || tick >= off) continue;
+      ev.push({ tick, pr: 6, data: wheel(b.cents) });
+      bent = true;
+    }
+  }
+  return ev;
 }

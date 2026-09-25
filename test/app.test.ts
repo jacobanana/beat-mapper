@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { barQ } from '../src/core/tempo/meter';
 import { buildMidi } from '../src/io/formats/midi';
 import { noHitEdits } from '../src/core/drums/edit';
+import { synthBass, synthKeys } from '../src/core/notes/synth';
 import { defaultWarp } from '../src/state/settings';
 import { MemoryStore, type TestApp, createTestApp, demo, fakeBuffer, openDemo } from './helpers';
 
@@ -745,11 +746,11 @@ describe('mixer', () => {
   it('keeps its levels in range, on this device and out of sessions', () => {
     const store = new MemoryStore();
     const a = createTestApp(store);
-    expect(a.app.mix).toEqual({ audio: 100, click: 100, drums: 100 });
+    expect(a.app.mix).toEqual({ audio: 100, click: 100, drums: 100, notes: 100 });
     a.f.mixer.setLevel('click', 60);
     a.f.mixer.setLevel('drums', 999);
     a.f.mixer.setLevel('audio', -5);
-    expect(a.app.mix).toEqual({ audio: 0, click: 60, drums: 150 });
+    expect(a.app.mix).toEqual({ audio: 0, click: 60, drums: 150, notes: 100 });
     expect(JSON.parse(store.getItem('beatmapper:mix')!)).toEqual(a.app.mix);
     expect(createTestApp(store).app.mix).toEqual(a.app.mix);
   });
@@ -776,9 +777,54 @@ describe('mixer', () => {
   it('falls back to the defaults for anything unreadable it saved', () => {
     const store = new MemoryStore();
     store.setItem('beatmapper:mix', '{"audio":"loud","click":40.4}');
-    expect(createTestApp(store).app.mix).toEqual({ audio: 100, click: 40, drums: 100 });
+    expect(createTestApp(store).app.mix).toEqual({ audio: 100, click: 40, drums: 100, notes: 100 });
     store.setItem('beatmapper:mix', 'not json');
-    expect(createTestApp(store).app.mix).toEqual({ audio: 100, click: 100, drums: 100 });
+    expect(createTestApp(store).app.mix).toEqual({ audio: 100, click: 100, drums: 100, notes: 100 });
+  });
+});
+
+describe('notes', () => {
+  it('finds the bass demo\'s notes in step 6, deletes one with undo, holds them legato, and keeps it all in the session', async () => {
+    const a = createTestApp();
+    const bass = synthBass(44100);
+    await a.f.loader.open(fakeBuffer([bass.x], 44100), 'bass-demo', 'bass-demo.wav', null, 100);
+    a.f.workflow.goTo(6);
+    await a.f.notes.ensureNotes();
+    expect(a.app.transcript?.mode).toBe('line');
+    expect(a.app.pickedNotes.length).toBe(bass.notes.length);
+    expect(a.f.notes.summary()).toMatch(/^28 notes · E1–A2 · tuned −20 cents/);
+    const n = a.app.pickedNotes[3];
+    a.f.notes.selectNote(n.pitch, n.t, false);
+    expect(a.app.selectedNote()).toEqual(n);
+    a.f.notes.removeSelected();
+    expect(a.app.pickedNotes.length).toBe(27);
+    expect(a.f.workflow.canReset).toBe(true);
+    a.app.undo();
+    expect(a.app.pickedNotes.length).toBe(28);
+    a.f.notes.removeNote(n.pitch, n.t);
+    a.f.notes.toggleLegato();
+    const h = a.app.heardNotes;
+    expect(h.slice(0, -1).every((k, i) => k.end >= h[i + 1].t - 1e-9)).toBe(true);
+    // The MIDI needs a map: bar 1 is set on the way into the step.
+    expect(a.f.notes.midi()!.notes.length).toBe(27);
+    const saved = a.f.sessions.content();
+    expect(saved.notes.legato).toBe(true);
+    expect(saved.removedNotes).toEqual([{ pitch: n.pitch, t: n.t }]);
+    expect(saved.step).toBe(6);
+    a.f.workflow.resetStep();
+    expect(a.app.pickedNotes.length).toBe(28);
+    expect(a.app.notes.legato).toBe(false);
+  });
+
+  it('finds them again as chords when the mode changes', async () => {
+    const a = createTestApp();
+    const keys = synthKeys(44100);
+    await a.f.loader.open(fakeBuffer([keys.x], 44100), 'keys', 'keys.wav', null, 90);
+    a.f.workflow.goTo(6);
+    await a.f.notes.ensureNotes();
+    await a.f.notes.setMode('chords');
+    expect(a.app.transcript?.mode).toBe('chords');
+    expect(a.app.pickedNotes.length).toBeGreaterThanOrEqual(keys.notes.length);
   });
 });
 

@@ -7,12 +7,13 @@ import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { fmtBpm, fmtTime, plural } from '../../core/format';
 import { VOICES } from '../../core/drums/voices';
+import { noteName } from '../../core/notes/types';
 import { WARP_MODE_INFO } from '../../core/warp/modes';
 import type { Step } from '../../state/steps';
 import { buildMidi } from '../../io/formats/midi';
 import { $, $btn, $in, $sel, setText, setValue } from '../dom';
 
-export const FORMATS = ['midi', 'rpp', 'warpWav', 'slices', 'slicesRpp', 'sliceWav', 'loopWav', 'drumsMidi', 'groove'] as const;
+export const FORMATS = ['midi', 'rpp', 'warpWav', 'slices', 'slicesRpp', 'sliceWav', 'loopWav', 'drumsMidi', 'groove', 'notesMidi'] as const;
 export type ExportFormat = (typeof FORMATS)[number];
 
 /** What each step makes, in the order the window lists it. */
@@ -22,6 +23,7 @@ export const STEP_FORMATS: Record<Step, readonly ExportFormat[]> = {
   3: ['warpWav'],
   4: ['slices', 'slicesRpp', 'sliceWav', 'loopWav'],
   5: ['drumsMidi', 'groove'],
+  6: ['notesMidi'],
 };
 
 interface Format {
@@ -145,6 +147,24 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
       desc: 'The typical bar as a Pocket Science groove file.',
       save: 'Save .json', info: () => drumsInfo(() => f.groove.summary()), run: () => f.groove.saveGroove(),
     },
+    notesMidi: {
+      desc: 'The notes as MIDI on one track, with their lengths, velocities and pitch bends (±2 semitones), as they are heard in the Notes step. Warped, each note is where the warp puts it, at the grid\'s one tempo, lined up with the warped .wav; otherwise where it was played, on the tempo map.',
+      save: 'Save .mid',
+      info: () => {
+        if (!app.audio) return OPEN_FIRST;
+        if (!app.transcript) return { text: 'Open the Notes step (6) to find the notes first.', ok: false };
+        if (!app.hasMap) return { text: 'Set bar 1 and at least a tempo in step 2 first.', ok: false };
+        const ns = app.heardNotes, out = app.warpOut;
+        if (!ns.length) return { text: 'No notes at this sensitivity – raise it in the Notes step.', ok: false };
+        const lo = Math.min(...ns.map((n) => n.pitch)), hi = Math.max(...ns.map((n) => n.pitch));
+        return {
+          text: `${plural(ns.length, 'note')} · ${noteName(lo)}–${noteName(hi)}${app.notes.legato ? ' · legato' : ''}`
+            + (out ? ` · warped to ${fmtBpm(out.plan.bpm)} BPM` : ' · as played, on the tempo map'),
+          ok: true,
+        };
+      },
+      run: () => f.notes.saveMidi(),
+    },
   };
 
   // The format each step opens on, until you pick another there: its first.
@@ -242,12 +262,12 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
 
 
   app.bus.on('export', sync);
-  app.bus.on(['export', 'warp', 'slicer', 'slices', 'doc', 'drums', 'groove', 'transport', 'audio', 'candidates', 'selection', 'heard'], render);
+  app.bus.on(['export', 'warp', 'slicer', 'slices', 'doc', 'drums', 'groove', 'transcript', 'notes', 'transport', 'audio', 'candidates', 'selection', 'heard'], render);
   sync();
 
   return (next?: ExportFormat) => {
     const mine = STEP_FORMATS[app.step];
-    if (!mine.length) return app.notify.toast('Nothing to export from this step. Beats, Slice and Groove each export what they make.');
+    if (!mine.length) return app.notify.toast('Nothing to export from this step. Beats, Warp, Slice, Groove and Notes each export what they make.');
     // The tempo map needs bar 1, as the Export step did; it starts on the first transient.
     if (app.audio) f.beats.ensureDownbeat();
     fmt = next && mine.includes(next) ? next : byStep[app.step] ?? mine[0];

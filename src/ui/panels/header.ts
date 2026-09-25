@@ -10,7 +10,7 @@ import { $, $btn, icon, setPressed } from '../dom';
 import { confirmAction } from './confirm';
 import { STEP_FORMATS } from './export-dialog';
 
-const WARP_TITLE = 'Warped: Warp, Slice and Groove hear, cut, measure and export the audio moved onto the grid; off, the original (W)';
+const WARP_TITLE = 'Warped: Warp, Slice, Groove and Notes hear, cut, measure and export the audio moved onto the grid; off, the original (W)';
 
 /** What each step's Reset asks: what goes, and whether undo brings it back. */
 const RESET_ASK: Record<Step, [string, string]> = {
@@ -19,6 +19,7 @@ const RESET_ASK: Record<Step, [string, string]> = {
   [STEP.warp]: ['Reset Warp?', 'The whole file is warped at the tempo it averages, as a full mix, and the warp markers come off. Your grid tempo and material are cleared, the shuffle goes back to 0%, the quantize strength to 100% and gaps are left unfilled; undo brings back the warp markers.'],
   [STEP.slice]: ['Reset Slice?', 'Every transient starts a slice again, and every slice is kept. Dropped slices can\'t be brought back with undo.'],
   [STEP.groove]: ['Reset Groove?', 'The hits go back to how they were found, at the starting sensitivities. Undo brings back your hit edits.'],
+  [STEP.notes]: ['Reset Notes?', 'Every note comes back as found, at the starting sensitivity, as long as it is heard. Undo brings back your deletions.'],
 };
 
 export function bindHeader(app: App, f: Features, openHelp: () => void, openExport: () => void): void {
@@ -45,7 +46,7 @@ export function bindHeader(app: App, f: Features, openHelp: () => void, openExpo
   $('clickBtn').onclick = () => f.playback.toggleClick();
   $('warpBtn').onclick = () => f.warp.toggleListen();
   // Each step's Reset, last in its panel: it starts that step again, once confirmed.
-  const RESETS = ['resetM', 'resetB', 'resetW', 'resetS', 'gReset'];
+  const RESETS = ['resetM', 'resetB', 'resetW', 'resetS', 'gReset', 'nReset'];
   for (const id of RESETS) {
     $(id).onclick = async () => {
       const [title, text] = RESET_ASK[app.step];
@@ -114,7 +115,7 @@ export function bindHeader(app: App, f: Features, openHelp: () => void, openExpo
 
   app.bus.on('step', syncSteps);
   app.bus.on(['warp', 'heard', 'step'], syncWarp);
-  app.bus.on(['step', 'doc', 'detection', 'candidates', 'beats', 'warp', 'slicer', 'slices', 'groove', 'drums', 'audio'], syncReset);
+  app.bus.on(['step', 'doc', 'detection', 'candidates', 'beats', 'warp', 'slicer', 'slices', 'groove', 'drums', 'notes', 'transcript', 'audio'], syncReset);
   app.bus.on(['doc', 'audio'], syncHistory);
   app.bus.on(['transport', 'playhead'], syncTransport);
   app.bus.on(['playhead', 'heard', 'doc', 'audio'], syncReadout);

@@ -7,6 +7,8 @@ import { selectHits } from '../core/drums/select';
 import type { DrumHit, PerVoice, Voice } from '../core/drums/voices';
 import { type Groove, type VoiceNote, analyseGroove, transcribe } from '../core/groove/pocket';
 import { detectMarkers, filterMarkers, sensToThr } from '../core/markers/detect';
+import { type HeardNote, type NoteEdits, heardNotes, selectNotes } from '../core/notes/select';
+import type { Note, NoteAnalysis } from '../core/notes/types';
 import { type Slice, isExcluded, loopInfo, planSlices, sliceKey } from '../core/slices/slices';
 import { Grid, barQ } from '../core/tempo/meter';
 import { type Bar, TempoMap, eachStep } from '../core/tempo/tempo-map';
@@ -21,8 +23,8 @@ import { History } from '../state/history';
 import { memo } from '../state/memo';
 import { type ProjectDoc, emptyDoc } from '../state/project';
 import {
-  type BeatSettings, type DetectionSettings, type ExportSettings, type GrooveSettings, type MixSettings, type MuteSettings, type SlicerSettings, type TransportState, type WarpSettings,
-  defaultBeats, defaultDetection, defaultExport, defaultGroove, defaultMix, defaultMute, defaultSlicer, defaultTransport, defaultWarp,
+  type BeatSettings, type DetectionSettings, type ExportSettings, type GrooveSettings, type MixSettings, type MuteSettings, type NoteSettings, type SlicerSettings, type TransportState,
+  type WarpSettings, defaultBeats, defaultDetection, defaultExport, defaultGroove, defaultMix, defaultMute, defaultNotes, defaultSlicer, defaultTransport, defaultWarp,
 } from '../state/settings';
 import { type Step, STEP } from '../state/steps';
 import { Viewport } from '../state/viewport';
@@ -36,6 +38,8 @@ export type { WarpOut, WarpPlan } from './warp-out';
 export type Topic =
   | 'audio' | 'doc' | 'candidates' | 'detection' | 'beats' | 'export' | 'slicer' | 'slices'
   | 'warp' | 'transport' | 'playhead' | 'view' | 'step' | 'selection' | 'hover' | 'display' | 'drums' | 'groove' | 'mix' | 'mute'
+  /** The notes found in the audio (`transcript`), and the Notes step's settings (`notes`). */
+  | 'transcript' | 'notes'
   /**
    * Derived: what is heard changed (the warp or the original, and which warp), and with it the
    * timeline, the slices and the pocket. Emitted by the App itself after whichever topic caused it, so
@@ -47,6 +51,8 @@ export type Selection =
   | { kind: 'marker'; id: string } | { kind: 'anchor'; q: number } | { kind: 'hit'; voice: Voice; t: number }
   /** In the Warp step: a transient, or the warp marker on it, by its time. */
   | { kind: 'warp'; t: number }
+  /** In the Notes step: a found note, by its pitch and start. */
+  | { kind: 'note'; pitch: number; t: number }
   | null;
 /** What the pointer is over: a marker, a pin, or a grid line that could become a pin. */
 export type Hover = Selection | { kind: 'grid'; q: number };
@@ -63,7 +69,10 @@ export interface Notifier {
   idle(): void;
 }
 
-type Settings = { detection: DetectionSettings; beats: BeatSettings; export: ExportSettings; slicer: SlicerSettings; warp: WarpSettings; transport: TransportState; groove: GrooveSettings; mix: MixSettings; mute: MuteSettings };
+type Settings = {
+  detection: DetectionSettings; beats: BeatSettings; export: ExportSettings; slicer: SlicerSettings; warp: WarpSettings; transport: TransportState; groove: GrooveSettings;
+  notes: NoteSettings; mix: MixSettings; mute: MuteSettings;
+};
 
 /** A loop shorter than this is no loop: nothing plays, is warped or is sliced inside it. */
 export const MIN_LOOP = 0.01;
@@ -81,6 +90,8 @@ export class App {
   cands: readonly Candidate[] = [];
   /** Kick, snare and hat hits, found the first time the Groove step opens. */
   drums: DrumAnalysis | null = null;
+  /** The notes in the audio, found the first time the Notes step opens, as a line or as chords. */
+  transcript: NoteAnalysis | null = null;
   doc: ProjectDoc = emptyDoc();
   /** The tempo the audio was opened at, before any tapping or typing: where resetting Beats goes back to. */
   startBpm = 120;
@@ -92,6 +103,7 @@ export class App {
   warp = defaultWarp();
   transport = defaultTransport();
   groove = defaultGroove();
+  notes = defaultNotes();
   /** The mixer: a preference of this device, kept out of sessions. */
   mix = defaultMix();
   /** Muted channels: for this visit only, so the audio is never silent on arrival. */
@@ -192,6 +204,17 @@ export class App {
    * synth kit plays. The warp is the only quantize, so it plays them where what is heard has them.
    */
   get drumNotes(): readonly VoiceNote[] { return this._drumNotes(this.drumHits); }
+
+  private readonly _pickedNotes = memo((a: NoteAnalysis | null, sens: number, e: NoteEdits) => (a ? selectNotes(a.notes, sens, e) : []));
+  /** The notes the sensitivity lets through, minus the ones deleted, at their times in the original. */
+  get pickedNotes(): readonly Note[] { return this._pickedNotes(this.transcript, this.notes.sens, this.doc.notes); }
+
+  private readonly _heardNotes = memo((n: readonly Note[], legato: boolean) => heardNotes(n, legato));
+  /**
+   * The notes as the synth plays them and the MIDI holds them: with velocities, and held to the next
+   * note with Legato on. Times in the original; the warp places them, as it does the drums.
+   */
+  get heardNotes(): readonly HeardNote[] { return this._heardNotes(this.pickedNotes, this.notes.legato); }
 
   // Always against the grid: the tempo map the user set is the beat the drums are heard against. When
   // the warp is heard, that grid is its straight one and the hits are where it puts them, quantized or
@@ -322,6 +345,11 @@ export class App {
     return s && s.kind === 'anchor' ? (this.doc.tempo.anchors.find((a) => a.q === s.q) ?? null) : null;
   }
 
+  selectedNote(): Note | null {
+    const s = this.sel;
+    return s && s.kind === 'note' ? (this.pickedNotes.find((n) => n.pitch === s.pitch && n.t === s.t) ?? null) : null;
+  }
+
   selectedHit(): (EditedHit & { voice: Voice }) | null {
     const s = this.sel;
     if (!s || s.kind !== 'hit') return null;
@@ -340,6 +368,7 @@ export class App {
     this.analysis = analysis;
     this.cands = cands;
     this.drums = null;
+    this.transcript = null;
     this.startBpm = startBpm;
     this.doc = emptyDoc(startBpm);
     this.history.clear();
@@ -352,10 +381,11 @@ export class App {
     this.view.reset(audio.dur);
     this.transport = { ...this.transport, playhead: 0, start: 0, loop: null, loopOn: false };
     // The grid tempo, the material, what is warped and whether it is heard are this file's; so is the
-    // shuffle, which is the feel of this take.
+    // shuffle, which is the feel of this take, and how its notes are found and held.
     this.warp = defaultWarp();
+    this.notes = defaultNotes();
     this.beats = { ...this.beats, shuffle: defaultBeats().shuffle };
-    this.bus.emit('audio', 'doc', 'candidates', 'drums', 'transport', 'view', 'playhead', 'selection', 'slices', 'warp', 'beats');
+    this.bus.emit('audio', 'doc', 'candidates', 'drums', 'transcript', 'transport', 'view', 'playhead', 'selection', 'slices', 'warp', 'beats', 'notes');
   }
 
   /** Applies an edit to the document, recorded for undo unless `record` is false. */

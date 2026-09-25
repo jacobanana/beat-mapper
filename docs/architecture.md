@@ -39,6 +39,7 @@ from bar 1.
 | `drums/` | Kick, snare and hats: a log-frequency spectrogram (optionally percussive-only), NMF with semi-adaptive templates, per-voice hit picking and bleed cancelling, sensitivity. See [groove.md](groove.md). |
 | `warp/` | Warping onto a straight grid: the warp map from the tempo map (`map.ts`), warp markers that put single transients on the grid (`markers.ts`), and one algorithm per kind of material (drum slicing, WSOLA, phase-locked phase vocoder, harmonic-percussive split, re-pitch). See [warp.md](warp.md). |
 | `timeline.ts` | `Timeline`: where the audio and the grid are drawn on the editor, and what the pointer lands on, following what is heard. See [Time on screen](#time-on-screen). |
+| `notes/` | Pitched notes, a line or chords: pYIN and a note cutter for a line, harmonic-comb NMF gated by attacks for chords, the tuning, and starts and ends timed on the waveform; selection by sensitivity, deletions, Legato, velocities. See [notes.md](notes.md). |
 | `groove/pocket.ts` | Every drum hit on its grid step, measured against the grid (or, in the core only, a reference voice bar by bar); per-voice and per-step statistics, swing. `transcribe` turns the hits into notes for the synth kit and the MIDI transcript. |
 
 ## Time on screen
@@ -74,7 +75,8 @@ Each step works on what the one before it made:
 
 ```
 audio ─▶ Transients ─▶ Beats ─▶ Warp ─┬─▶ Slice   samples cut from the warped audio
-         markers       tempo    warp   └─▶ Groove  hits measured and written where the warp puts them
+         markers       tempo    warp   ├─▶ Groove  hits measured and written where the warp puts them
+                                      └─▶ Notes   notes found, heard and written where the warp puts them
                        map      markers
 ```
 
@@ -88,6 +90,8 @@ times in the original, so dropped slices, hit edits and the session stay as they
 - **Slice** cuts only what the warp makes (`App.slices`), from the warp's render (`Warp.render()`,
   shared with playback and the warped .wav), each slice at `at(t0)`–`at(t1)`. Its REAPER project and
   .csv use the warped file's times, at the grid's one tempo.
+- **Notes** finds the notes in the original and plays and writes each one (its start, end and bends)
+  where the warp puts it, as Groove does the drums.
 - **Groove** finds the drums in the original, then measures each hit where the warp puts it, on its
   straight grid (`analyseGroove`'s `at`). The Warp step's Quantize is the only quantize: quantized
   there, a hit lined up by a warp marker sits on its step. The synth kit plays the hits where the warp
@@ -126,7 +130,7 @@ bridge when the app runs inside one).
   differs by step reads the table rather than comparing step numbers.
 - **Features** (`app/features/`) are the verbs: `Markers`, `Beats`, `Playback`, `Slicer`,
   `Exports`, `Warp` (what is warped and how), `WarpRender` (rendering it, and making what plays follow
-  what is wanted), `Groove`, `Mixer`, `Sessions`, `Loader`, `Workflow`. They change the App and emit topics (`'doc'`,
+  what is wanted), `Groove`, `Notes`, `Mixer`, `Sessions`, `Loader`, `Workflow`. They change the App and emit topics (`'doc'`,
   `'transport'`, `'slices'`…). They talk to the user only through the `Notifier` interface.
 - **`'heard'`** is a topic the App emits itself whenever what is heard changes (the warp or the
   original, and which warp), after whatever caused it. A view of anything the warp places (slices,
@@ -155,6 +159,8 @@ bridge when the app runs inside one).
   unit test instead.
 - `test/app.test.ts` drives the App and features without a browser.
 - `test/session.test.ts` checks old session files load and save back unchanged.
+- `test/notes.test.ts` runs the note detector on a synthetic bass line and keyboard part whose notes
+  are known (`core/notes/synth.ts`): every note, its start to a few milliseconds, its end, the tuning, the bends.
 - `test/groove.test.ts` runs the drum detector and the pocket analysis on a synthetic kit whose
   pocket is known (`synthKit` in `core/demo.ts`), and pins what full-mix mode can and can't do.
 - `e2e/smoke.mjs` walks the built app through every step in Chromium.

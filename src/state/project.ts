@@ -2,6 +2,7 @@
 // produces a new document, and the undo history keeps the old ones.
 import { type HitEdits, noHitEdits } from '../core/drums/edit';
 import type { ManualMarker } from '../core/markers/detect';
+import { type NoteEdits, noNoteEdits } from '../core/notes/select';
 import type { Meter } from '../core/tempo/meter';
 import type { Anchor } from '../core/types';
 import type { WarpMarker } from '../core/warp/markers';
@@ -30,6 +31,8 @@ export interface ProjectDoc {
   readonly drums: HitEdits;
   /** Transients put on a grid line by hand in the Warp step, sorted by time. */
   readonly warpMarkers: readonly WarpMarker[];
+  /** Notes deleted by hand in the Notes step. */
+  readonly notes: NoteEdits;
 }
 
 export const emptyDoc = (baseBpm = 120): ProjectDoc => ({
@@ -38,6 +41,7 @@ export const emptyDoc = (baseBpm = 120): ProjectDoc => ({
   markers: { manual: [], removed: [], nextId: 1 },
   drums: noHitEdits(),
   warpMarkers: [],
+  notes: noNoteEdits(),
 });
 
 export const withAnchors = (d: ProjectDoc, anchors: readonly Anchor[], baseBpm = d.tempo.baseBpm): ProjectDoc => ({
@@ -63,3 +67,5 @@ export const removeCandidate = (d: ProjectDoc, t: number): ProjectDoc =>
   d.markers.removed.includes(t) ? d : withMarkers(d, { removed: [...d.markers.removed, t] });
 
 export const withHits = (d: ProjectDoc, e: Partial<HitEdits>): ProjectDoc => ({ ...d, drums: { ...d.drums, ...e } });
+
+export const withNoteEdits = (d: ProjectDoc, e: Partial<NoteEdits>): ProjectDoc => ({ ...d, notes: { ...d.notes, ...e } });

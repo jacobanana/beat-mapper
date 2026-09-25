@@ -13,6 +13,9 @@ self.onmessage = async (e: MessageEvent<Request>) => {
     } else if (req.type === 'drums') {
       const drums = await analyzer.drums(req.source, (fraction) => post({ id: req.id, type: 'progress', fraction }));
       post({ id: req.id, type: 'drums', drums });
+    } else if (req.type === 'notes') {
+      const notes = await analyzer.notes(req.mode, (fraction) => post({ id: req.id, type: 'progress', fraction }));
+      post({ id: req.id, type: 'notes', notes });
     } else if (req.type === 'warp') {
       const chans = await analyzer.warp(req.job, (fraction) => post({ id: req.id, type: 'progress', fraction }));
       (self as unknown as { postMessage(r: Response, t: Transferable[]): void }).postMessage({ id: req.id, type: 'warp', chans }, chans.map((c) => c.buffer));

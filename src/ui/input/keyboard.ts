@@ -65,14 +65,15 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
       case 'v': f.markers.toggleOdf(); return;
       case 'k': f.playback.toggleClick(); return;
       case 'w': f.warp.toggleListen(); return;
-      case '1': case '2': case '3': case '4': case '5': f.workflow.goTo(+k as 1 | 2 | 3 | 4 | 5); return;
+      case '1': case '2': case '3': case '4': case '5': case '6': f.workflow.goTo(+k as 1 | 2 | 3 | 4 | 5 | 6); return;
       case '?': hooks.openHelp(); return;
       case 'Escape': app.select(null); if (el === cv) cv.blur(); return;
       case 'Delete': case 'Backspace': {
-        const m = app.selectedMarker(), a = app.selectedAnchor(), h = app.selectedHit();
+        const m = app.selectedMarker(), a = app.selectedAnchor(), h = app.selectedHit(), n = app.selectedNote();
         if (m && app.step === STEP.transients) f.markers.remove(m);
         else if (a && app.step === STEP.beats) f.beats.unpin(a);
         else if (h && app.step === STEP.groove) f.groove.removeHit(h.voice, h.t);
+        else if (n && app.step === STEP.notes) f.notes.removeNote(n.pitch, n.t);
         else if (app.step === STEP.warp && f.warp.selected() != null) f.warp.removeSelected();
         return done();
       }
@@ -101,6 +102,8 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
         if (app.drums) app.notify.toast(app.mute.drums ? 'Synth kit: muted' : 'Synth kit: on');
       }
       else if (k === 'c') f.groove.toggleChart();
+    } else if (app.step === STEP.notes) {
+      if (k === 'm') f.notes.toggleSynth();
     }
   });
 

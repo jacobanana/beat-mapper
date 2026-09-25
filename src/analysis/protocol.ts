@@ -1,5 +1,6 @@
 import type { Algo, Analysis, Band } from '../core/dsp/onset';
 import type { DrumAnalysis, DrumSource } from '../core/drums/detect';
+import type { NoteAnalysis, NoteMode } from '../core/notes/types';
 import type { Candidate } from '../core/types';
 import type { WarpJob } from '../core/warp/modes';
 
@@ -7,6 +8,7 @@ export type Request =
   | { id: number; type: 'analyze'; x: Float32Array; sr: number }
   | { id: number; type: 'candidates'; band: Band; algo: Algo }
   | { id: number; type: 'drums'; source: DrumSource }
+  | { id: number; type: 'notes'; mode: NoteMode }
   | { id: number; type: 'warp'; job: WarpJob };
 
 export type Response =
@@ -14,5 +16,6 @@ export type Response =
   | { id: number; type: 'analysis'; analysis: Analysis }
   | { id: number; type: 'candidates'; candidates: Candidate[] }
   | { id: number; type: 'drums'; drums: DrumAnalysis }
+  | { id: number; type: 'notes'; notes: NoteAnalysis }
   | { id: number; type: 'warp'; chans: Float32Array[] }
   | { id: number; type: 'error'; message: string };
