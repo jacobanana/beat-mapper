@@ -3,7 +3,7 @@
 // Everything read back is validated and clamped, so a hand-edited or older file can't break the app.
 import { ALGOS, type Algo, BANDS, type Band } from '../core/dsp/onset';
 import { VOICES, type Voice } from '../core/drums/voices';
-import { NOTE_MODES, type NoteMode } from '../core/notes/types';
+import { NOTE_INSTRUMENTS, NOTE_MODES, type NoteInstrument, type NoteMode } from '../core/notes/types';
 import { DENOMINATORS, GRID_DIVISIONS, type GridDivision, type Meter } from '../core/tempo/meter';
 import type { Anchor, TimeRange } from '../core/types';
 import { type WarpMarker, placeWarpMarker } from '../core/warp/markers';
@@ -97,6 +97,7 @@ function notesJson(s: SessionContent): object {
   const n0 = defaultNotes(), n = s.notes;
   const out = {
     ...(n.mode !== n0.mode ? { mode: n.mode } : {}),
+    ...(n.instrument !== n0.instrument ? { instrument: n.instrument } : {}),
     ...(n.sens !== n0.sens ? { sens: n.sens } : {}),
     ...(n.legato !== n0.legato ? { legato: n.legato } : {}),
     ...(s.removedNotes.length ? { removed: s.removedNotes.map((r) => ({ pitch: r.pitch, t: r.t })) } : {}),
@@ -222,6 +223,7 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
     hits,
     notes: {
       mode: oneOf<NoteMode>(NOTE_MODES, nt.mode, n0.mode),
+      instrument: oneOf<NoteInstrument>(NOTE_INSTRUMENTS, nt.instrument, n0.instrument),
       sens: clamp(Math.round(fin(nt.sens, n0.sens)), 0, 100),
       legato: typeof nt.legato === 'boolean' ? nt.legato : n0.legato,
     },

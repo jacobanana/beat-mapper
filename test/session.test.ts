@@ -16,16 +16,16 @@ describe('session files', () => {
 
   it('carries the Notes step: its settings and deleted notes, only when they differ from how it starts', () => {
     const s = parseSession(legacy, legacy.audio.duration, fb);
-    expect(s.notes).toEqual({ mode: 'line', sens: 55, legato: false });
+    expect(s.notes).toEqual({ mode: 'line', instrument: 'any', sens: 55, legato: false });
     expect(s.removedNotes).toEqual([]);
     expect('notes' in toSessionJson(s)).toBe(false);
-    const set = { ...s, step: 6 as const, notes: { mode: 'chords' as const, sens: 70, legato: true }, removedNotes: [{ pitch: 40, t: 1.5 }] };
+    const set = { ...s, step: 6 as const, notes: { mode: 'chords' as const, instrument: 'piano' as const, sens: 70, legato: true }, removedNotes: [{ pitch: 40, t: 1.5 }] };
     const json = toSessionJson(set) as { notes: object };
-    expect(json.notes).toEqual({ mode: 'chords', sens: 70, legato: true, removed: [{ pitch: 40, t: 1.5 }] });
+    expect(json.notes).toEqual({ mode: 'chords', instrument: 'piano', sens: 70, legato: true, removed: [{ pitch: 40, t: 1.5 }] });
     const back = parseSession(JSON.parse(JSON.stringify(json)), legacy.audio.duration, fb);
     expect([back.step, back.notes, back.removedNotes]).toEqual([6, set.notes, set.removedNotes]);
-    const odd = parseSession({ ...legacy, notes: { mode: 'drone', sens: 400, legato: 'yes', removed: [{ pitch: 300, t: 1 }, { pitch: 40.5, t: 1 }, { pitch: 40, t: -1 }] } }, legacy.audio.duration, fb);
-    expect([odd.notes, odd.removedNotes]).toEqual([{ mode: 'line', sens: 100, legato: false }, []]);
+    const odd = parseSession({ ...legacy, notes: { mode: 'drone', instrument: 'kazoo', sens: 400, legato: 'yes', removed: [{ pitch: 300, t: 1 }, { pitch: 40.5, t: 1 }, { pitch: 40, t: -1 }] } }, legacy.audio.duration, fb);
+    expect([odd.notes, odd.removedNotes]).toEqual([{ mode: 'line', instrument: 'any', sens: 100, legato: false }, []]);
   });
 
   it('carries warp markers, and leaves them out when there are none', () => {

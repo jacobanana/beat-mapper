@@ -2,7 +2,7 @@ import { type Algo, type Analysis, type Band, analyze } from '../core/dsp/onset'
 import { type DrumAnalysis, type DrumSource, detectDrums } from '../core/drums/detect';
 import { pickCandidates } from '../core/markers/detect';
 import { detectNotes } from '../core/notes/detect';
-import type { NoteAnalysis, NoteMode } from '../core/notes/types';
+import type { NoteAnalysis, NoteInstrument, NoteMode } from '../core/notes/types';
 import type { Candidate } from '../core/types';
 import { type WarpJob, renderWarp } from '../core/warp/modes';
 
@@ -19,8 +19,8 @@ export interface Analyzer {
   candidates(band: Band, algo: Algo): Promise<Candidate[]>;
   /** Kick, snare and hat hits in the last analysed signal. */
   drums(source: DrumSource, onProgress?: (f: number) => void): Promise<DrumAnalysis>;
-  /** The notes in the last analysed signal, as one line or as chords. */
-  notes(mode: NoteMode, onProgress?: (f: number) => void): Promise<NoteAnalysis>;
+  /** The notes in the last analysed signal, as one line or as chords of an instrument. */
+  notes(mode: NoteMode, instrument: NoteInstrument, onProgress?: (f: number) => void): Promise<NoteAnalysis>;
   /** The audio re-timed onto a straight grid. */
   warp(job: WarpJob, onProgress?: (f: number) => void): Promise<Float32Array[]>;
   dispose(): void;
@@ -51,9 +51,9 @@ export class InlineAnalyzer implements Analyzer {
     return detectDrums(this.x, this.sr, { source, onProgress, yieldToEventLoop: this.yieldToEventLoop });
   }
 
-  async notes(mode: NoteMode, onProgress?: (f: number) => void): Promise<NoteAnalysis> {
+  async notes(mode: NoteMode, instrument: NoteInstrument, onProgress?: (f: number) => void): Promise<NoteAnalysis> {
     if (!this.x) throw new Error('Nothing analysed yet');
-    return detectNotes(this.x, this.sr, { mode, onProgress, yieldToEventLoop: this.yieldToEventLoop });
+    return detectNotes(this.x, this.sr, { mode, instrument, onProgress, yieldToEventLoop: this.yieldToEventLoop });
   }
 
   async warp(job: WarpJob, onProgress?: (f: number) => void): Promise<Float32Array[]> {

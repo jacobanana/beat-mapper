@@ -16,13 +16,15 @@ import { it } from 'vitest';
 import { resample } from '../src/core/dsp/resample';
 import { detectNotes } from '../src/core/notes/detect';
 import { noNoteEdits, selectNotes } from '../src/core/notes/select';
-import type { NoteMode } from '../src/core/notes/types';
+import type { NoteInstrument, NoteMode } from '../src/core/notes/types';
 import { readMidi } from './midi-read';
 import { type Score, prf, score, sum } from './score';
 import { readWav } from './wav-read';
 
 const ROOT = process.env.SLAKH ?? '.dev/babyslakh_16k', LABEL = process.env.LABEL ?? 'current', OUT = process.env.OUT ?? '.dev/eval';
 const MODES: Record<string, NoteMode> = { Bass: 'line', Piano: 'chords', Guitar: 'chords', Organ: 'chords', 'Chromatic Percussion': 'chords' };
+// Each chord class is read with its instrument's profile, as a user who knows what the part is would ask.
+const INSTRUMENTS: Record<string, NoteInstrument> = { Piano: 'piano', Guitar: 'guitar', Organ: 'organ', 'Chromatic Percussion': 'mallets' };
 // Empty is the same as unset: the script passes every option, set or not.
 const CLASSES = process.env.CLASSES ? process.env.CLASSES.split(',') : Object.keys(MODES);
 const SENS = [30, 55, 80];
@@ -68,7 +70,7 @@ it('transcribes BabySlakh', async () => {
       const a = readWav(readFileSync(wav)), truth = readMidi(readFileSync(mid));
       if (!truth.length) continue;
       const x = a.sr === SR ? a.x : resample([a.x], a.sr, SR)[0], mode = MODES[stem.cls];
-      const t0 = performance.now(), r = await detectNotes(x, SR, { mode, yieldToEventLoop: false }), ms = performance.now() - t0;
+      const t0 = performance.now(), r = await detectNotes(x, SR, { mode, instrument: INSTRUMENTS[stem.cls] ?? 'any', yieldToEventLoop: false }), ms = performance.now() - t0;
       // Some Slakh patches sound an octave or two from the MIDI they were rendered from (a bass or a
       // guitar written an octave up, as they are notated). That is the patch, not the transcription:
       // each stem is scored at the whole number of octaves its notes match best at.
