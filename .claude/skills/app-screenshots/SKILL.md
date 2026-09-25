@@ -34,6 +34,8 @@ node .claude/skills/app-screenshots/scripts/screenshot.mjs --width phone --width
 | `--width phone\|tablet\|desktop\|<px>` | Repeatable. phone=390, tablet=768, desktop=1440. |
 | `--path <path>` | Page or `#fragment` to open. Default `/`. |
 | `--click <selector>` | Repeatable, applied in order — open a menu, expand a section. |
+| `--select <selector>=<value>` | Choose in a `<select>`; repeatable, in order with the clicks. |
+| `--pause <ms>` | Wait between steps, in order with them: a demo has to load before the next click. |
 | `--theme light\|dark` | Force a colour scheme rather than taking the runner's. |
 | `--full-page` | Capture the whole scroll height, not just the viewport. |
 | `--wait <ms>` | Settle time before the shot, for an animation. |
