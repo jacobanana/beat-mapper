@@ -64,6 +64,8 @@ export class Sessions {
         manual: app.doc.drums.manual.map((h) => ({ voice: h.voice, t: h.t, a: h.a })),
         removed: app.doc.drums.removed.map((h) => ({ voice: h.voice, t: h.t })),
       },
+      notes: { ...app.notes },
+      removedNotes: app.doc.notes.removed.map((r) => ({ pitch: r.pitch, t: r.t })),
     };
   }
 
@@ -120,6 +122,7 @@ export class Sessions {
       markers: { manual, removed: matchRemoved(app.cands, s.markers.removed).map((i) => app.cands[i].t), nextId: manual.length + 1 },
       drums: { removed: s.hits.removed, manual: s.hits.manual.map((h, i) => ({ id: i + 1, ...h })), nextId: s.hits.manual.length + 1 },
       warpMarkers: s.warpMarkers,
+      notes: { removed: s.removedNotes },
     };
     app.edit(() => doc, false);
     app.set('beats', s.beats);
@@ -127,6 +130,7 @@ export class Sessions {
     app.set('export', s.export);
     app.set('slicer', s.slicer);
     app.set('warp', s.warp);
+    app.set('notes', s.notes);
     app.excluded = s.excluded;
     app.sliceSel = null;
     app.select(null);

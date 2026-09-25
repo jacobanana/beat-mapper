@@ -1,10 +1,11 @@
-// The steps: Transients, Beats, Warp, Slice, Groove.
+// The steps: Transients, Beats, Warp, Slice, Groove, Notes.
 import { STEP, type Step } from '../../state/steps';
 import { stepRules } from '../steps';
 import type { App } from '../app';
 import type { Beats } from './beats';
 import type { Groove } from './groove';
 import type { Markers } from './markers';
+import type { Notes } from './notes';
 import type { Slicer } from './slicer';
 import type { Warp } from './warp';
 
@@ -16,6 +17,7 @@ export class Workflow {
     private readonly slicer: Slicer,
     private readonly warp: Warp,
     private readonly groove: Groove,
+    private readonly notes: Notes,
   ) {}
 
   /** Whether the current step has anything to reset. */
@@ -26,6 +28,7 @@ export class Workflow {
       case STEP.warp: return this.warp.changed;
       case STEP.slice: return this.slicer.changed;
       case STEP.groove: return this.groove.changed;
+      case STEP.notes: return this.notes.changed;
       default: return false;
     }
   }
@@ -38,6 +41,7 @@ export class Workflow {
       case STEP.warp: this.warp.reset(); break;
       case STEP.slice: this.slicer.reset(); break;
       case STEP.groove: this.groove.reset(); break;
+      case STEP.notes: this.notes.reset(); break;
     }
   }
 
@@ -48,5 +52,6 @@ export class Workflow {
     this.app.setStep(step);
     if (step === STEP.warp && this.app.doc.tempo.anchors.length < 2) this.app.notify.toast('Only bar 1 is pinned: the map is one steady tempo. Map the beats in step 2 so the warp can straighten them.');
     if (step === STEP.groove) void this.groove.ensureDrums();
+    if (step === STEP.notes) void this.notes.ensureNotes();
   }
 }

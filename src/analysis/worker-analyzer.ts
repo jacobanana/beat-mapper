@@ -1,5 +1,6 @@
 import type { Algo, Analysis, Band } from '../core/dsp/onset';
 import type { DrumAnalysis, DrumSource } from '../core/drums/detect';
+import type { NoteAnalysis, NoteMode } from '../core/notes/types';
 import type { Candidate } from '../core/types';
 import type { WarpJob } from '../core/warp/modes';
 import { type Analyzer, InlineAnalyzer } from './analyzer';
@@ -77,6 +78,13 @@ export class WorkerAnalyzer implements Analyzer {
     const r = await this.request({ type: 'drums', source }, [], onProgress);
     if (r.type !== 'drums') throw new Error('Unexpected reply ' + r.type);
     return r.drums;
+  }
+
+  async notes(mode: NoteMode, onProgress?: (f: number) => void): Promise<NoteAnalysis> {
+    if (this.inline) return this.inline.notes(mode, onProgress);
+    const r = await this.request({ type: 'notes', mode }, [], onProgress);
+    if (r.type !== 'notes') throw new Error('Unexpected reply ' + r.type);
+    return r.notes;
   }
 
   async warp(job: WarpJob, onProgress?: (f: number) => void): Promise<Float32Array[]> {

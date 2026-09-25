@@ -1,4 +1,5 @@
-// The mixer: a popover under its button with a level for the audio, the click and the synth kit. Each
+// The mixer: a popover under its button with a level for the audio, the click, the synth kit and the
+// synth voice. Each
 // channel's icon mutes it; the click's is the same on/off as the transport's, which stays one tap away.
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
@@ -44,7 +45,15 @@ export function bindMixerPanel(app: App, f: Features): void {
   app.bus.on('mix', syncLevels);
   app.bus.on(['mute', 'transport'], syncMutes);
   app.bus.on(['step', 'drums'], syncDrums);
+  // The same for the synth voice, in the Notes step once the notes are found.
+  const syncNotes = () => {
+    const live = f.playback.synthLive;
+    $('mixNotes').classList.toggle('idle', !live);
+    $('mixNotesHint').hidden = live;
+  };
+  app.bus.on(['step', 'transcript'], syncNotes);
   syncLevels();
   syncMutes();
   syncDrums();
+  syncNotes();
 }

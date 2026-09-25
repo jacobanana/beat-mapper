@@ -53,6 +53,14 @@ export class Playback {
       audioLevel: () => this.audioLevel,
       clickLevel: () => app.mix.click / 100,
       hitLevel: () => app.mix.drums / 100,
+      // Each note from its start, held as long as it is heard: under the warp, from where the warp puts
+      // its start to where it puts its end, with its bends where the warp puts them.
+      notes: (a, b, emit) => this.eachHeard(app.heardNotes, a, b, (n, t) => {
+        const o = this.take?.out, at = (x: number) => (o ? o.at(x) : x);
+        emit(t, { pitch: n.pitch, vel: n.vel, dur: at(n.end) - t, bend: n.bend?.map((p) => ({ at: at(p.t) - t, cents: p.cents })) });
+      }),
+      notesOn: () => this.synthOn,
+      noteLevel: () => app.mix.notes / 100,
     });
     this.player.onEnded = () => { app.playing = undefined; app.setPlayhead(app.dur, false); app.bus.emit('transport'); };
   }
@@ -61,6 +69,10 @@ export class Playback {
   get kitOn(): boolean { return this.kitLive && !this.app.mute.drums; }
   /** The synth kit would be heard here, muted or not. */
   get kitLive(): boolean { return stepRules(this.app.step).kit && !!this.app.drums; }
+  /** The synth voice is heard: in the Notes step, once the notes are found, and not muted. */
+  get synthOn(): boolean { return this.synthLive && !this.app.mute.notes; }
+  /** The synth voice would be heard here, muted or not. */
+  get synthLive(): boolean { return stepRules(this.app.step).synth && !!this.app.transcript; }
 
   // Every item timed on the original that plays between the player's times a and b, at the player's
   // time it plays at: the same moment under the warp, where the warp puts it.

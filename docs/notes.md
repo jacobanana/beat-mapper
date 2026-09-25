@@ -1,13 +1,73 @@
-# Notes: turning pitched audio into MIDI (research)
+# Notes: turning pitched audio into MIDI
 
 The Groove step turns drums into MIDI. This page is the research for the step after it: pitched
 notes (a bass line, a lead, a vocal, keys or guitar) as MIDI notes with pitch, start, length, velocity
-and bends. Nothing here is built yet. It surveys the DSP and academic methods, says which ones fit
-this app, and proposes an order to build them in.
+and bends. It starts with what is built (step 6, `src/core/notes/`), then the research it came from:
+the DSP and academic methods, which ones fit this app, and what is left to build.
 
 Basic Pitch [1] is the obvious ready-made answer, and on real material it disappoints. So the plan is
 to learn from it (see [What to take from Basic Pitch](#what-to-take-from-basic-pitch)) but build on
 signal processing the app already has, the way the drum detector was built.
+
+## What is built
+
+Step 6, **Notes**, finds the notes in the audio as **one line** (a bass line, a lead, a voice) or as
+**chords** (keys, guitar), draws them as a piano roll, plays them on a synth voice and exports them
+as MIDI: one track, with lengths, velocities and pitch bends, placed where the warp puts them when it
+is heard warped. The sensitivity picks among the notes, a note can be deleted, and **Legato** holds
+each note until the next one starts. No trained model is involved.
+
+**One line** (`line.ts`) is pYIN [9]: YIN candidates from one FFT per 10 ms frame, on the audio
+decimated to about 11 kHz, and a Viterbi pass over pitch states 10 cents apart plus an unvoiced state.
+Small moves cost little (vibrato, a bend); any other change is one fixed-price jump, so a frame an
+octave off costs two jumps and loses. Its path is cut into notes: a new note where the pitch *steps*
+across a semitone or where there is an attack (the same pitch plucked again), one note bent where it
+*glides*, and a stretch under 60 ms belongs to its neighbour. The pitch of a note is the semitone it
+spends longest on.
+
+**Chords** (`chords.ts`) is NMF with one harmonic comb per semitone from E1 to C7, on a log-frequency
+spectrogram three bins a semitone: 186 ms windows under 400 Hz, 93 ms above, every 20 ms. The combs
+are zero between their partials and stay fixed. Letting them learn the instrument's partial balance
+let an A2 comb drop its odd partials and become an A3, so every A3 was read as A2 plus A4. The cost
+is KL (β = 1). A note starts at an attack found on the waveform when its activation, read once the
+window has passed the attack, is at least twice what it was before: a strike's click lights every
+comb while it is in the window, and only a real note is still there after it (the onsets gating the
+frames, as in [29]). A note that swells in with no attack starts where it crosses the level a note
+needs. A note an octave, a twelfth, two octaves or a seventeenth over a louder one, starting with it
+and under 0.12 of it, is that note's partial and is dropped.
+
+**Both** time a start on the waveform. The attacks are read on the audio high-passed at 150 Hz by a
+*forward-only* filter, in 2 ms blocks: a zero-phase filter rings before an attack and put starts 8 ms
+early, and without the high-pass a bass note's own waveform ripples a 4 ms window like a string of
+attacks. An attack in a held chord must climb 8 dB over the *loudest* of the 30 ms before it, since
+partials beating dip and swell 10 dB but never over their own peaks. `refineOnset`, which places the
+transients, is tuned to drums and moved bass notes by up to 13 ms, so notes get their own
+sample-level pass. A line's note ends where its level falls 20 dB within 30 ms (the player damping
+it), else where it has faded 30 dB under its peak, else where the pitch lets go. The tuning is the
+circular mean of where each measured pitch sits between two semitones.
+
+On the synthetic parts (`synth.ts`: a funk bass line tuned 20 cents flat with repeated notes, an
+octave leap and a bend of a whole tone; a keyboard part in chords with doubled octaves and a melody
+over a held chord):
+
+| | bass line, one line | keys, chords |
+| --- | --- | --- |
+| notes found | 28 of 28, none extra | 28 of 28, one extra (a G5 blip) |
+| start error | all under 5 ms, median under 1.5 ms | all under 6 ms, median under 1.5 ms |
+| end | within 50 ms or 20% | within 50 ms or 20%, but the G3 doubling G2 ends 0.46 s early |
+| tuning | −20.0 cents | 0.5 cents |
+| time for 3 minutes | 2.7 s | 5.5 s |
+
+What it doesn't do yet:
+
+- **Full mixes.** Both modes assume one instrument. On the drum demo chords mode finds hundreds of
+  notes. Stem separation first, as for the drums.
+- **Low notes in chords.** The 186 ms window can't tell two notes of one pitch apart when they are
+  closer than it, and chords mode gets 19 of the bass line's 28 notes. Use one line for bass.
+- **Octave doublings.** As a chord rings, the lower note takes over the upper one's partials.
+- **Bends in chords.** Only a line has bends: bends on several notes at once need MPE.
+- **Real recordings with ground truth.** Everything above is measured on synthetic parts. The
+  datasets at the end of this page are the next check.
 
 ## What the drum detector already gives us
 
@@ -218,7 +278,10 @@ Worth taking:
   part is (bass, lead, keys) and choosing the range and the mono or poly path from that, and later
   separating stems first, as planned for full-mix drums in [groove.md](groove.md).
 
-## Proposed order
+## The order it was planned in
+
+Steps 1, 3 and 4 are built (see [What is built](#what-is-built)); step 2 is the synthetic half of it.
+
 
 1. **Monophonic line (bass first).** pYIN on the harmonic part, downsampled to 11 kHz: YIN candidates
    per frame, Viterbi over pitch × voicing, notes split at pitch changes and at onsets from the

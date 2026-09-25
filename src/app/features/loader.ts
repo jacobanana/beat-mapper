@@ -2,6 +2,7 @@
 import { estimateTempo } from '../../core/dsp/tempo';
 import { bpmFromName } from '../../core/format';
 import { synthDemo, synthKit } from '../../core/demo';
+import { synthBass } from '../../core/notes/synth';
 import type { Analyzer } from '../../analysis/analyzer';
 import { audioContext, channelsOf, decodeAudio } from '../../engine/audio-context';
 import { STEP } from '../../state/steps';
@@ -59,6 +60,16 @@ export class Loader {
     const sr = 44100, d = synthKit(sr), buf = audioContext().createBuffer(1, d.x.length, sr);
     buf.getChannelData(0).set(d.x);
     await this.open(buf, 'pocket-demo', 'pocket-demo.wav', null, 92);
+  }
+
+  /** A funk bass line with known notes, bends and a flat tuning, to try the Notes step on. */
+  async loadBassDemo(): Promise<void> {
+    this.playback.stop(true);
+    this.busy('Building the bass line', 0.05);
+    await new Promise((r) => setTimeout(r, 20));
+    const sr = 44100, d = synthBass(sr), buf = audioContext().createBuffer(1, d.x.length, sr);
+    buf.getChannelData(0).set(d.x);
+    await this.open(buf, 'bass-demo', 'bass-demo.wav', null, 100);
   }
 
   /**

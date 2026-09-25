@@ -3,6 +3,7 @@ import type { Algo, Band } from '../core/dsp/onset';
 import type { MapSettings } from '../core/beats/edit';
 import type { DrumSource } from '../core/drums/detect';
 import type { PerVoice } from '../core/drums/voices';
+import type { NoteMode } from '../core/notes/types';
 import type { RenderOptions } from '../core/slices/slices';
 import type { GrooveGrid } from '../core/groove/pocket';
 import type { GridDivision } from '../core/tempo/meter';
@@ -112,24 +113,37 @@ export interface GrooveSettings {
   chart: GrooveChartMode;
 }
 
+/** The Notes step: what the audio is played as, how much is let through, and how long notes are held. */
+export interface NoteSettings {
+  /** One line at a time (bass, lead, voice), or chords (keys, guitar). */
+  mode: NoteMode;
+  /** 0..100 */
+  sens: number;
+  /** Hold each note until the next one starts, rather than as long as it is heard. */
+  legato: boolean;
+}
+
 /** How loud each thing that plays is, in percent of its natural level: 100 is as it always was. */
 export interface MixSettings {
   audio: number;
   click: number;
   /** The synth kit playing the drums the Groove step found. */
   drums: number;
+  /** The synth voice playing the notes the Notes step found. */
+  notes: number;
 }
 
-export const MIX_CHANNELS = ['audio', 'click', 'drums'] as const;
+export const MIX_CHANNELS = ['audio', 'click', 'drums', 'notes'] as const;
 
 /**
  * What the mixer has muted, keeping each level for when it comes back. The click has no mute here:
- * its on/off in the transport is its mute. The kit starts muted, so the Groove step sounds like the
- * audio until asked otherwise.
+ * its on/off in the transport is its mute. The kit and the synth start muted, so the Groove and Notes
+ * steps sound like the audio until asked otherwise.
  */
 export interface MuteSettings {
   audio: boolean;
   drums: boolean;
+  notes: boolean;
 }
 export const MIX_MAX = 150;
 
@@ -144,6 +158,7 @@ export const defaultSlicer = (): SlicerSettings => ({
 });
 export const defaultTransport = (): TransportState => ({ loop: null, loopOn: false, start: 0, playhead: 0, stay: false, click: false, scrubMode: false });
 export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', exaggerate: true, chart: 'pocket' });
+export const defaultNotes = (): NoteSettings => ({ mode: 'line', sens: 55, legato: false });
 /** What every rendered slice gets; the warped .wav gets the same channels and level. */
 export function sliceRenderOptions(o: SlicerSettings): RenderOptions {
   return { fadeIn: o.fadeIn / 1000, fadeOut: o.fadeOut / 1000, mono: o.mono, normalize: o.norm, target: Math.pow(10, o.target / 20) };
@@ -151,8 +166,8 @@ export function sliceRenderOptions(o: SlicerSettings): RenderOptions {
 /** How every .wav is written: its depth, its rate and whether the rounding is dithered. */
 export const wavOptions = (o: SlicerSettings): WavOptions => ({ bits: o.bits, rate: o.rate, dither: o.dither });
 
-export const defaultMix = (): MixSettings => ({ audio: 100, click: 100, drums: 100 });
-export const defaultMute = (): MuteSettings => ({ audio: false, drums: true });
+export const defaultMix = (): MixSettings => ({ audio: 100, click: 100, drums: 100, notes: 100 });
+export const defaultMute = (): MuteSettings => ({ audio: false, drums: true, notes: true });
 
 /** Reads mixer levels saved by an earlier visit, keeping only numbers in range. */
 export function parseMix(json: string | null): MixSettings {

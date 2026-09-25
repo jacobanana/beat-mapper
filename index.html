@@ -49,6 +49,7 @@
 <symbol id="i-tol" viewBox="0 0 20 20"><path d="M10 4v12M6 7l-3 3 3 3M14 7l3 3-3 3"/></symbol>
 <symbol id="i-groove" viewBox="0 0 20 20"><path d="M2 5h16M2 10h16M2 15h16" stroke-dasharray="1 3" stroke-width="1"/><path class="f" d="M4 5m-1.8 0a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0-3.6 0M12.5 10m-2.2 0a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0M7 15m-2.2 0a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0"/><path d="M10 7.5v5"/></symbol>
 <symbol id="i-warp" viewBox="0 0 20 20"><path d="M4 3v14M10 3v14M16 3v14" stroke-dasharray="1.5 2" stroke-width="1"/><path d="M1.5 10c1.5-4 3-4 4.5 0s3.5 4 5 0 3.5-4 7.5 0"/></symbol>
+<symbol id="i-notes" viewBox="0 0 20 20"><path d="M3 3v14" stroke-width="1.2"/><path class="f" d="M5 4h5.5v2.4H5ZM9 8.8h6.5v2.4H9ZM12.5 13.6H17V16h-4.5Z"/></symbol>
 <symbol id="i-slice" viewBox="0 0 20 20"><path d="M1.5 13h2.2l1.4-3.5L7 16l2-13 2 10.5 1.4-2.5h4.1"/><path d="M6.2 2v16M13.8 2v16" stroke-dasharray="2 2.4"/></symbol>
 </defs></svg>
 <div id="app">
@@ -70,6 +71,7 @@
       <button role="tab" id="t3" aria-selected="false" title="Warp onto a straight grid (3)" aria-label="Warp"><svg class="ic"><use href="#i-warp"/></svg><span class="lbl">Warp</span></button>
       <button role="tab" id="t4" aria-selected="false" title="Slice samples (4)" aria-label="Slice samples"><svg class="ic"><use href="#i-slice"/></svg><span class="lbl">Slice</span></button>
       <button role="tab" id="t5" aria-selected="false" title="Groove: the pocket of kick, snare and hats (5)" aria-label="Groove"><svg class="ic"><use href="#i-groove"/></svg><span class="lbl">Groove</span></button>
+      <button role="tab" id="t6" aria-selected="false" title="Notes: a bass line, a lead or chords as MIDI (6)" aria-label="Notes"><svg class="ic"><use href="#i-notes"/></svg><span class="lbl">Notes</span></button>
     </nav>
     <span class="brk" aria-hidden="true"></span>
     <div class="grp transport">
@@ -112,6 +114,11 @@
         <input type="range" id="mix-drums" min="0" max="150" step="5" value="100" aria-label="Drums level"><output id="mixO-drums">100%</output>
         <p class="hint" id="mixHint">The synth kit plays the drums found in the Groove step.</p>
       </div>
+      <div class="ch" id="mixNotes">
+        <span class="chn"><button class="btn mute" id="mute-notes" title="Mute or unmute the synth playing the notes (M)" aria-label="Notes on" aria-pressed="false"><svg class="ic"><use href="#i-notes"/></svg></button>Notes</span>
+        <input type="range" id="mix-notes" min="0" max="150" step="5" value="100" aria-label="Notes level"><output id="mixO-notes">100%</output>
+        <p class="hint" id="mixNotesHint">The synth plays the notes found in the Notes step.</p>
+      </div>
     </div>
   </header>
 
@@ -126,6 +133,7 @@
             <label class="btn primary" id="chooseBtn" for="fileIn" tabindex="0" role="button"><svg class="ic"><use href="#i-open"/></svg>Open</label>
             <button class="btn" id="demoBtn">Demo loop</button>
             <button class="btn" id="kitDemoBtn" title="A funk groove with a known pocket: the kick pushes, the snare lays back">Pocket demo</button>
+            <button class="btn" id="bassDemoBtn" title="A funk bass line with known notes, to try the Notes step on">Bass demo</button>
           </div>
         </div>
       </div>
@@ -308,6 +316,34 @@
         </div>
         <div class="groove"><canvas id="grooveCv" role="img" aria-label="Pocket chart and the typical bar, or the MIDI transcript"></canvas></div>
       </div>
+      <div class="pane" id="p6" hidden>
+        <div class="col flow">
+          <div class="row2">
+            <span class="cap" title="The notes found in the audio">Find</span><span class="items">
+              <select id="nMode" title="What the audio is: one note at a time (a bass line, a lead, a voice), or chords (keys, guitar). Works best on one instrument alone" aria-label="Line or chords"><option value="line">one line</option><option value="chords">chords</option></select>
+              <label class="sl" title="Sensitivity: raise it for quiet notes, lower it to drop strays"><svg class="ic"><use href="#i-sens"/></svg><input type="range" id="nSens" min="0" max="100" value="55" aria-label="Note sensitivity"><output id="nN"></output></label>
+            </span>
+          </div>
+          <div class="row2">
+            <span class="cap" title="How long each note is written and played">Length</span><span class="items">
+              <button class="btn" id="nLegato" title="Legato: hold each note until the next one starts, as a synth bass wants; off, each note is as long as it is heard" aria-pressed="false">Legato</button>
+            </span>
+          </div>
+          <div class="row2">
+            <span class="cap" title="Hear the notes on a synth voice, over the audio or alone (mute the audio in the mixer)">Hear</span><span class="items">
+              <button class="btn" id="nSynth" title="Play the notes on a synth voice (M)" aria-pressed="false"><svg class="ic"><use href="#i-notes"/></svg>Synth</button>
+            </span>
+          </div>
+          <div class="row2">
+            <span class="cap" title="Fix single notes: tap one in the piano roll, double-tap to delete">Fix</span><span class="items">
+              <button class="btn" id="nDel" title="Delete the selected note (Del)" aria-label="Delete note"><svg class="ic"><use href="#i-del"/></svg>Delete</button>
+              <button class="btn end" id="nReset" title="Reset Notes: every note as found, at the starting sensitivity" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
+            </span>
+          </div>
+          <p id="nSum"></p>
+        </div>
+        <div class="groove"><canvas id="notesCv" role="img" aria-label="The notes found, as a piano roll"></canvas></div>
+      </div>
     </section>
   </main>
 </div>
@@ -331,6 +367,8 @@
       <h3>Drums</h3>
       <button data-fmt="drumsMidi"><span class="nm">Drums MIDI</span><small>.mid</small><span class="sub">Kick, snare and hats as notes</span></button>
       <button data-fmt="groove"><span class="nm">Groove</span><small>.json</small><span class="sub">The typical bar, for Pocket Science</span></button>
+      <h3>Notes</h3>
+      <button data-fmt="notesMidi"><span class="nm">Notes MIDI</span><small>.mid</small><span class="sub">The line or the chords, with bends</span></button>
     </nav>
     <div class="xopts">
       <p id="expDesc"></p>
@@ -445,6 +483,14 @@
     <div><span>Chart</span><span>Left: where each voice sits, ahead or behind – every hit, its middle half, and its median. Right: the typical bar – dot size is velocity, faint dots are steps played in only some bars, tails show the lean</span></div>
     <div><svg class="ic"><use href="#i-warp"/></svg><span>Heard warped, the hits are measured, heard on the kit and exported where the warp puts them: quantized in the Warp step, they sit on the grid. Heard as the original, where they were played</span><span><kbd>W</kbd></span></div>
     <div><svg class="ic"><use href="#i-export"/></svg><span>Save the drums as MIDI (as heard: warped, at the grid's one tempo and lined up with the warped .wav; the original, on the tempo map), or the typical bar as a Pocket Science groove file: in Export</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
+    <h3>Notes</h3>
+    <div><svg class="ic"><use href="#i-notes"/></svg><span>The notes of a bass line, a lead or a voice (one line), or of keys or guitar (chords), found in the audio with their pitch, length, loudness and bends, and drawn as a piano roll. It works best on one instrument on its own</span><span></span></div>
+    <div><span>Find</span><span>One line or chords, and the sensitivity, with how many notes it lets through. A line is followed note to note and keeps its bends; chords find every note that sounds at once</span></div>
+    <div><span>Legato</span><span>Hold each note until the next one starts (the next chord, in chords); off, each note is as long as it is heard</span></div>
+    <div><svg class="ic"><use href="#i-notes"/></svg><span>Synth: hear the notes on a synth voice. Mute the audio in the mixer to hear it alone</span><span><kbd>M</kbd></span></div>
+    <div><svg class="ic"><use href="#i-del"/></svg><span>Tap a note in the piano roll to select it, double-tap it to delete it</span><span><kbd>Del</kbd></span></div>
+    <div><svg class="ic"><use href="#i-reset"/></svg><span>Reset: every note as found, at the starting sensitivity</span><span></span></div>
+    <div><svg class="ic"><use href="#i-export"/></svg><span>Save the notes as MIDI, with bends: as heard, warped at the grid's one tempo, or the original on the tempo map. In Export</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
   </div>
   <h2 style="margin-top:18px">Keyboard shortcuts</h2>
   <div class="keys">
@@ -464,8 +510,8 @@
     <div><span><kbd>+</kbd> <kbd>−</kbd> <kbd>Z</kbd></span><span>Zoom in, out, fit whole file</span></div>
     <div><span><kbd>Home</kbd> <kbd>End</kbd></span><span>Go to start / end</span></div>
     <div><span><kbd>K</kbd></span><span>Click on markers or beats</span></div>
-    <div><span><kbd>W</kbd></span><span>Warped or the original, for Warp, Slice and Groove</span></div>
-    <div><span><kbd>1</kbd> … <kbd>5</kbd></span><span>Transients, Beats, Warp, Slice, Groove</span></div>
+    <div><span><kbd>W</kbd></span><span>Warped or the original, for Warp, Slice, Groove and Notes</span></div>
+    <div><span><kbd>1</kbd> … <kbd>6</kbd></span><span>Transients, Beats, Warp, Slice, Groove, Notes</span></div>
     <div><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span><span>Export</span></div>
     <div><span><kbd>Ctrl/⌘</kbd><kbd>Z</kbd></span><span>Undo (add ⇧ to redo)</span></div>
     <div><span><kbd>Esc</kbd></span><span>Deselect</span></div>
@@ -501,6 +547,10 @@
     <div><span>Drum lanes</span><span>Drag a hit to move it · double-tap a lane to add a hit, or a hit to delete it · hits land on the nearest transient (<kbd>Alt</kbd> places them freely)</span></div>
     <div><span><kbd>Del</kbd> <kbd>←</kbd> <kbd>→</kbd></span><span>Delete or move the selected hit</span></div>
     <div><span>Loop</span><span>With the loop on, only the bars inside it are measured</span></div>
+    <h3>Step 6 – Notes</h3>
+    <div><span><kbd>M</kbd></span><span>Mute or unmute the synth playing the notes</span></div>
+    <div><span><kbd>Del</kbd></span><span>Delete the selected note</span></div>
+    <div><span>Piano roll</span><span>Tap a note to select it and put the playhead on it · double-tap it to delete it</span></div>
     <h3>Where you touch decides what happens</h3>
     <div><span>Top strip</span><span>Loop: drag to draw, drag edges or middle to adjust, tap it to switch on/off, double-tap to loop a bar. Switched on with nothing drawn, the whole file loops</span></div>
     <div><span>Bar ruler</span><span>Drag pins and bar lines (step 2)</span></div>
