@@ -3,18 +3,19 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { detectNotes } from '../src/core/notes/detect';
 import { heardNotes, noNoteEdits, noteVelocities, selectNotes } from '../src/core/notes/select';
-import { type PlayedNote, synthBass, synthKeys } from '../src/core/notes/synth';
+import { type PlayedNote, synthBass, synthKeys, synthPiano } from '../src/core/notes/synth';
 import type { Note, NoteAnalysis } from '../src/core/notes/types';
 import { noteName } from '../src/core/notes/types';
 import { TempoMap } from '../src/core/tempo/tempo-map';
 import { buildMidi } from '../src/io/formats/midi';
 
-const SR = 44100, bass = synthBass(SR), keys = synthKeys(SR);
-let line: NoteAnalysis, chords: NoteAnalysis;
+const SR = 44100, bass = synthBass(SR), keys = synthKeys(SR), piano = synthPiano(SR);
+let line: NoteAnalysis, chords: NoteAnalysis, low: NoteAnalysis;
 
 beforeAll(async () => {
   line = await detectNotes(bass.x, SR, { mode: 'line', yieldToEventLoop: false });
   chords = await detectNotes(keys.x, SR, { mode: 'chords', yieldToEventLoop: false });
+  low = await detectNotes(piano.x, SR, { mode: 'chords', yieldToEventLoop: false });
 }, 60_000);
 
 // Each true note and the found note of its pitch that starts nearest it, within 50 ms (the usual
@@ -82,6 +83,30 @@ describe('chords', () => {
       if (n.pitch === 55) continue;
       expect(Math.abs(m!.end - n.end), noteName(n.pitch) + '@' + n.t.toFixed(2)).toBeLessThan(Math.max(0.05, 0.2 * (n.end - n.t)));
     }
+  });
+});
+
+// A loop's piano, voiced low: chords over octave roots from E1 up, and a soft melody over them. The
+// factorisation spills the low notes into the combs a semitone away and onto their partials, and each
+// of those, tracked on its own, was a note: this part came out with half as many strays as notes.
+describe('chords voiced low, with a melody over them', () => {
+  const name = (n: { pitch: number; t: number }) => noteName(n.pitch) + '@' + n.t.toFixed(2);
+
+  it('finds the chords and the melody, with no spill a semitone off a low note', () => {
+    const { pairs, extra } = match(piano.notes, selectNotes(low.notes, 55, noNoteEdits()));
+    // The D5 over the G chord is the G3's third partial as well; the factorisation leaves it little.
+    expect(pairs.filter((p) => !p.m).map((p) => name(p.n)).length).toBeLessThanOrEqual(1);
+    expect(extra.length).toBeLessThanOrEqual(1);
+    const spill = low.notes.filter((k) => piano.notes.some((n) => n.pitch < 48 && Math.abs(n.pitch - k.pitch) === 1 && Math.abs(n.t - k.t) < 0.05));
+    expect(spill.map(name)).toEqual([]);
+  });
+
+  it('has a sensitivity that means something: up, every note; down, the roots are left', () => {
+    const at = (sens: number) => match(piano.notes, selectNotes(low.notes, sens, noNoteEdits()));
+    expect(at(80).pairs.filter((p) => !p.m).map((p) => name(p.n))).toEqual([]);
+    const down = at(30).pairs, roots = down.filter((p) => !piano.notes.some((n) => n.pitch < p.n.pitch && Math.abs(n.t - p.n.t) < 0.01));
+    expect(down.filter((p) => !p.m).length).toBeGreaterThan(5);
+    expect(roots.filter((p) => p.n.pitch < 36 && !p.m).map((p) => name(p.n))).toEqual([]);
   });
 });
 

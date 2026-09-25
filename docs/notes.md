@@ -29,18 +29,30 @@ spends longest on.
 spectrogram three bins a semitone: 186 ms windows under 400 Hz, 93 ms above, every 20 ms. The combs
 are zero between their partials and stay fixed. Letting them learn the instrument's partial balance
 let an A2 comb drop its odd partials and become an A3, so every A3 was read as A2 plus A4. The cost
-is KL (β = 1). A note starts at an attack found on the waveform when its activation, read once the
-window has passed the attack, is at least twice what it was before: a strike's click lights every
-comb while it is in the window, and only a real note is still there after it (the onsets gating the
-frames, as in [29]). A note that swells in with no attack starts where it crosses the level a note
-needs. A note an octave, a twelfth, two octaves or a seventeenth over a louder one, starting with it
-and under 0.12 of it, is that note's partial and is dropped.
+is KL (β = 1).
+
+Which notes a chord has is decided onset by onset, all pitches together. The onsets are peaks of a
+spectral flux (SuperFlux [39]: 46 ms windows every 5 ms, log-compressed, each bin against the loudest
+of its neighbours 15 ms before). The waveform's envelope misses most of a piano part: a soft melody
+note over a held chord barely moves the level, and on a real piano loop it found 7 of some 25 onsets.
+At each onset every comb is asked how far its activation rose, from just before the window reached
+the onset to the least it holds once the window has passed it and before the next onset is in it: a
+strike's click lights every comb while it is in the window, and only a real note is still there after
+it (the onsets gating the frames, as in [29]). The pitches that rose are taken loudest first, and one
+is dropped when it rose by under 3% of the loudest, or under half of a louder one a semitone away (a
+whole tone, under 400 Hz), or under 0.12 of a louder one it is a partial of (0.06 for an octave).
+Tracked one pitch at a time, as they were at first, each of those was a note: a real piano loop
+(Em, Fmaj7, G, Am7 over octave roots, a melody on top) came out with 141 notes where Basic Pitch
+finds 54. Now it finds 54, 43 of them Basic Pitch's; the rest are mostly the same notes placed apart
+(a G1 90 ms from Basic Pitch's) or ones Basic Pitch leaves out (the E1 under the E2). The
+strength the sensitivity reads is a note's rise against the loud notes of the take, to the power 0.8,
+so the starting sensitivity keeps notes down to about 25 dB under them and turning it down drops the
+doublings and the soft melody before the roots.
 
 **Both** time a start on the waveform. The attacks are read on the audio high-passed at 150 Hz by a
 *forward-only* filter, in 2 ms blocks: a zero-phase filter rings before an attack and put starts 8 ms
 early, and without the high-pass a bass note's own waveform ripples a 4 ms window like a string of
-attacks. An attack in a held chord must climb 8 dB over the *loudest* of the 30 ms before it, since
-partials beating dip and swell 10 dB but never over their own peaks. `refineOnset`, which places the
+attacks. `refineOnset`, which places the
 transients, is tuned to drums and moved bass notes by up to 13 ms, so notes get their own
 sample-level pass. A line's note ends where its level falls 20 dB within 30 ms (the player damping
 it), else where it has faded 30 dB under its peak, else where the pitch lets go. The tuning is the
@@ -48,22 +60,27 @@ circular mean of where each measured pitch sits between two semitones.
 
 On the synthetic parts (`synth.ts`: a funk bass line tuned 20 cents flat with repeated notes, an
 octave leap and a bend of a whole tone; a keyboard part in chords with doubled octaves and a melody
-over a held chord):
+over a held chord; a piano voiced low, chords over octave roots from E1 with a soft melody over them):
 
-| | bass line, one line | keys, chords |
-| --- | --- | --- |
-| notes found | 28 of 28, none extra | 28 of 28, one extra (a G5 blip) |
-| start error | all under 5 ms, median under 1.5 ms | all under 6 ms, median under 1.5 ms |
-| end | within 50 ms or 20% | within 50 ms or 20%, but the G3 doubling G2 ends 0.46 s early |
-| tuning | −20.0 cents | 0.5 cents |
-| time for 3 minutes | 2.7 s | 5.5 s |
+| | bass line, one line | keys, chords | low piano, chords |
+| --- | --- | --- | --- |
+| notes found | 28 of 28, none extra | 28 of 28, none extra | 23 of 24, none extra (the missed D5 is found at 80) |
+| start error | all under 5 ms, median under 1.5 ms | all under 5 ms, median under 1 ms | all under 6 ms, median 1 ms |
+| end | within 50 ms or 20% | within 50 ms or 20%, but the G3 doubling G2 ends 0.46 s early | within 50 ms or 20% but one |
+| tuning | −20.0 cents | 0.5 cents | 1.5 cents |
+| time for 3 minutes | 2.7 s | 6.3 s | |
 
 What it doesn't do yet:
 
 - **Full mixes.** Both modes assume one instrument. On the drum demo chords mode finds hundreds of
   notes. Stem separation first, as for the drums.
 - **Low notes in chords.** The 186 ms window can't tell two notes of one pitch apart when they are
-  closer than it, and chords mode gets 19 of the bass line's 28 notes. Use one line for bass.
+  closer than it, and chords mode gets 22 of the bass line's 28 notes (none extra). Use one line for
+  bass.
+- **Swells.** A note needs an onset. A pad fading in with nothing new in its spectrum at any moment
+  isn't found.
+- **A melody note on a chord's partial.** A D5 over a held G3 is the G3's third partial too, and the
+  factorisation gives the D5 comb little of it: the note is found, but quieter than it is.
 - **Octave doublings.** As a chord rings, the lower note takes over the upper one's partials.
 - **Bends in chords.** Only a line has bends: bends on several notes at once need MPE.
 - **Real recordings with ground truth.** Everything above is measured on synthetic parts. The
@@ -395,3 +412,4 @@ built, and will be asked about then.
     dataset." ICLR 2019. <https://arxiv.org/abs/1810.12247>
 38. Z. Duan, B. Pardo. "Soundprism: An online system for score-informed source separation of music
     audio." IEEE J. Selected Topics in Signal Processing 5(6), 2011 (the Bach10 dataset).
+39. S. Böck, G. Widmer. "Maximum filter vibrato suppression for onset detection." DAFx-13, 2013.
