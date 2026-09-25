@@ -36,11 +36,8 @@ export interface ChordParams {
   /** A stiff string's partial h sits at h·f0·√(1 + B·h²): B is about 1e-4 for a piano's middle. */
   inharmonicity: number;
   iterations: number;
-  /** The β of the divergence: 1 is KL, 0.5 the pitched literature's favourite, 2 squared error. */
-  beta: number;
-  /** Learn each note's partial balance (0 = keep the combs), and the sparsity penalty. */
+  /** Learn each note's partial balance (0 = keep the combs). */
   adapt: number;
-  sparsity: number;
   /** Frames this fraction under the loudest hold nothing to transcribe. */
   floor: number;
   /** An onset is a flux peak standing over the mean before it by this fraction of the take's highest. */
@@ -69,22 +66,6 @@ export interface ChordParams {
    */
   neighbour: number;
   wholeToneUnder: number;
-  /**
-   * A note under a louder one that starts with it, at an interval where its partials fall on the
-   * louder one's (`subIntervals` semitones under it), is the louder one's own energy read by a deeper
-   * comb when it rose by under `sub` of it: an overdriven guitar's difference tones and a chord's
-   * missing fundamental both read this way. 0 keeps every such note.
-   */
-  sub: number;
-  subIntervals: readonly number[];
-  /**
-   * A note must show its own lowest partials in the spectrogram: at its onset the bins of its first
-   * or second partial must rise by this fraction of what the comb claims there (0 asks nothing). A
-   * hammer's thump or a pick's click is broadband, and a deep comb, with sixteen partials over the
-   * band, fits it well and reads as a note three octaves under the chord; it has nothing at its
-   * fundamental.
-   */
-  fundamental: number;
   /** A note ends where its activation has fallen to this fraction of its peak (0.1 is 20 dB). */
   fade: number;
   /** A note shorter than this, seconds, is not a note. */
@@ -94,35 +75,44 @@ export interface ChordParams {
   strengthPower: number;
 }
 
+/**
+ * Any instrument: as tuned by ear on the synthetic parts, but for the gates the benchmark moved
+ * (`bench/tune.eval.ts`, chosen on the odd-numbered songs of BabySlakh): a note needs to have risen
+ * by 0.025 of the take's loudest activation and 0.06 of its chord's loudest, and the strength curve is
+ * straight. Stricter than this drops the soft melody and the octave doublings of the synthetic keys,
+ * which a user who says nothing about the instrument should keep; the profiles below go further.
+ */
 export const CHORD_DEFAULTS: ChordParams = {
   lo: 28, hi: 96,
   decay: 1, partials: 16, inharmonicity: 0,
-  iterations: 40, beta: 1, adapt: 0, sparsity: 0.2, floor: 1e-3,
+  iterations: 40, adapt: 0, floor: 1e-3,
   onsetThreshold: 0.05, onsetPeakWindow: 0.03, onsetMeanWindow: 0.15, onsetLag: 0.015,
-  on: 0.015, riseRatio: 2, quiet: 0.03,
+  on: 0.025, riseRatio: 2, quiet: 0.06,
   // The combs expect a note's partials at 1/h; what a piano has beyond that lands on these pitches
   // (an octave, a twelfth, two octaves, a seventeenth and on up to three octaves), and reads up to
   // 0.11 of the lower note. An octave really doubled reads 0.08 and up, since the lower comb takes
   // some of it.
   ghost: 0.12, octave: 0.06, ghostPartials: [12, 19, 24, 28, 31, 34, 36],
   neighbour: 0.5, wholeToneUnder: 400,
-  sub: 0, subIntervals: [12, 19, 24, 28, 31, 34, 36],
-  fundamental: 0,
   fade: 0.1, minLength: 0.06,
-  strengthRef: 0.9, strengthPower: 0.8,
+  strengthRef: 0.9, strengthPower: 1,
 };
 
 /**
- * What each instrument wants set differently from the generic profile, chosen on the odd-numbered
- * songs of BabySlakh and checked on the even-numbered ones (`bench/tune.eval.ts`); an empty profile
- * is the generic detector.
+ * What each instrument wants, chosen on the odd-numbered songs of BabySlakh and checked on the
+ * even-numbered ones (`bench/tune.eval.ts`). On rendered instruments a note of a chord that rose by
+ * under a quarter of the chord's loudest is far more often a partial or a neighbour of a real note
+ * than a real note, and the partials of every one of them fall off slower than 1/h. A piano's soft
+ * notes are the most often real, so its gates are the gentlest. A drawbar organ's partials are as
+ * loud as its fundamental and every one rises with the note, so its combs are nearly flat and its
+ * gates strict. Mallets play few notes at once, all of them loud, and a glockenspiel reaches C8.
  */
 export const CHORD_PROFILES: Record<NoteInstrument, Partial<ChordParams>> = {
   any: {},
-  piano: {},
-  guitar: {},
-  organ: {},
-  mallets: {},
+  piano: { decay: 0.7, quiet: 0.25, on: 0.015, strengthPower: 1 },
+  guitar: { decay: 0.6, quiet: 0.3, on: 0.03, strengthPower: 1.2 },
+  organ: { decay: 0.5, quiet: 0.3, on: 0.07, strengthPower: 1.5 },
+  mallets: { decay: 1, quiet: 0.5, on: 0.07, strengthPower: 1, hi: 107 },
 };
 
 export interface ChordOptions {
@@ -262,26 +252,25 @@ async function spectrogram(y: Float32Array, sr: number, o: ChordOptions): Promis
 }
 
 /**
- * V ≈ W·H with the combs as W, by the multiplicative updates for the β-divergence (Févotte & Idier,
- * Neural Computation 2011). The drum detector found squared error better because KL let one drum
- * explain another's attack; here KL's leniency (β = 1, the default) is what keeps a note's quiet upper
- * partials from being overruled by the loud low ones.
+ * V ≈ W·H with the combs as W, by the multiplicative updates for KL divergence (β = 1). The drum
+ * detector found squared error better because KL let one drum explain another's attack; here KL's
+ * leniency is what keeps a note's quiet upper partials from being overruled by the loud low ones.
+ * On the benchmark β = 0.5 scored a point lower, and a sparsity penalty does nothing here: with each
+ * template summing to one, the KL denominator is one, and the penalty only scales every activation.
  */
 async function factorise(sp: Spec, combs: Comb[], p: ChordParams, o: ChordOptions): Promise<Float32Array> {
-  const { V, F, B } = sp, K = combs.length, its = p.iterations, adapt = p.adapt, lam = p.sparsity, beta = p.beta;
-  const H = new Float64Array(K * F), L = new Float64Array(B), R = new Float64Array(B), D = new Float64Array(B);
-  const W = combs.map((c) => Float64Array.from(c.w)), num = combs.map((c) => new Float64Array(c.w.length)), den = combs.map((c) => new Float64Array(c.w.length));
+  const { V, F, B } = sp, K = combs.length, its = p.iterations, adapt = p.adapt;
+  const H = new Float64Array(K * F), L = new Float64Array(B), R = new Float64Array(B);
+  const W = combs.map((c) => Float64Array.from(c.w)), num = combs.map((c) => new Float64Array(c.w.length)), den = new Float64Array(K);
   let vmax = 0;
   const live = new Uint8Array(F), sum = new Float64Array(F);
   for (let f = 0; f < F; f++) { let s = 0; for (let b = 0; b < B; b++) s += V[f * B + b]; sum[f] = s; vmax = Math.max(vmax, s); }
-  // Away from KL the update's denominator scales with the loudness, and with it the sparsity penalty:
-  // the spectrogram is read against its loudest frame so the penalty means the same on any take.
-  const scale = beta === 1 ? 1 : 1 / (vmax || 1);
-  for (let f = 0; f < F; f++) if (sum[f] > vmax * p.floor) { live[f] = 1; for (let k = 0; k < K; k++) H[k * F + f] = (scale * sum[f]) / K; }
-  const eps = 1e-9 * (scale * vmax || 1) / B;
+  for (let f = 0; f < F; f++) if (sum[f] > vmax * p.floor) { live[f] = 1; for (let k = 0; k < K; k++) H[k * F + f] = sum[f] / K; }
+  const eps = 1e-9 * (vmax || 1) / B;
   for (let it = 0; it < its; it++) {
     const learn = it < its * adapt;
-    for (let k = 0; k < K; k++) { num[k].fill(0); den[k].fill(0); }
+    for (let k = 0; k < K; k++) num[k].fill(0);
+    den.fill(0);
     for (let f = 0; f < F; f++) {
       if (!live[f]) continue;
       L.fill(eps);
@@ -291,24 +280,24 @@ async function factorise(sp: Spec, combs: Comb[], p: ChordParams, o: ChordOption
         const bins = combs[k].bins, w = W[k];
         for (let i = 0; i < bins.length; i++) L[bins[i]] += w[i] * h;
       }
-      // R is V·L^(β−2) and D is L^(β−1): for KL, V/L and 1.
-      if (beta === 1) for (let b = 0; b < B; b++) { R[b] = V[f * B + b] / L[b]; D[b] = 1; }
-      else for (let b = 0; b < B; b++) { const q = Math.pow(L[b], beta - 2); R[b] = scale * V[f * B + b] * q; D[b] = L[b] * q; }
+      for (let b = 0; b < B; b++) R[b] = V[f * B + b] / L[b];
       for (let k = 0; k < K; k++) {
         const bins = combs[k].bins, w = W[k];
-        let s = 0, d = 0;
-        for (let i = 0; i < bins.length; i++) { s += w[i] * R[bins[i]]; d += w[i] * D[bins[i]]; }
+        let s = 0;
+        for (let i = 0; i < bins.length; i++) s += w[i] * R[bins[i]];
         const h = H[k * F + f];
-        if (learn && h > 0) { const nk = num[k], dk = den[k]; for (let i = 0; i < bins.length; i++) { nk[i] += h * R[bins[i]]; dk[i] += h * D[bins[i]]; } }
-        H[k * F + f] = (h * s) / (d + lam);
+        // Each template sums to 1, so the KL denominator Σ_b W is 1.
+        if (learn && h > 0) { const nk = num[k]; for (let i = 0; i < bins.length; i++) nk[i] += h * R[bins[i]]; den[k] += h; }
+        H[k * F + f] = h * s;
       }
     }
     // The partials' balance, learnt in the first half and then held while the activations settle.
     if (learn) {
       for (let k = 0; k < K; k++) {
-        const w = W[k], nk = num[k], dk = den[k];
+        if (!(den[k] > 0)) continue;
+        const w = W[k], nk = num[k];
         let s = 0;
-        for (let i = 0; i < w.length; i++) if (dk[i] > 0) s += w[i] *= nk[i] / dk[i];
+        for (let i = 0; i < w.length; i++) s += w[i] *= nk[i] / den[k];
         if (s > 0) { for (let i = 0; i < w.length; i++) w[i] /= s; for (let f = 0; f < F; f++) H[k * F + f] *= s; }
       }
     }
@@ -349,9 +338,7 @@ export function chordOnsets(inp: ChordInput, p: ChordParams): number[] {
 
 /** Stage four: the activations and the onsets into notes. */
 export function chordNotes(inp: ChordInput, H: Float32Array, ons: number[], p: ChordParams): Note[] {
-  const { sp, ys } = inp, combs: Comb[] = [];
-  for (let q = p.lo; q <= p.hi; q++) combs.push(template(sp.m, ys, 100 * q + sp.tuning, p));
-  return track(H, combs, sp, ys, inp.A, ons, p);
+  return track(H, p.hi - p.lo + 1, inp.sp, inp.ys, inp.A, ons, p);
 }
 
 export async function detectChords(x: Float32Array, sr: number, o: ChordOptions = {}): Promise<ChordResult> {
@@ -423,8 +410,8 @@ interface Start {
  * spill of a louder one a semitone away, or its partial, or too quiet beside the rest of the chord.
  * A note ends where it has fallen 20 dB under its own peak, or where the same pitch starts again.
  */
-function track(H: Float32Array, combs: Comb[], sp: Spec, sr: number, A: Attacks, ons: number[], p: ChordParams): Note[] {
-  const lo = p.lo, K = combs.length, { F, B, V, tuning } = sp, dt = sp.hop / sr;
+function track(H: Float32Array, K: number, sp: Spec, sr: number, A: Attacks, ons: number[], p: ChordParams): Note[] {
+  const lo = p.lo, { F, tuning } = sp, dt = sp.hop / sr;
   let top = 0;
   for (let i = 0; i < H.length; i++) if (H[i] > top) top = H[i];
   const on = top * p.on, at = (h: Float32Array, f: number) => h[Math.max(0, Math.min(F - 1, f))];
@@ -433,22 +420,6 @@ function track(H: Float32Array, combs: Comb[], sp: Spec, sr: number, A: Attacks,
     const f0 = hzOfCents(100 * (lo + k) + tuning);
     return Math.max(1, Math.round(SIZES[Math.max(0, SIZES.findIndex((z) => f0 < z.upTo))].N / 2 / sr / dt));
   });
-  // Each pitch's first two partials: the log bin and the comb's weight there.
-  const lowest = combs.map((c, k) => {
-    const c0 = 100 * (lo + k) + tuning;
-    return [c0, c0 + 1200].map((cents) => {
-      const j = Math.round((cents - sp.m.cents[0]) / (1200 / BPO));
-      let w = 0;
-      for (let i = 0; i < c.bins.length; i++) if (Math.abs(c.bins[i] - j) <= 1) w = Math.max(w, c.w[i]);
-      return { j, w };
-    });
-  });
-  const vAt = (f: number, j: number) => {
-    const o = Math.max(0, Math.min(F - 1, f)) * B;
-    let v = 0;
-    for (let i = Math.max(0, j - 1); i <= Math.min(B - 1, j + 1); i++) v = Math.max(v, V[o + i]);
-    return v;
-  };
   const starts: Start[] = [], last = new Float64Array(K).fill(-Infinity);
   // On the waveform where it shows the attack; a soft note under a loud chord stays where the flux put it.
   const times = ons.map((o) => { const st = placeStart(A, o, 0.03, 0.03); return st.rise >= 6 ? st.t : o; });
@@ -468,14 +439,7 @@ function track(H: Float32Array, combs: Comb[], sp: Spec, sr: number, A: Attacks,
       const j1 = Math.min(f + 2 * L + 1, next - L - 1);
       if (j1 < f + L + 1) post = Math.min(at(h, Math.round((f + next) / 2)), at(h, f + L + 1));
       for (let j = f + L + 1; j <= j1; j++) post = Math.min(post, at(h, j));
-      if (!(post >= on && post >= p.riseRatio * pre && post - pre >= on)) continue;
-      if (p.fundamental > 0) {
-        // The same frames the activation was read at, so a partial that is there reads as a rise.
-        const fPost = j1 < f + L + 1 ? f + L + 1 : j1;
-        const shown = lowest[k].some(({ j, w }) => j >= 0 && j < B && w > 0 && vAt(fPost, j) - vAt(f - L - 1, j) >= p.fundamental * w * (post - pre));
-        if (!shown) continue;
-      }
-      rose.push({ pitch: lo + k, t, gain: post - pre, f });
+      if (post >= on && post >= p.riseRatio * pre && post - pre >= on) rose.push({ pitch: lo + k, t, gain: post - pre, f });
     }
     rose.sort((a, b) => b.gain - a.gain);
     const chord: Start[] = [];
@@ -483,8 +447,7 @@ function track(H: Float32Array, combs: Comb[], sp: Spec, sr: number, A: Attacks,
       if (c.gain < p.quiet * rose[0].gain) break;
       const spill = chord.some((q) => { const d = Math.abs(c.pitch - q.pitch); return (d === 1 || (d === 2 && hzOfCents(100 * c.pitch) < p.wholeToneUnder)) && c.gain < p.neighbour * q.gain; });
       const partial = chord.some((q) => p.ghostPartials.includes(c.pitch - q.pitch) && c.gain < (c.pitch - q.pitch === 12 ? p.octave : p.ghost) * q.gain);
-      const under = p.sub > 0 && chord.some((q) => p.subIntervals.includes(q.pitch - c.pitch) && c.gain < p.sub * q.gain);
-      if (!spill && !partial && !under) chord.push(c);
+      if (!spill && !partial) chord.push(c);
     }
     for (const c of chord) {
       last[c.pitch - lo] = c.f;

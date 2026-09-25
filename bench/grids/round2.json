@@ -1,0 +1,859 @@
+{
+ "configs": [
+  {
+   "name": "quiet=0.03 on=0.015 sp=0.8",
+   "params": {
+    "quiet": 0.03,
+    "on": 0.015,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "quiet=0.03 on=0.015 sp=1.5",
+   "params": {
+    "quiet": 0.03,
+    "on": 0.015,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "quiet=0.03 on=0.015 sp=2.5",
+   "params": {
+    "quiet": 0.03,
+    "on": 0.015,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "quiet=0.03 on=0.04 sp=0.8",
+   "params": {
+    "quiet": 0.03,
+    "on": 0.04,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "quiet=0.03 on=0.04 sp=1.5",
+   "params": {
+    "quiet": 0.03,
+    "on": 0.04,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "quiet=0.03 on=0.04 sp=2.5",
+   "params": {
+    "quiet": 0.03,
+    "on": 0.04,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "quiet=0.03 on=0.07 sp=0.8",
+   "params": {
+    "quiet": 0.03,
+    "on": 0.07,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "quiet=0.03 on=0.07 sp=1.5",
+   "params": {
+    "quiet": 0.03,
+    "on": 0.07,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "quiet=0.03 on=0.07 sp=2.5",
+   "params": {
+    "quiet": 0.03,
+    "on": 0.07,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "quiet=0.15 on=0.015 sp=0.8",
+   "params": {
+    "quiet": 0.15,
+    "on": 0.015,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "quiet=0.15 on=0.015 sp=1.5",
+   "params": {
+    "quiet": 0.15,
+    "on": 0.015,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "quiet=0.15 on=0.015 sp=2.5",
+   "params": {
+    "quiet": 0.15,
+    "on": 0.015,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "quiet=0.15 on=0.04 sp=0.8",
+   "params": {
+    "quiet": 0.15,
+    "on": 0.04,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "quiet=0.15 on=0.04 sp=1.5",
+   "params": {
+    "quiet": 0.15,
+    "on": 0.04,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "quiet=0.15 on=0.04 sp=2.5",
+   "params": {
+    "quiet": 0.15,
+    "on": 0.04,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "quiet=0.15 on=0.07 sp=0.8",
+   "params": {
+    "quiet": 0.15,
+    "on": 0.07,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "quiet=0.15 on=0.07 sp=1.5",
+   "params": {
+    "quiet": 0.15,
+    "on": 0.07,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "quiet=0.15 on=0.07 sp=2.5",
+   "params": {
+    "quiet": 0.15,
+    "on": 0.07,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "quiet=0.25 on=0.015 sp=0.8",
+   "params": {
+    "quiet": 0.25,
+    "on": 0.015,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "quiet=0.25 on=0.015 sp=1.5",
+   "params": {
+    "quiet": 0.25,
+    "on": 0.015,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "quiet=0.25 on=0.015 sp=2.5",
+   "params": {
+    "quiet": 0.25,
+    "on": 0.015,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "quiet=0.25 on=0.04 sp=0.8",
+   "params": {
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "quiet=0.25 on=0.04 sp=1.5",
+   "params": {
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "quiet=0.25 on=0.04 sp=2.5",
+   "params": {
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "quiet=0.25 on=0.07 sp=0.8",
+   "params": {
+    "quiet": 0.25,
+    "on": 0.07,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "quiet=0.25 on=0.07 sp=1.5",
+   "params": {
+    "quiet": 0.25,
+    "on": 0.07,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "quiet=0.25 on=0.07 sp=2.5",
+   "params": {
+    "quiet": 0.25,
+    "on": 0.07,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "quiet=0.4 on=0.015 sp=0.8",
+   "params": {
+    "quiet": 0.4,
+    "on": 0.015,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "quiet=0.4 on=0.015 sp=1.5",
+   "params": {
+    "quiet": 0.4,
+    "on": 0.015,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "quiet=0.4 on=0.015 sp=2.5",
+   "params": {
+    "quiet": 0.4,
+    "on": 0.015,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "quiet=0.4 on=0.04 sp=0.8",
+   "params": {
+    "quiet": 0.4,
+    "on": 0.04,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "quiet=0.4 on=0.04 sp=1.5",
+   "params": {
+    "quiet": 0.4,
+    "on": 0.04,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "quiet=0.4 on=0.04 sp=2.5",
+   "params": {
+    "quiet": 0.4,
+    "on": 0.04,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "quiet=0.4 on=0.07 sp=0.8",
+   "params": {
+    "quiet": 0.4,
+    "on": 0.07,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "quiet=0.4 on=0.07 sp=1.5",
+   "params": {
+    "quiet": 0.4,
+    "on": 0.07,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "quiet=0.4 on=0.07 sp=2.5",
+   "params": {
+    "quiet": 0.4,
+    "on": 0.07,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "decay=0.6 quiet=0.03 on=0.015 sp=0.8",
+   "params": {
+    "decay": 0.6,
+    "quiet": 0.03,
+    "on": 0.015,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "decay=0.6 quiet=0.03 on=0.015 sp=1.5",
+   "params": {
+    "decay": 0.6,
+    "quiet": 0.03,
+    "on": 0.015,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "decay=0.6 quiet=0.03 on=0.015 sp=2.5",
+   "params": {
+    "decay": 0.6,
+    "quiet": 0.03,
+    "on": 0.015,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "decay=0.6 quiet=0.03 on=0.04 sp=0.8",
+   "params": {
+    "decay": 0.6,
+    "quiet": 0.03,
+    "on": 0.04,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "decay=0.6 quiet=0.03 on=0.04 sp=1.5",
+   "params": {
+    "decay": 0.6,
+    "quiet": 0.03,
+    "on": 0.04,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "decay=0.6 quiet=0.03 on=0.04 sp=2.5",
+   "params": {
+    "decay": 0.6,
+    "quiet": 0.03,
+    "on": 0.04,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "decay=0.6 quiet=0.03 on=0.07 sp=0.8",
+   "params": {
+    "decay": 0.6,
+    "quiet": 0.03,
+    "on": 0.07,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "decay=0.6 quiet=0.03 on=0.07 sp=1.5",
+   "params": {
+    "decay": 0.6,
+    "quiet": 0.03,
+    "on": 0.07,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "decay=0.6 quiet=0.03 on=0.07 sp=2.5",
+   "params": {
+    "decay": 0.6,
+    "quiet": 0.03,
+    "on": 0.07,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "decay=0.6 quiet=0.25 on=0.015 sp=0.8",
+   "params": {
+    "decay": 0.6,
+    "quiet": 0.25,
+    "on": 0.015,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "decay=0.6 quiet=0.25 on=0.015 sp=1.5",
+   "params": {
+    "decay": 0.6,
+    "quiet": 0.25,
+    "on": 0.015,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "decay=0.6 quiet=0.25 on=0.015 sp=2.5",
+   "params": {
+    "decay": 0.6,
+    "quiet": 0.25,
+    "on": 0.015,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "decay=0.6 quiet=0.25 on=0.04 sp=0.8",
+   "params": {
+    "decay": 0.6,
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "decay=0.6 quiet=0.25 on=0.04 sp=1.5",
+   "params": {
+    "decay": 0.6,
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "decay=0.6 quiet=0.25 on=0.04 sp=2.5",
+   "params": {
+    "decay": 0.6,
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "decay=0.6 quiet=0.25 on=0.07 sp=0.8",
+   "params": {
+    "decay": 0.6,
+    "quiet": 0.25,
+    "on": 0.07,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "decay=0.6 quiet=0.25 on=0.07 sp=1.5",
+   "params": {
+    "decay": 0.6,
+    "quiet": 0.25,
+    "on": 0.07,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "decay=0.6 quiet=0.25 on=0.07 sp=2.5",
+   "params": {
+    "decay": 0.6,
+    "quiet": 0.25,
+    "on": 0.07,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "decay=0.8 quiet=0.03 on=0.015 sp=0.8",
+   "params": {
+    "decay": 0.8,
+    "quiet": 0.03,
+    "on": 0.015,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "decay=0.8 quiet=0.03 on=0.015 sp=1.5",
+   "params": {
+    "decay": 0.8,
+    "quiet": 0.03,
+    "on": 0.015,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "decay=0.8 quiet=0.03 on=0.015 sp=2.5",
+   "params": {
+    "decay": 0.8,
+    "quiet": 0.03,
+    "on": 0.015,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "decay=0.8 quiet=0.03 on=0.04 sp=0.8",
+   "params": {
+    "decay": 0.8,
+    "quiet": 0.03,
+    "on": 0.04,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "decay=0.8 quiet=0.03 on=0.04 sp=1.5",
+   "params": {
+    "decay": 0.8,
+    "quiet": 0.03,
+    "on": 0.04,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "decay=0.8 quiet=0.03 on=0.04 sp=2.5",
+   "params": {
+    "decay": 0.8,
+    "quiet": 0.03,
+    "on": 0.04,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "decay=0.8 quiet=0.03 on=0.07 sp=0.8",
+   "params": {
+    "decay": 0.8,
+    "quiet": 0.03,
+    "on": 0.07,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "decay=0.8 quiet=0.03 on=0.07 sp=1.5",
+   "params": {
+    "decay": 0.8,
+    "quiet": 0.03,
+    "on": 0.07,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "decay=0.8 quiet=0.03 on=0.07 sp=2.5",
+   "params": {
+    "decay": 0.8,
+    "quiet": 0.03,
+    "on": 0.07,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "decay=0.8 quiet=0.25 on=0.015 sp=0.8",
+   "params": {
+    "decay": 0.8,
+    "quiet": 0.25,
+    "on": 0.015,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "decay=0.8 quiet=0.25 on=0.015 sp=1.5",
+   "params": {
+    "decay": 0.8,
+    "quiet": 0.25,
+    "on": 0.015,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "decay=0.8 quiet=0.25 on=0.015 sp=2.5",
+   "params": {
+    "decay": 0.8,
+    "quiet": 0.25,
+    "on": 0.015,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "decay=0.8 quiet=0.25 on=0.04 sp=0.8",
+   "params": {
+    "decay": 0.8,
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "decay=0.8 quiet=0.25 on=0.04 sp=1.5",
+   "params": {
+    "decay": 0.8,
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "decay=0.8 quiet=0.25 on=0.04 sp=2.5",
+   "params": {
+    "decay": 0.8,
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "decay=0.8 quiet=0.25 on=0.07 sp=0.8",
+   "params": {
+    "decay": 0.8,
+    "quiet": 0.25,
+    "on": 0.07,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "decay=0.8 quiet=0.25 on=0.07 sp=1.5",
+   "params": {
+    "decay": 0.8,
+    "quiet": 0.25,
+    "on": 0.07,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "decay=0.8 quiet=0.25 on=0.07 sp=2.5",
+   "params": {
+    "decay": 0.8,
+    "quiet": 0.25,
+    "on": 0.07,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "inh=1e-4 quiet=0.03 on=0.015 sp=0.8",
+   "params": {
+    "inharmonicity": 0.0001,
+    "quiet": 0.03,
+    "on": 0.015,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "inh=1e-4 quiet=0.03 on=0.015 sp=1.5",
+   "params": {
+    "inharmonicity": 0.0001,
+    "quiet": 0.03,
+    "on": 0.015,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "inh=1e-4 quiet=0.03 on=0.015 sp=2.5",
+   "params": {
+    "inharmonicity": 0.0001,
+    "quiet": 0.03,
+    "on": 0.015,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "inh=1e-4 quiet=0.03 on=0.04 sp=0.8",
+   "params": {
+    "inharmonicity": 0.0001,
+    "quiet": 0.03,
+    "on": 0.04,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "inh=1e-4 quiet=0.03 on=0.04 sp=1.5",
+   "params": {
+    "inharmonicity": 0.0001,
+    "quiet": 0.03,
+    "on": 0.04,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "inh=1e-4 quiet=0.03 on=0.04 sp=2.5",
+   "params": {
+    "inharmonicity": 0.0001,
+    "quiet": 0.03,
+    "on": 0.04,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "inh=1e-4 quiet=0.03 on=0.07 sp=0.8",
+   "params": {
+    "inharmonicity": 0.0001,
+    "quiet": 0.03,
+    "on": 0.07,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "inh=1e-4 quiet=0.03 on=0.07 sp=1.5",
+   "params": {
+    "inharmonicity": 0.0001,
+    "quiet": 0.03,
+    "on": 0.07,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "inh=1e-4 quiet=0.03 on=0.07 sp=2.5",
+   "params": {
+    "inharmonicity": 0.0001,
+    "quiet": 0.03,
+    "on": 0.07,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "inh=1e-4 quiet=0.25 on=0.015 sp=0.8",
+   "params": {
+    "inharmonicity": 0.0001,
+    "quiet": 0.25,
+    "on": 0.015,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "inh=1e-4 quiet=0.25 on=0.015 sp=1.5",
+   "params": {
+    "inharmonicity": 0.0001,
+    "quiet": 0.25,
+    "on": 0.015,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "inh=1e-4 quiet=0.25 on=0.015 sp=2.5",
+   "params": {
+    "inharmonicity": 0.0001,
+    "quiet": 0.25,
+    "on": 0.015,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "inh=1e-4 quiet=0.25 on=0.04 sp=0.8",
+   "params": {
+    "inharmonicity": 0.0001,
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "inh=1e-4 quiet=0.25 on=0.04 sp=1.5",
+   "params": {
+    "inharmonicity": 0.0001,
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "inh=1e-4 quiet=0.25 on=0.04 sp=2.5",
+   "params": {
+    "inharmonicity": 0.0001,
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "inh=1e-4 quiet=0.25 on=0.07 sp=0.8",
+   "params": {
+    "inharmonicity": 0.0001,
+    "quiet": 0.25,
+    "on": 0.07,
+    "strengthPower": 0.8
+   }
+  },
+  {
+   "name": "inh=1e-4 quiet=0.25 on=0.07 sp=1.5",
+   "params": {
+    "inharmonicity": 0.0001,
+    "quiet": 0.25,
+    "on": 0.07,
+    "strengthPower": 1.5
+   }
+  },
+  {
+   "name": "inh=1e-4 quiet=0.25 on=0.07 sp=2.5",
+   "params": {
+    "inharmonicity": 0.0001,
+    "quiet": 0.25,
+    "on": 0.07,
+    "strengthPower": 2.5
+   }
+  },
+  {
+   "name": "quiet=0.25 on=0.04 sp=1.5 hi=107",
+   "params": {
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 1.5,
+    "hi": 107
+   }
+  },
+  {
+   "name": "quiet=0.25 on=0.04 sp=1.5 neighbour=0.8",
+   "params": {
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 1.5,
+    "neighbour": 0.8
+   }
+  },
+  {
+   "name": "quiet=0.25 on=0.04 sp=1.5 octave=0.15",
+   "params": {
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 1.5,
+    "octave": 0.15
+   }
+  },
+  {
+   "name": "quiet=0.25 on=0.04 sp=1.5 sub=0.2",
+   "params": {
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 1.5,
+    "sub": 0.2
+   }
+  },
+  {
+   "name": "quiet=0.25 on=0.04 sp=1.5 sub=0.4",
+   "params": {
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 1.5,
+    "sub": 0.4
+   }
+  },
+  {
+   "name": "quiet=0.25 on=0.04 sp=1.5 riseRatio=3",
+   "params": {
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 1.5,
+    "riseRatio": 3
+   }
+  },
+  {
+   "name": "quiet=0.25 on=0.04 sp=1.5 onsetThreshold=0.03",
+   "params": {
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 1.5,
+    "onsetThreshold": 0.03
+   }
+  },
+  {
+   "name": "quiet=0.25 on=0.04 sp=1.5 onsetThreshold=0.08",
+   "params": {
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 1.5,
+    "onsetThreshold": 0.08
+   }
+  },
+  {
+   "name": "quiet=0.25 on=0.04 sp=1.5 fundamental=0.3",
+   "params": {
+    "quiet": 0.25,
+    "on": 0.04,
+    "strengthPower": 1.5,
+    "fundamental": 0.3
+   }
+  }
+ ]
+}

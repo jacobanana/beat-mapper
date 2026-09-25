@@ -45,7 +45,7 @@ function stems(track: string): Stem[] {
   return out;
 }
 
-const ACT_KEYS: (keyof ChordParams)[] = ['lo', 'hi', 'decay', 'partials', 'inharmonicity', 'iterations', 'beta', 'adapt', 'sparsity', 'floor'];
+const ACT_KEYS: (keyof ChordParams)[] = ['lo', 'hi', 'decay', 'partials', 'inharmonicity', 'iterations', 'adapt', 'floor'];
 const ONS_KEYS: (keyof ChordParams)[] = ['onsetThreshold', 'onsetPeakWindow', 'onsetMeanWindow', 'onsetLag'];
 const keyOf = (p: ChordParams, keys: (keyof ChordParams)[]) => JSON.stringify(keys.map((k) => p[k]));
 

@@ -1,0 +1,4 @@
+{ "configs": [
+ { "name": "before", "params": { "decay": 1, "quiet": 0.03, "on": 0.015, "strengthPower": 0.8 } },
+ { "name": "any", "params": { "decay": 1, "quiet": 0.06, "on": 0.03, "strengthPower": 1 } }
+] }
