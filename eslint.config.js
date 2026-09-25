@@ -4,7 +4,7 @@ import globals from 'globals';
 
 export default tseslint.config(
   { ignores: ['dist', 'node_modules', 'test/legacy', '.dev'] },
-  { files: ['e2e/**', '*.config.*', '.claude/**'], languageOptions: { globals: { ...globals.node } } },
+  { files: ['e2e/**', '*.config.*', '.claude/**', 'bench/**'], languageOptions: { globals: { ...globals.node } } },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
