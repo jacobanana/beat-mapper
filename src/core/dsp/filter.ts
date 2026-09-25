@@ -34,3 +34,14 @@ export function filtfilt(x: Float32Array, sr: number, stages: readonly { kind: F
   }
   return y;
 }
+
+/**
+ * A copy of x through each stage in turn, forwards only. For finding where a sound starts: a
+ * zero-phase filter rings before an attack as much as after it, and would put the start early. A
+ * high-pass delays only its lowest frequencies, and an attack's clicks and partials are well above it.
+ */
+export function filterForward(x: Float32Array, sr: number, stages: readonly { kind: FilterKind; f: number }[]): Float32Array {
+  const y = x.slice();
+  for (const s of stages) run(y, design(s.kind, s.f, sr), false);
+  return y;
+}
