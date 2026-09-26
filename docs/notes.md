@@ -29,7 +29,10 @@ spends longest on.
 spectrogram three bins a semitone: 186 ms windows under 400 Hz, 93 ms above, every 20 ms. The combs
 are zero between their partials and stay fixed. Letting them learn the instrument's partial balance
 let an A2 comb drop its odd partials and become an A3, so every A3 was read as A2 plus A4. The cost
-is KL (β = 1).
+is KL (β = 1). Everything tuned is a field of `ChordParams`, and an **instrument profile** (any,
+piano, guitar, organ, mallets; the Notes step's second menu, saved with the session) is a set of
+those fields: how fast a comb's partials fall off, how much a note must rise to count, and the
+range. How they were chosen is under [Profiles per instrument](#profiles-per-instrument).
 
 Which notes a chord has is decided onset by onset, all pitches together. The onsets are peaks of a
 spectral flux (SuperFlux [39]: 46 ms windows every 5 ms, log-compressed, each bin against the loudest
@@ -39,15 +42,16 @@ At each onset every comb is asked how far its activation rose, from just before 
 the onset to the least it holds once the window has passed it and before the next onset is in it: a
 strike's click lights every comb while it is in the window, and only a real note is still there after
 it (the onsets gating the frames, as in [29]). The pitches that rose are taken loudest first, and one
-is dropped when it rose by under 3% of the loudest, or under half of a louder one a semitone away (a
-whole tone, under 400 Hz), or under 0.12 of a louder one it is a partial of (0.06 for an octave).
+is dropped when it rose by under 6% of the loudest (a quarter to a half, in the instrument
+profiles), or under half of a louder one a semitone away (a whole tone, under 400 Hz), or under
+0.12 of a louder one it is a partial of (0.06 for an octave).
 Tracked one pitch at a time, as they were at first, each of those was a note: a real piano loop
 (Em, Fmaj7, G, Am7 over octave roots, a melody on top) came out with 141 notes where Basic Pitch
 finds 54. Now it finds 54, 43 of them Basic Pitch's; the rest are mostly the same notes placed apart
 (a G1 90 ms from Basic Pitch's) or ones Basic Pitch leaves out (the E1 under the E2). The
-strength the sensitivity reads is a note's rise against the loud notes of the take, to the power 0.8,
-so the starting sensitivity keeps notes down to about 25 dB under them and turning it down drops the
-doublings and the soft melody before the roots.
+strength the sensitivity reads is a note's rise against the loud notes of the take, so the starting
+sensitivity keeps notes down to about 25 dB under them and turning it down drops the doublings and
+the soft melody before the roots.
 
 **Both** time a start on the waveform. The attacks are read on the audio high-passed at 150 Hz by a
 *forward-only* filter, in 2 ms blocks: a zero-phase filter rings before an attack and put starts 8 ms
@@ -125,8 +129,142 @@ The synthetic parts are 15 seconds long and never showed it. What the numbers sa
 - **Chords at a lower sensitivity.** Chords score F 51.5 at 30 against 47.0 at 55: the one starting
   sensitivity both modes share lets through more than chords want.
 - **Guitar, organ and mallets** score about half what piano does, finding 1.4 to 1.8 times as many notes as
-  there are. Why is not measured yet: strums spreading a chord wider than one onset and distortion's
-  partials are the first two things to look at.
+  there are. Measured since, and mostly answered by the profiles below: the extra notes are partials
+  and neighbours of real chord notes that rose with them.
+
+### Profiles per instrument
+
+The chord detector was then tuned on the benchmark (`bench/tune.eval.ts`, `bench/grids/`,
+`bench/tune-report.mjs`), with the songs split so the choice was never made on the songs it is
+judged on: the odd-numbered songs choose, the even-numbered ones test, and every class lands on
+both sides (piano 14 and 18 stems, guitar 26 and 17, organ 4 and 5, mallets 5 and 4). The harness
+scores many parameter sets on one pass, sharing the spectrogram and the factorisation between the
+sets that don't change them, and sorts the errors of a run: what a false note is next to in the
+truth, and whether a missed note's onset was found at all.
+
+What the errors said, before any change, on the choosing half:
+
+- Of the false notes, a quarter were partials of a chord note that rose with it and a tenth its
+  neighbours a semitone or two away; the rest sat at every interval under the chord (an overdriven
+  guitar's difference tones, a hammer's thump read by a deep comb). Precision was 37 on the chord
+  classes, recall 50, and lowering the sensitivity to 30 scored higher than the default 55: the
+  detector let through too much, not too little.
+- Of the missed notes, a fifth were a pitch of a chord whose other notes were found, a tenth were
+  found an octave off, and a tenth had no onset found; the rest were short or soft.
+
+Three single changes did most of the work, each stricter with a quiet rise: a note of a chord must
+rise by a quarter of the chord's loudest (`quiet`, was 3%) and by 3% of the take's loudest activation
+(`on`, was 1.5%), and the strength the sensitivity reads is the rise on a straight curve or
+steeper (`strengthPower`). Flatter combs helped every class (`decay` 0.6, partials falling as
+1/h^0.6 rather than 1/h: a rendered piano's, guitar's or organ's partials are louder than 1/h says).
+Nothing else moved the score: not the sparsity penalty (under KL with combs summing to one it only
+scales every activation), not β = 0.5 (a point lower), not stricter partial or neighbour rules on
+their own, not a piano's inharmonicity in the combs, not a gate asking a note to show its own
+fundamental, not a sub-harmonic rule, not the onset detector's thresholds. All of those are gone
+from the code again.
+
+The stricter setting loses the synthetic keys' soft melody and octave doublings, which the unit
+tests rightly keep, so the **any instrument** default moves only as far as those allow (`on` 0.025,
+`quiet` 0.06, a straight strength curve), and the profiles go the rest of the way: a **guitar** all
+the way; a **piano** gently, its soft notes being the most often real (`decay` 0.7, `quiet` 0.25);
+an **organ** nearly flat and strict, every drawbar partial rising with the note (`decay` 0.5, `on`
+0.07, strength to the power 1.5); **mallets** strict and up to C8 (`quiet` 0.5, `on` 0.07, `hi` 107).
+
+F at the starting sensitivity, chord classes pooled, each class read with its profile:
+
+| | before | any instrument | its profile |
+| --- | --- | --- | --- |
+| choosing half (odd songs, 49 stems) | 42.7 | 47.8 | 54.6 |
+| test half (even songs, 44 stems) | 53.2 | 57.1 | 57.7 |
+
+and per class on the test half, which the profiles never saw:
+
+| | before | any instrument | its profile |
+| --- | --- | --- | --- |
+| piano | 64.0 | 67.2 | 67.4 |
+| guitar | 44.2 | 48.1 | 47.0 |
+| organ | 31.0 | 34.6 | 44.3 |
+| mallets | 54.0 | 59.0 | 65.5 |
+
+On all 20 songs together (`scripts/eval_notes.sh --compare main`, the choosing half included), the
+chord classes go from F 47.0 to 55.9 and everything with the bass line from 50.6 to 59.2: guitar
+36.5 to 45.9, piano 62.9 to 67.5, organ 36.1 to 57.1, mallets 35.5 to 47.0, precision up 29 points
+and recall down 7. Every class is up on songs it was not tuned on, and organ and mallets are up by
+ten points and more; precision rose from 50 to 75 on the test half for the price of ten points of recall. The one
+profile the test half doesn't confirm over the gentle default is the guitar's: on the choosing half
+its strict setting is seven points ahead (that half holds the overdriven guitars), on the test half a
+point behind, so it is the least certain of the four. The two mallet stems that score nothing are a
+glockenspiel and a vibraphone whose notes sound above C8, over the 5 kHz the spectrogram reaches.
+
+## How the commercial tools do it, and newer DSP methods
+
+Two products are the reference for what the ear accepts, and both are documented in patents.
+
+**Auto-Tune** (Hildebrand, US 5,973,252 [41]) is monophonic and time-domain: autocorrelation, kept
+cheap by two running sums per lag, the energy over two periods `E(L)` and the cross term `H(L)`
+between a cycle and the one a lag `L` before it, each updated by one add and one subtract per sample
+("four multiply-adds" per lag instead of a fresh sum). A lag is a period when `E − 2H ≤ ε·E`. The search
+runs on the signal decimated 8:1 over lags 2..110 (50 Hz to 2.7 kHz), then only a handful of lags
+around the last period are followed at the full rate, and the lag and twice the lag are compared
+there to settle the octave when a vowel has little energy at its fundamental. The correction resamples
+the waveform at the new period and drops or repeats one cycle whenever the output pointer drifts a
+period from the input, which is why it stays free of the phasiness of frequency-domain shifting.
+For this app it says two things: the `line` detector's time-domain choice (pYIN) is the right family,
+and an octave test on the waveform at `L` and `2L` is a cheap check to add to it.
+
+**Melodyne's DNA** (Neubäcker, US 8,022,286 [42], the "Sound-object oriented analysis" patent) is the
+polyphonic one, and its method reads like a checklist for the `chords` detector:
+
+- An STFT of 2048 samples with at least four-fold overlap, every bin carrying its *instantaneous
+  frequency* from the phase advance between frames, drawn on a cents axis (5 cents a point, 10 ms a
+  frame). A *tonality* value per bin says how closely its neighbours' instantaneous frequencies agree
+  with its own (a partial pulls the bins around it onto one frequency; noise scatters them), and the
+  energy is weighted by it, so a strike's click drops out of the pitch picture.
+- A *relevance landscape*: each point's energy plus that of its whole-number multiples with falling
+  weights, so the strongest hill is a note's fundamental even where the fundamental itself is weak.
+  That is harmonic summation (Klapuri [21]) computed on the tonality-weighted field.
+- Notes are found by *iterative estimate-and-subtract*: take the highest hill, follow its crest
+  forwards and backwards in time (abandoning where the pitch jumps over 50 cents a frame or the
+  height falls under 10% of the start), remove only a *part* of its energy, about 50% (25% for thick
+  harmonic overlap), at its fundamental and all its partials with a half-tone-wide window, and repeat
+  until 10% of the energy is left. A note found twice is merged with itself.
+- *Event objects* (the noisiness summed over a frame, or the high-passed waveform's rise) are matched
+  to the notes whose energy rises right after them; an event with no note is percussion, and an event
+  in the middle of a note splits it. That is the onset gating this detector already does.
+- A *plausibility* pass at the end removes what the iteration over-finds: notes with too little energy
+  against the total, and a "note" whose pitch curve, amplitude and duration only follow a lower note
+  (it is that note's harmonic). A note isolated in pitch, very high or very low with nothing near it,
+  is unlikely; one that continues a line of neighbours in pitch and time is likely even when weak.
+
+The benchmark's error breakdown says exactly where this detector lacked DNA's last point: its
+false notes were partials and neighbours of real chord notes that rose with them. The gates the
+profiles raise are that plausibility pass, stated as three thresholds; a rule asking a note to show
+its own fundamental, and one dropping a quiet note under a chord note at an interval where their
+partials coincide, were tried and moved nothing.
+
+Melodyne's user-facing algorithms (Melodic, Percussive, Percussive Pitched, Polyphonic Sustain,
+Polyphonic Decay, Universal [43]) are the same idea as the instrument profiles here: the analysis is
+one method with a few parameters that a class of material wants set differently, chosen by the user
+or by a quick classification, with the results graded by confidence and a slider over how many of the
+graded candidates are shown [44].
+
+**Newer DSP methods** worth knowing, none of them needed for the numbers above:
+
+- *Fast NLS* (Nielsen, Jensen, Jensen, Christensen 2017 [45]): the maximum-likelihood fit of a harmonic
+  model, jointly over the fundamental and the number of harmonics, made fast enough for a frame at a
+  time. The best single-pitch estimator on short frames (one period is enough) and, being a model fit,
+  it says how many partials a note has; its multi-pitch version estimates a set of fundamentals by the
+  same fit. It is what to try for `line` if pYIN's octave errors on a bass with a weak fundamental ever
+  matter.
+- *Inverse harmonic clustering by optimal transport* (2025 [46]): partials are
+  "transported" onto a small set of harmonic series, with a cost that tolerates inharmonicity, so
+  a piano's stretched partials still belong to their note. A dictionary-free alternative to NMF's fixed
+  combs.
+- *Instantaneous frequency and tonality* as in the DNA patent: a partial's frequency from the phase
+  advance (the phase vocoder in `warp/pv.ts` already computes it) is far finer than three bins a
+  semitone and tells a partial from noise, which the magnitude alone cannot.
+- *Small neural estimators* (CREPE [14], PESTO [15], SwiftF0 [16]) remain monophonic and would only
+  replace pYIN.
 
 ## What the drum detector already gives us
 
@@ -457,3 +595,16 @@ built, and will be asked about then.
 39. S. Böck, G. Widmer. "Maximum filter vibrato suppression for onset detection." DAFx-13, 2013.
 40. E. Manilow et al. BabySlakh, the first 20 songs of Slakh2100 at 16 kHz. CC BY 4.0.
     <https://zenodo.org/records/4603870>
+41. H. A. Hildebrand. "Pitch detection and intonation correction apparatus and method." US Patent
+    5,973,252, 1999. <https://patents.google.com/patent/US5973252A/en>
+42. P. Neubäcker. "Sound-object oriented analysis and note-object oriented processing of polyphonic
+    sound recordings." US Patent 8,022,286, 2011. <https://patents.google.com/patent/US8022286B2/en>
+43. Celemony. "Audio characteristics and algorithms." Melodyne 5 manual.
+    <https://helpcenter.celemony.com/M5/doc/melodyneStudio5/en/M5tour_AudioAlgorithms>
+44. Sound On Sound. "Celemony Melodyne DNA Editor." Review, 2010.
+    <https://www.soundonsound.com/reviews/celemony-melodyne-dna-editor>
+45. J. K. Nielsen, T. L. Jensen, J. R. Jensen, M. G. Christensen, S. H. Jensen. "Fast fundamental
+    frequency estimation: Making a statistically efficient estimator computationally efficient."
+    Signal Processing 135, 2017. Code: <https://github.com/jkjaer/fastF0Nls>
+46. "Inverse harmonic clustering for multi-pitch estimation: an optimal transport approach." arXiv
+    2508.02471, 2025. <https://arxiv.org/abs/2508.02471>

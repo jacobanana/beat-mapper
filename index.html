@@ -321,6 +321,7 @@
           <div class="row2">
             <span class="cap" title="The notes found in the audio">Find</span><span class="items">
               <select id="nMode" title="What the audio is: one note at a time (a bass line, a lead, a voice), or chords (keys, guitar). Works best on one instrument alone" aria-label="Line or chords"><option value="line">one line</option><option value="chords">chords</option></select>
+              <select id="nInst" title="What plays the chords: the detector knows what a piano, a guitar, an organ or mallets (vibes, marimba, bells) sound like" aria-label="Instrument" hidden><option value="any">any instrument</option><option value="piano">piano</option><option value="guitar">guitar</option><option value="organ">organ</option><option value="mallets">mallets</option></select>
               <label class="sl" title="Sensitivity: raise it for quiet notes, lower it to drop strays"><svg class="ic"><use href="#i-sens"/></svg><input type="range" id="nSens" min="0" max="100" value="55" aria-label="Note sensitivity"><output id="nN"></output></label>
             </span>
           </div>

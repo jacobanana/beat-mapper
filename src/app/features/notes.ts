@@ -2,7 +2,7 @@
 // saved as MIDI, as the Groove step does with the drums.
 import type { Analyzer } from '../../analysis/analyzer';
 import { fmtBpm, safeName } from '../../core/format';
-import type { NoteMode } from '../../core/notes/types';
+import type { NoteInstrument, NoteMode } from '../../core/notes/types';
 import { noteName } from '../../core/notes/types';
 import { hasBridge, saveError, saveFile } from '../../io/download';
 import { type PitchedNote, buildMidi } from '../../io/formats/midi';
@@ -20,19 +20,25 @@ export class Notes {
 
   constructor(private readonly app: App, private readonly analyzer: Analyzer, private readonly exports: Exports, private readonly playback: Playback) {}
 
-  /** Finds the notes unless they are already found for this audio as this mode. */
+  /** Finds the notes unless they are already found for this audio as this mode and instrument. */
   ensureNotes(): Promise<void> {
     const { app } = this;
-    if (!app.audio || (app.transcript && app.transcript.mode === app.notes.mode)) return Promise.resolve();
+    if (!app.audio || this.current()) return Promise.resolve();
     return (this.running ??= this.detect().finally(() => { this.running = null; }));
   }
 
+  /** Whether the notes found are the ones these settings ask for; a line is the same on any instrument. */
+  private current(): boolean {
+    const { transcript: t, notes: s } = this.app;
+    return !!t && t.mode === s.mode && (s.mode === 'line' || t.instrument === s.instrument);
+  }
+
   private async detect(): Promise<void> {
-    const { app } = this, audio = app.audio, mode = app.notes.mode;
+    const { app } = this, audio = app.audio, { mode, instrument } = app.notes;
     app.busy = true;
     app.notify.busy(FINDING[mode], 0.02);
     try {
-      const found = await this.analyzer.notes(mode, (f) => app.notify.busy(FINDING[mode], 0.02 + 0.96 * f));
+      const found = await this.analyzer.notes(mode, instrument, (f) => app.notify.busy(FINDING[mode], 0.02 + 0.96 * f));
       if (app.audio !== audio) return; // another file was opened meanwhile
       app.transcript = found;
       if (app.sel?.kind === 'note') app.select(null);
@@ -44,14 +50,20 @@ export class Notes {
       app.busy = false;
       app.notify.idle();
     }
-    // The mode may have changed while this ran.
-    if (app.audio === audio && app.notes.mode !== mode) await this.detect();
+    // The mode or the instrument may have changed while this ran.
+    if (app.audio === audio && !this.current()) await this.detect();
   }
 
   // ---------- settings ----------
   async setMode(mode: NoteMode): Promise<void> {
     if (this.app.notes.mode === mode) return;
     this.app.set('notes', { mode });
+    await this.ensureNotes();
+  }
+
+  async setInstrument(instrument: NoteInstrument): Promise<void> {
+    if (this.app.notes.instrument === instrument) return;
+    this.app.set('notes', { instrument });
     await this.ensureNotes();
   }
 

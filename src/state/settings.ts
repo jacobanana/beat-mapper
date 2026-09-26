@@ -3,7 +3,7 @@ import type { Algo, Band } from '../core/dsp/onset';
 import type { MapSettings } from '../core/beats/edit';
 import type { DrumSource } from '../core/drums/detect';
 import type { PerVoice } from '../core/drums/voices';
-import type { NoteMode } from '../core/notes/types';
+import type { NoteInstrument, NoteMode } from '../core/notes/types';
 import type { RenderOptions } from '../core/slices/slices';
 import type { GrooveGrid } from '../core/groove/pocket';
 import type { GridDivision } from '../core/tempo/meter';
@@ -117,6 +117,8 @@ export interface GrooveSettings {
 export interface NoteSettings {
   /** One line at a time (bass, lead, voice), or chords (keys, guitar). */
   mode: NoteMode;
+  /** Which instrument plays the chords, when the detector has a profile for it. */
+  instrument: NoteInstrument;
   /** 0..100 */
   sens: number;
   /** Hold each note until the next one starts, rather than as long as it is heard. */
@@ -158,7 +160,7 @@ export const defaultSlicer = (): SlicerSettings => ({
 });
 export const defaultTransport = (): TransportState => ({ loop: null, loopOn: false, start: 0, playhead: 0, stay: false, click: false, scrubMode: false });
 export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', exaggerate: true, chart: 'pocket' });
-export const defaultNotes = (): NoteSettings => ({ mode: 'line', sens: 55, legato: false });
+export const defaultNotes = (): NoteSettings => ({ mode: 'line', instrument: 'any', sens: 55, legato: false });
 /** What every rendered slice gets; the warped .wav gets the same channels and level. */
 export function sliceRenderOptions(o: SlicerSettings): RenderOptions {
   return { fadeIn: o.fadeIn / 1000, fadeOut: o.fadeOut / 1000, mono: o.mono, normalize: o.norm, target: Math.pow(10, o.target / 20) };

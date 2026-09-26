@@ -14,7 +14,7 @@ self.onmessage = async (e: MessageEvent<Request>) => {
       const drums = await analyzer.drums(req.source, (fraction) => post({ id: req.id, type: 'progress', fraction }));
       post({ id: req.id, type: 'drums', drums });
     } else if (req.type === 'notes') {
-      const notes = await analyzer.notes(req.mode, (fraction) => post({ id: req.id, type: 'progress', fraction }));
+      const notes = await analyzer.notes(req.mode, req.instrument, (fraction) => post({ id: req.id, type: 'progress', fraction }));
       post({ id: req.id, type: 'notes', notes });
     } else if (req.type === 'warp') {
       const chans = await analyzer.warp(req.job, (fraction) => post({ id: req.id, type: 'progress', fraction }));

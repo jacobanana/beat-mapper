@@ -1,0 +1,7 @@
+{ "configs": [
+ { "name": "before", "params": { "decay": 1, "quiet": 0.03, "on": 0.015, "strengthPower": 0.8 } },
+ { "name": "generic", "params": {} },
+ { "name": "piano", "params": { "decay": 0.7, "quiet": 0.25, "on": 0.015, "strengthPower": 1 } },
+ { "name": "organ", "params": { "decay": 0.5, "quiet": 0.3, "on": 0.07, "strengthPower": 1.5 } },
+ { "name": "mallets", "params": { "decay": 1, "quiet": 0.5, "on": 0.07, "strengthPower": 1, "hi": 107 } }
+] }

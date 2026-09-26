@@ -1,0 +1,334 @@
+{
+ "configs": [
+  {
+   "name": "default",
+   "params": {}
+  },
+  {
+   "name": "beta=0.5",
+   "params": {
+    "beta": 0.5
+   }
+  },
+  {
+   "name": "decay=0.6",
+   "params": {
+    "decay": 0.6
+   }
+  },
+  {
+   "name": "decay=1.5",
+   "params": {
+    "decay": 1.5
+   }
+  },
+  {
+   "name": "decay=2.5",
+   "params": {
+    "decay": 2.5
+   }
+  },
+  {
+   "name": "partials=8",
+   "params": {
+    "partials": 8
+   }
+  },
+  {
+   "name": "partials=24",
+   "params": {
+    "partials": 24
+   }
+  },
+  {
+   "name": "inharmonicity=0.0001",
+   "params": {
+    "inharmonicity": 0.0001
+   }
+  },
+  {
+   "name": "inharmonicity=0.0004",
+   "params": {
+    "inharmonicity": 0.0004
+   }
+  },
+  {
+   "name": "sparsity=0.05",
+   "params": {
+    "sparsity": 0.05
+   }
+  },
+  {
+   "name": "sparsity=0.6",
+   "params": {
+    "sparsity": 0.6
+   }
+  },
+  {
+   "name": "sparsity=1.5",
+   "params": {
+    "sparsity": 1.5
+   }
+  },
+  {
+   "name": "iterations=20",
+   "params": {
+    "iterations": 20
+   }
+  },
+  {
+   "name": "iterations=80",
+   "params": {
+    "iterations": 80
+   }
+  },
+  {
+   "name": "on=0.008",
+   "params": {
+    "on": 0.008
+   }
+  },
+  {
+   "name": "on=0.03",
+   "params": {
+    "on": 0.03
+   }
+  },
+  {
+   "name": "on=0.05",
+   "params": {
+    "on": 0.05
+   }
+  },
+  {
+   "name": "quiet=0.06",
+   "params": {
+    "quiet": 0.06
+   }
+  },
+  {
+   "name": "quiet=0.12",
+   "params": {
+    "quiet": 0.12
+   }
+  },
+  {
+   "name": "quiet=0.2",
+   "params": {
+    "quiet": 0.2
+   }
+  },
+  {
+   "name": "neighbour=0.7",
+   "params": {
+    "neighbour": 0.7
+   }
+  },
+  {
+   "name": "neighbour=0.9",
+   "params": {
+    "neighbour": 0.9
+   }
+  },
+  {
+   "name": "ghost=0.2",
+   "params": {
+    "ghost": 0.2
+   }
+  },
+  {
+   "name": "ghost=0.35",
+   "params": {
+    "ghost": 0.35
+   }
+  },
+  {
+   "name": "octave=0.12",
+   "params": {
+    "octave": 0.12
+   }
+  },
+  {
+   "name": "octave=0.2",
+   "params": {
+    "octave": 0.2
+   }
+  },
+  {
+   "name": "riseRatio=3",
+   "params": {
+    "riseRatio": 3
+   }
+  },
+  {
+   "name": "riseRatio=5",
+   "params": {
+    "riseRatio": 5
+   }
+  },
+  {
+   "name": "minLength=0.03",
+   "params": {
+    "minLength": 0.03
+   }
+  },
+  {
+   "name": "minLength=0.1",
+   "params": {
+    "minLength": 0.1
+   }
+  },
+  {
+   "name": "minLength=0.15",
+   "params": {
+    "minLength": 0.15
+   }
+  },
+  {
+   "name": "onsetThreshold=0.02",
+   "params": {
+    "onsetThreshold": 0.02
+   }
+  },
+  {
+   "name": "onsetThreshold=0.08",
+   "params": {
+    "onsetThreshold": 0.08
+   }
+  },
+  {
+   "name": "onsetThreshold=0.12",
+   "params": {
+    "onsetThreshold": 0.12
+   }
+  },
+  {
+   "name": "onsetPeakWindow=0.02",
+   "params": {
+    "onsetPeakWindow": 0.02
+   }
+  },
+  {
+   "name": "onsetPeakWindow=0.05",
+   "params": {
+    "onsetPeakWindow": 0.05
+   }
+  },
+  {
+   "name": "onsetMeanWindow=0.08",
+   "params": {
+    "onsetMeanWindow": 0.08
+   }
+  },
+  {
+   "name": "onsetMeanWindow=0.3",
+   "params": {
+    "onsetMeanWindow": 0.3
+   }
+  },
+  {
+   "name": "strengthPower=0.5",
+   "params": {
+    "strengthPower": 0.5
+   }
+  },
+  {
+   "name": "strengthPower=1.2",
+   "params": {
+    "strengthPower": 1.2
+   }
+  },
+  {
+   "name": "strengthPower=1.8",
+   "params": {
+    "strengthPower": 1.8
+   }
+  },
+  {
+   "name": "strengthRef=0.75",
+   "params": {
+    "strengthRef": 0.75
+   }
+  },
+  {
+   "name": "strengthRef=0.97",
+   "params": {
+    "strengthRef": 0.97
+   }
+  },
+  {
+   "name": "wholeToneUnder=20000",
+   "params": {
+    "wholeToneUnder": 20000
+   }
+  },
+  {
+   "name": "fade=0.05",
+   "params": {
+    "fade": 0.05
+   }
+  },
+  {
+   "name": "fade=0.25",
+   "params": {
+    "fade": 0.25
+   }
+  },
+  {
+   "name": "floor=0.01",
+   "params": {
+    "floor": 0.01
+   }
+  },
+  {
+   "name": "ghostPartials+7",
+   "params": {
+    "ghostPartials": [
+     7,
+     12,
+     19,
+     24,
+     28,
+     31,
+     34,
+     36
+    ]
+   }
+  },
+  {
+   "name": "ghostPartials+5+7",
+   "params": {
+    "ghostPartials": [
+     5,
+     7,
+     12,
+     16,
+     19,
+     24,
+     28,
+     31,
+     34,
+     36
+    ]
+   }
+  },
+  {
+   "name": "fundamental=0.1",
+   "params": {
+    "fundamental": 0.1
+   }
+  },
+  {
+   "name": "fundamental=0.3",
+   "params": {
+    "fundamental": 0.3
+   }
+  },
+  {
+   "name": "fundamental=0.6",
+   "params": {
+    "fundamental": 0.6
+   }
+  }
+ ]
+}

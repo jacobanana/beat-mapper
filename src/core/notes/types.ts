@@ -4,6 +4,10 @@
 export const NOTE_MODES = ['line', 'chords'] as const;
 export type NoteMode = (typeof NOTE_MODES)[number];
 
+/** What plays the chords: any instrument, or one the chord detector has a profile for. */
+export const NOTE_INSTRUMENTS = ['any', 'piano', 'guitar', 'organ', 'mallets'] as const;
+export type NoteInstrument = (typeof NOTE_INSTRUMENTS)[number];
+
 /** A point of a note's pitch bend: seconds into the audio, and cents from the note's own pitch. */
 export interface BendPoint {
   readonly t: number;
@@ -27,6 +31,8 @@ export interface Note {
 
 export interface NoteAnalysis {
   readonly mode: NoteMode;
+  /** The profile the chords were found with; `any` for a line. */
+  readonly instrument: NoteInstrument;
   /** Every note found, sorted by start, before the sensitivity picks among them. */
   readonly notes: readonly Note[];
   /** How far the recording is tuned from A440, in cents. */

@@ -34,6 +34,21 @@ put the headline in the reply: F-measure per class, what changed against the bas
 moved most. Numbers without a comparison don't say whether anything got better; say so when there
 was no `--compare`.
 
+## Tuning the chord detector
+
+`bench/tune.eval.ts` scores many `ChordParams` sets in one pass, sharing the spectrogram and the
+factorisation between sets that don't change them. Choose on the odd-numbered songs and test on the
+even-numbered ones, never the other way round; see "Profiles per instrument" in `docs/notes.md`.
+
+```bash
+GRID=bench/grids/round1.json SPLIT=train LABEL=r1 SHARD=0/3 npx vitest run --config bench/vitest.config.ts bench/tune.eval.ts
+node bench/tune-report.mjs .dev/eval/tune-r1-*.json [--class Piano]     # F per class, every config
+DIAG=1 ... ; node bench/tune-report.mjs --diag .dev/eval/diag-r1-*.json  # what kind of errors the first config makes
+```
+
+Three shards (`SHARD=0/3`, `1/3`, `2/3`) run side by side on a four-core container; a grid of a
+dozen factorisation settings takes about half an hour that way.
+
 ## Reading it
 
 - **F** is the harmonic mean of precision (found notes that are real) and recall (real notes found): a

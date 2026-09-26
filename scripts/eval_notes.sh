@@ -50,7 +50,7 @@ run() {
   local dir="$1" label="$2" started=$SECONDS
   echo "== scoring $label (log: .dev/eval/$label.log)"
   if ! (cd "$dir" && SLAKH="$dataset" LABEL="$label" OUT="$out" TRACKS="$tracks" CLASSES="$classes" \
-        npx vitest run --config bench/vitest.config.ts >"$out/$label.log" 2>&1); then
+        npx vitest run --config bench/vitest.config.ts bench/slakh.eval.ts >"$out/$label.log" 2>&1); then
     echo "eval_notes: the run of $label failed; the end of its log:" >&2
     tail -n 30 "$out/$label.log" >&2
     exit 1
@@ -72,6 +72,7 @@ if [[ -n "$compare" ]]; then
   trap 'git -C "$repo_root" worktree remove --force "$base_dir" 2>/dev/null || true' EXIT
   ln -s "$repo_root/node_modules" "$base_dir/node_modules"
   # The same harness on both sides, so only the detector differs; the other commit needs its notes module.
+  # Only the benchmark itself runs there: the tuning harness beside it reads this checkout's detector.
   rm -rf "$base_dir/bench" && cp -r "$repo_root/bench" "$base_dir/bench"
   if [[ ! -f "$base_dir/src/core/notes/detect.ts" ]]; then echo "eval_notes: $compare has no note detector to score" >&2; exit 1; fi
   run "$base_dir" "$base_label"

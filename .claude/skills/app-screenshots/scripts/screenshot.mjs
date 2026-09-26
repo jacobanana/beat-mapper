@@ -54,7 +54,9 @@ for (let i = 0; i < args.length; i++) {
   switch (args[i]) {
     case '--width': opt.widths.push(args[++i]); break;
     case '--path': opt.path = args[++i]; break;
-    case '--click': opt.clicks.push(args[++i]); break;
+    case '--click': opt.clicks.push({ click: args[++i] }); break;
+    case '--select': { const [sel, value] = args[++i].split('='); opt.clicks.push({ select: sel, value }); break; }
+    case '--pause': opt.clicks.push({ pause: Number(args[++i]) }); break;
     case '--name': opt.name = args[++i]; break;
     case '--base': opt.base = args[++i]; break;
     case '--theme': opt.theme = args[++i]; break;
@@ -76,6 +78,8 @@ screenshot.mjs [options]
   --width phone|tablet|desktop|<px>   repeatable; default phone
   --path <path>                       page or #fragment to open (default /)
   --click <selector>                  repeatable, applied in order
+  --select <selector>=<value>         choose in a <select>; repeatable, in order with the clicks
+  --pause <ms>                        wait between steps, for a demo to load before the next click
   --theme light|dark                  force a colour scheme
   --full-page                         capture the whole scroll height
   --wait <ms>                         settle time before the shot
@@ -165,8 +169,11 @@ for (const w of opt.widths) {
   page.on('pageerror', (e) => console.error(`  pageerror: ${e.message}`));
 
   await page.goto(url, { waitUntil: 'networkidle' });
-  for (const selector of opt.clicks) {
-    await page.click(selector, { timeout: 5000 });
+  // Clicks and selects in the order given: open a step, then choose in its menu.
+  for (const step of opt.clicks) {
+    if (step.click) await page.click(step.click, { timeout: 5000 });
+    else if (step.select) await page.selectOption(step.select, step.value, { timeout: 5000 });
+    else await page.waitForTimeout(step.pause);
   }
   if (opt.wait) await page.waitForTimeout(opt.wait);
   // Fonts land after first paint; a shot taken before they do is a picture of

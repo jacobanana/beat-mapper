@@ -1,0 +1,10 @@
+{ "configs": [
+ { "name": "before", "params": { "decay": 1, "quiet": 0.03, "on": 0.015, "strengthPower": 0.8 } },
+ { "name": "on=0.03", "params": { "decay": 1, "quiet": 0.03, "on": 0.03, "strengthPower": 0.8 } },
+ { "name": "on=0.03 sp=1", "params": { "decay": 1, "quiet": 0.03, "on": 0.03, "strengthPower": 1 } },
+ { "name": "on=0.03 quiet=0.06", "params": { "decay": 1, "quiet": 0.06, "on": 0.03, "strengthPower": 0.8 } },
+ { "name": "on=0.03 quiet=0.1", "params": { "decay": 1, "quiet": 0.1, "on": 0.03, "strengthPower": 0.8 } },
+ { "name": "on=0.03 sp=1 quiet=0.06", "params": { "decay": 1, "quiet": 0.06, "on": 0.03, "strengthPower": 1 } },
+ { "name": "on=0.03 ghost=0.2", "params": { "decay": 1, "quiet": 0.03, "on": 0.03, "strengthPower": 0.8, "ghost": 0.2 } },
+ { "name": "on=0.03 neighbour=0.7", "params": { "decay": 1, "quiet": 0.03, "on": 0.03, "strengthPower": 0.8, "neighbour": 0.7 } }
+] }
