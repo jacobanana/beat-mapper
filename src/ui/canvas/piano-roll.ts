@@ -17,8 +17,11 @@ import { barQ, beatQ } from '../../core/tempo/meter';
 import { type Colors, FONT, readColors, rgba } from './theme';
 
 const LABEL_W = 36, TOP = 18, BOTTOM = 20;
-/** A row is never thinner than a finger can tell apart, nor taller than looks like a roll. */
-const MIN_ROW = 6, MAX_ROW = 12;
+/**
+ * A row is never thinner than a finger can tell apart, nor taller than looks like a roll: the roll in
+ * the main view gets a little more, so it shows the notes bigger rather than octaves nothing plays in.
+ */
+const MIN_ROW = 6, MAX_ROW = 12, MAX_ROW_BIG = 18;
 const BLACK = new Set([1, 3, 6, 8, 10]);
 
 interface Box { x0: number; x1: number; y0: number; y1: number; n: HeardNote }
@@ -267,8 +270,13 @@ export class PianoRoll {
     let lo = 127, hi = 0;
     for (const n of found.length ? found : notes) { lo = Math.min(lo, n.pitch); hi = Math.max(hi, n.pitch); }
     if (lo > hi) { lo = 40; hi = 64; }
-    const area = h - TOP - BOTTOM, rh = Math.max(MIN_ROW, Math.min(MAX_ROW, area / Math.max(12, hi - lo + 3))), rows = Math.max(1, Math.floor(area / rh));
+    const big = app.notes.main === 'roll', area = h - TOP - BOTTOM;
+    const rh = Math.max(MIN_ROW, Math.min(big ? MAX_ROW_BIG : MAX_ROW, area / Math.max(12, hi - lo + 3))), rows = Math.max(1, Math.floor(area / rh));
+    // Grown or shrunk (moved to the main view and back, or the window resized), the rows keep the
+    // pitch in their middle.
+    const was = this.axis.rows;
     this.axis.rows = rows;
+    if (this.top != null && rows !== was) this.top = this.clampTop(Math.round(this.top - was / 2 + rows / 2));
     this.axis.rh = rh;
     if (this.top == null || this.centredOn !== app.transcript) {
       this.centredOn = app.transcript;

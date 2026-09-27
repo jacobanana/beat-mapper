@@ -22,7 +22,7 @@ describe('session files', () => {
   });
 
   it('carries the Notes step: its settings and deleted notes, only when they differ from how it starts', () => {
-    const s = parseSession(legacy, legacy.audio.duration, fb), n0 = { mode: 'line' as const, instrument: 'any' as const, sens: 55, legato: false, spec: true, view: 'fundamental' as const, harmonics: 8, range: 60 };
+    const s = parseSession(legacy, legacy.audio.duration, fb), n0 = { mode: 'line' as const, instrument: 'any' as const, sens: 55, legato: false, spec: true, view: 'fundamental' as const, harmonics: 8, range: 60, main: 'wave' as const };
     expect(s.notes).toEqual(n0);
     expect(s.removedNotes).toEqual([]);
     expect('notes' in toSessionJson(s)).toBe(false);
@@ -49,6 +49,16 @@ describe('session files', () => {
     // Out of range: the view and the counts fall back or clamp, and a note that ends before it starts, or far past the audio, is dropped.
     const odd = parseSession({ ...legacy, notes: { view: 'xray', harmonics: 99, range: 5, spectrogram: 'yes', manual: [{ pitch: 40, t: 1, end: 0.5, a: 1 }, { pitch: 40, t: 1, end: dur + 30, a: 1 }, { pitch: 41, t: 1, end: 1.5 }] } }, dur, fb);
     expect([odd.notes.view, odd.notes.harmonics, odd.notes.range, odd.notes.spec, odd.manualNotes]).toEqual(['fundamental', 16, 20, true, [{ pitch: 41, t: 1, end: 1.5, a: 1 }]]);
+  });
+
+  it('carries the piano roll in the main view, only when it is there', () => {
+    const s = parseSession(legacy, legacy.audio.duration, fb);
+    expect(s.notes.main).toBe('wave');
+    const set = { ...s, notes: { ...s.notes, main: 'roll' as const } };
+    const json = toSessionJson(set) as { notes: object };
+    expect(json.notes).toEqual({ main: 'roll' });
+    expect(parseSession(JSON.parse(JSON.stringify(json)), legacy.audio.duration, fb).notes).toEqual(set.notes);
+    expect(parseSession({ ...legacy, notes: { main: 'sideways' } }, legacy.audio.duration, fb).notes.main).toBe('wave');
   });
 
   it('carries warp markers, and leaves them out when there are none', () => {

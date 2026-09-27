@@ -10,7 +10,7 @@ import { noteName } from '../../core/notes/types';
 import { hasBridge, saveError, saveFile } from '../../io/download';
 import { type PitchedNote, buildMidi } from '../../io/formats/midi';
 import { zipFiles } from '../../io/formats/zip';
-import { SPEC_RANGE, defaultNotes } from '../../state/settings';
+import { type NoteMainView, SPEC_RANGE, defaultNotes } from '../../state/settings';
 import { type ProjectDoc, withNoteEdits } from '../../state/project';
 import type { App } from '../app';
 import type { Exports } from './exports';
@@ -147,6 +147,11 @@ export class Notes {
   setRange(db: number): void {
     this.app.set('notes', { range: clamp(Math.round(db), SPEC_RANGE.min, SPEC_RANGE.max) });
   }
+
+  /** The waveform or the piano roll in the main view: the same roll, moved up there and made bigger. */
+  setMain(main: NoteMainView): void { this.app.set('notes', { main }); }
+
+  toggleMain(): void { this.setMain(this.app.notes.main === 'wave' ? 'roll' : 'wave'); }
 
   /** The pencil: drags on the roll draw notes, move them and resize them, rather than scrolling the page. */
   toggleDraw(): void {

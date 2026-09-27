@@ -11,7 +11,7 @@ import { type WarpMarker, placeWarpMarker } from '../core/warp/markers';
 import { WARP_MODES, type WarpMode } from '../core/warp/modes';
 import { WAV_RATES } from './formats/wav';
 import {
-  type BeatSettings, type DetectionSettings, type ExportSettings, type NoteSettings, SNAP_MODES, SPEC_RANGE, type SlicerSettings, type SnapMode, type TransportState,
+  type BeatSettings, type DetectionSettings, type ExportSettings, NOTE_MAIN_VIEWS, type NoteMainView, type NoteSettings, SNAP_MODES, SPEC_RANGE, type SlicerSettings, type SnapMode, type TransportState,
   type WarpSettings, defaultNotes, defaultWarp,
 } from '../state/settings';
 import { STEPS, type Step } from '../state/steps';
@@ -96,8 +96,8 @@ function warpJson(s: SessionContent): object {
 
 // The Notes step came after the hit edits, and is written the same way: only what differs from how
 // the step starts, so a session that never opened it saves byte-identical. The spectrogram's view and
-// the notes drawn by hand came later still; a reader that predates them ignores the fields, and reads
-// the by-hand mode as a line.
+// the notes drawn by hand came later still, and the piano roll in the main view after them; a reader
+// that predates them ignores the fields, and reads the by-hand mode as a line.
 function notesJson(s: SessionContent): object {
   const n0 = defaultNotes(), n = s.notes;
   const out = {
@@ -109,6 +109,7 @@ function notesJson(s: SessionContent): object {
     ...(n.view !== n0.view ? { view: n.view } : {}),
     ...(n.harmonics !== n0.harmonics ? { harmonics: n.harmonics } : {}),
     ...(n.range !== n0.range ? { range: n.range } : {}),
+    ...(n.main !== n0.main ? { main: n.main } : {}),
     ...(s.removedNotes.length ? { removed: s.removedNotes.map((r) => ({ pitch: r.pitch, t: r.t })) } : {}),
     ...(s.manualNotes.length ? { manual: s.manualNotes.map((m) => ({ pitch: m.pitch, t: m.t, end: m.end, a: m.a })) } : {}),
   };
@@ -241,6 +242,7 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
       view: oneOf<SpecView>(SPEC_VIEWS, nt.view, n0.view),
       harmonics: clamp(Math.round(fin(nt.harmonics, n0.harmonics)), HARMONICS_RANGE.min, HARMONICS_RANGE.max),
       range: clamp(Math.round(fin(nt.range, n0.range)), SPEC_RANGE.min, SPEC_RANGE.max),
+      main: oneOf<NoteMainView>(NOTE_MAIN_VIEWS, nt.main, n0.main),
     },
     removedNotes: (Array.isArray(nt.removed) ? nt.removed : [])
       .filter((r: Json) => r && P(r.pitch) && T(r.t)).slice(0, 20000)
