@@ -14,6 +14,13 @@ describe('session files', () => {
     expect(JSON.stringify(toSessionJson(s))).toBe(JSON.stringify(legacy));
   });
 
+  it('carries SuperFlux as the detection function', () => {
+    const s = parseSession(legacy, legacy.audio.duration, fb);
+    const json = toSessionJson({ ...s, detection: { ...s.detection, algo: 'superflux' } }) as { detection: { algo: string } };
+    expect(json.detection.algo).toBe('superflux');
+    expect(parseSession(JSON.parse(JSON.stringify(json)), legacy.audio.duration, fb).detection.algo).toBe('superflux');
+  });
+
   it('carries the Notes step: its settings and deleted notes, only when they differ from how it starts', () => {
     const s = parseSession(legacy, legacy.audio.duration, fb), n0 = { mode: 'line' as const, instrument: 'any' as const, sens: 55, legato: false, spec: true, view: 'fundamental' as const, harmonics: 8, range: 60, main: 'wave' as const };
     expect(s.notes).toEqual(n0);

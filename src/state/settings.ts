@@ -173,7 +173,7 @@ export type GrooveChartMode = 'pocket' | 'midi';
 export const NOTE_MAIN_VIEWS = ['wave', 'roll'] as const;
 export type NoteMainView = (typeof NOTE_MAIN_VIEWS)[number];
 
-export const defaultDetection = (): DetectionSettings => ({ sens: 55, gap: 60, band: 'full', algo: 'flux', showOdf: true });
+export const defaultDetection = (): DetectionSettings => ({ sens: 55, gap: 60, band: 'full', algo: 'superflux', showOdf: true });
 export const defaultBeats = (): BeatSettings => ({ grid: '16', mapEvery: 'beat', tol: 20, snapTo: 'markers', loopBars: null, shuffle: 0 });
 export const defaultExport = (): ExportSettings => ({ lead: 'full', res: 'pins', clicks: true, rppAudio: true });
 export const defaultWarp = (): WarpSettings => ({ mode: 'music', bpm: null, range: 'file', listen: true, quantize: 0, fill: false });

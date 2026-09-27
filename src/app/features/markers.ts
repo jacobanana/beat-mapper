@@ -14,6 +14,7 @@ const ALGO_NOTE: Record<Algo, string> = {
   complex: 'Complex domain: new energy or a phase jump, for soft pitched notes too',
   gdelay: 'Group delay: every bin points at the instant its energy sits',
   energy: 'Energy rise: loudness jumps only',
+  superflux: 'SuperFlux: new notes, not the swell of held ones. For piano, keys and pads',
 };
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));

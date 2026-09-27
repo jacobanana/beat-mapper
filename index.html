@@ -167,7 +167,7 @@
             <div class="row2">
               <span class="cap">Find</span><span class="items">
                 <label class="sl" title="Minimum gap between markers: closer hits count as one"><svg class="ic"><use href="#i-gap"/></svg><input type="range" id="gap" min="10" max="300" step="5" value="60" aria-label="Minimum gap"><output id="gapO">60 ms</output></label>
-                <select id="algo" title="What counts as a hit" aria-label="Detection algorithm"><option value="flux">Spectral flux</option><option value="complex">Complex domain</option><option value="gdelay">Group delay</option><option value="energy">Energy rise</option></select>
+                <select id="algo" title="What counts as a hit" aria-label="Detection algorithm"><option value="flux">Spectral flux</option><option value="superflux">SuperFlux</option><option value="complex">Complex domain</option><option value="gdelay">Group delay</option><option value="energy">Energy rise</option></select>
                 <select id="band" title="Frequency band to detect on" aria-label="Band"><option value="full">All</option><option value="low">Lows</option><option value="high">Highs</option></select>
                 <button class="btn on" id="odfBtn" title="Show the transientness curve the markers come from (V)" aria-label="Show transientness" aria-pressed="true"><svg class="ic"><use href="#i-odf"/></svg>Curve</button>
               </span>
