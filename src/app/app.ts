@@ -390,9 +390,9 @@ export class App {
     this.transport = { ...this.transport, playhead: 0, start: 0, loop: null, loopOn: false };
     // The grid tempo, the material, what is warped and whether it is heard are this file's; so is the
     // shuffle, which is the feel of this take, and how its notes are found and held. The pencil stays
-    // in hand.
+    // in hand, and the roll where the user put it.
     this.warp = defaultWarp();
-    this.notes = { ...defaultNotes(), draw: this.notes.draw };
+    this.notes = { ...defaultNotes(), draw: this.notes.draw, main: this.notes.main };
     this.beats = { ...this.beats, shuffle: defaultBeats().shuffle };
     this.bus.emit('audio', 'doc', 'candidates', 'drums', 'transcript', 'spectrum', 'transport', 'view', 'playhead', 'selection', 'slices', 'warp', 'beats', 'notes');
   }

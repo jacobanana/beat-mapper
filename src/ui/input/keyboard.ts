@@ -105,6 +105,7 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
     } else if (app.step === STEP.notes) {
       if (k === 'm') f.notes.toggleSynth();
       else if (k === 's') f.notes.toggleSpectrogram();
+      else if (k === 'c') f.notes.toggleMain();
       else if (k === 'd') f.notes.toggleDraw();
     }
   });

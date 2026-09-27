@@ -135,6 +135,8 @@ export interface NoteSettings {
   harmonics: number;
   /** How many dB under the loudest are still drawn. */
   range: number;
+  /** What fills the stage: the waveform, as in every other step, or the piano roll over its spectrogram. */
+  main: NoteMainView;
   /** The pencil: drags on the piano roll draw, move and resize notes. A tool, so not saved. */
   draw: boolean;
 }
@@ -168,6 +170,9 @@ export const SPEC_RANGE = { min: 20, max: 100 } as const;
 
 export type GrooveChartMode = 'pocket' | 'midi';
 
+export const NOTE_MAIN_VIEWS = ['wave', 'roll'] as const;
+export type NoteMainView = (typeof NOTE_MAIN_VIEWS)[number];
+
 export const defaultDetection = (): DetectionSettings => ({ sens: 55, gap: 60, band: 'full', algo: 'flux', showOdf: true });
 export const defaultBeats = (): BeatSettings => ({ grid: '16', mapEvery: 'beat', tol: 20, snapTo: 'markers', loopBars: null, shuffle: 0 });
 export const defaultExport = (): ExportSettings => ({ lead: 'full', res: 'pins', clicks: true, rppAudio: true });
@@ -177,7 +182,7 @@ export const defaultSlicer = (): SlicerSettings => ({
 });
 export const defaultTransport = (): TransportState => ({ loop: null, loopOn: false, start: 0, playhead: 0, stay: false, click: false, scrubMode: false });
 export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', exaggerate: true, chart: 'pocket' });
-export const defaultNotes = (): NoteSettings => ({ mode: 'line', instrument: 'any', sens: 55, legato: false, spec: true, view: 'fundamental', harmonics: 8, range: 60, draw: false });
+export const defaultNotes = (): NoteSettings => ({ mode: 'line', instrument: 'any', sens: 55, legato: false, spec: true, view: 'fundamental', harmonics: 8, range: 60, main: 'wave', draw: false });
 /** What every rendered slice gets; the warped .wav gets the same channels and level. */
 export function sliceRenderOptions(o: SlicerSettings): RenderOptions {
   return { fadeIn: o.fadeIn / 1000, fadeOut: o.fadeOut / 1000, mono: o.mono, normalize: o.norm, target: Math.pow(10, o.target / 20) };
