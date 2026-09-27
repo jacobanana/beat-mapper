@@ -63,7 +63,7 @@ frame every 23 ms, from the audio decimated to 11 kHz; each FFT bin's energy is 
 its phase says it holds (the instantaneous frequency, as a phase vocoder measures it: Auger & Flandrin's
 reassignment along frequency), rather than at the bin's centre, so a steady partial draws one narrow
 line instead of the window's lobe, and a bin pointing more than a bin away (noise, an attack) stays
-where it is. Two windows as chords mode has, 186 ms under 400 Hz and 93 ms above. Three **views**,
+where it is. Two windows as chords mode has, 186 ms under 400 Hz and 93 ms above. Four **views**,
 all in dB under the loudest bin, with a **range** of how far down is still drawn:
 
 - **as heard**: every partial of every note.
@@ -74,8 +74,40 @@ all in dB under the loudest bin, with a **range** of how far down is still drawn
   octave doubling, which is the price.
 - **harmonics removed**: from the bottom up, each bin's level subtracted from where its partials fall
   (as 1/h, with some slack), so what is left above a note is another note.
+- **notes only**: in each frame the likeliest note (its partials together, weighted 1/h, its
+  fundamental sounding), its partials taken out up to the smoother of their level and their
+  neighbours', then the next in what is left, up to **Voices** notes (Klapuri's estimate and cancel).
+  Only the notes found are drawn.
 
-**Harmonics** is how many partials a note is taken to have, for both. With **Draw** on, a drag on the
+**Filters** (`spec-filter.ts`) take out what isn't a note, either side of the view. Before it, on the
+magnitudes: **Steady** keeps what holds a pitch against what is broad in frequency (median-filter
+HPSS: each bin's median over up to a second of frames against its median over four semitones), and
+**Floor** subtracts the median of the octave around each bin. After it, on the dB: **Peaks** keeps the
+bins louder than the two either side, **Min length** drops lines shorter than it, **Semitones** fills
+each row with its loudest bin; **Even** first draws each moment against the loudest in the two
+seconds around it. The medians slide a sorted window, so steady and floor cost a few
+hundred milliseconds on a three-minute take; the App memoises the three stages apart.
+
+`bench/spectrogram.eval.ts` scores views and filters on BabySlakh's whole mixes (drums in) against
+every pitched stem's MIDI, on the roll's semitone cells: average precision over the cells ranked by
+brightness, the best F over ranges, and F at a given range. Chosen on songs 1–10, checked on 11–20:
+
+| on songs 11–20 | AP | F at 30 dB | F at 60 dB | lit that is a note, at about its best range |
+| --- | --- | --- | --- | --- |
+| fundamentals, 8 harmonics, no filters (the old start, at 60 dB) | 39.1 | 42.4 | 26.9 | 17% at 60 dB |
+| harmonics removed, 16 harmonics, no filters | 33.7 | 43.1 | 26.2 | 16% at 60 dB |
+| **fundamentals, 4 harmonics, steady 35, min length 150 ms (the start, at 30 dB)** | 56.1 | 57.0 | 39.2 | 67% |
+| the same, even | 56.3 | 46.1 | 34.2 | 66%, best at 18 dB |
+| notes only, 8 voices, steady 35, peaks | 45.2 | 57.3 | 55.5 | 60% (53% at 60 dB) |
+
+Most of the gain is the steady filter, and how far it reaches barely matters (35 to 100 score the
+same); the rest is a range of 30 dB instead of 60, where every view is at its best, and four
+harmonics rather than eight. Floor only does what a narrower range does, and even ranks the notes a
+little better but is at its best at 18 dB, so it starts off. Min length follows each line down to 60
+dB whatever the range; cut at the range it drops the quiet starts of real notes. Notes only is the
+one to use at a wide range, since what it draws is the notes whatever the range.
+
+**Harmonics** is how many partials a note is taken to have, for all three. **Notes** hides the notes to see the spectrogram alone. A tap on a note plays it on the synth voice, muted or not, and a tap on an empty row or a note name plays that pitch, so a line on the spectrogram can be tried by ear; drawing or dragging a note plays each pitch it reaches. The roll zooms in time and pitch with two fingers, each axis the fingers start spread along, and its rows scroll by fractions of a row. With **Draw** on, a drag on the
 roll draws a note at that pitch from where it starts to where it ends (on the grid or a transient, as
 the Beats step's magnet is set), a tap draws one grid step, a note is moved by dragging it and
 lengthened by its end; the rows scroll. A drawn note is a `ManualNote` in the document (undo covers

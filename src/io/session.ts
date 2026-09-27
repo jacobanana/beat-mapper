@@ -3,6 +3,7 @@
 // Everything read back is validated and clamped, so a hand-edited or older file can't break the app.
 import { ALGOS, type Algo, BANDS, type Band } from '../core/dsp/onset';
 import { VOICES, type Voice } from '../core/drums/voices';
+import { SPEC_FILTER_LIMITS, type SpecFilter, defaultSpecFilter } from '../core/notes/spec-filter';
 import { HARMONICS_RANGE, SPEC_VIEWS, type SpecView } from '../core/notes/spectrogram';
 import { NOTE_INSTRUMENTS, NOTE_MODES, type NoteInstrument, type NoteMode } from '../core/notes/types';
 import { DENOMINATORS, GRID_DIVISIONS, type GridDivision, type Meter } from '../core/tempo/meter';
@@ -109,11 +110,31 @@ function notesJson(s: SessionContent): object {
     ...(n.view !== n0.view ? { view: n.view } : {}),
     ...(n.harmonics !== n0.harmonics ? { harmonics: n.harmonics } : {}),
     ...(n.range !== n0.range ? { range: n.range } : {}),
+    ...filterJson(n.filter),
+    ...(n.showNotes !== n0.showNotes ? { showNotes: n.showNotes } : {}),
     ...(n.main !== n0.main ? { main: n.main } : {}),
     ...(s.removedNotes.length ? { removed: s.removedNotes.map((r) => ({ pitch: r.pitch, t: r.t })) } : {}),
     ...(s.manualNotes.length ? { manual: s.manualNotes.map((m) => ({ pitch: m.pitch, t: m.t, end: m.end, a: m.a })) } : {}),
   };
   return Object.keys(out).length ? { notes: out } : {};
+}
+
+// The spectrogram's filters came after the piano roll: each only when it differs from how it starts.
+function filterJson(f: SpecFilter): object {
+  const f0 = defaultSpecFilter(), out: Partial<SpecFilter> = {};
+  for (const k of Object.keys(f0) as (keyof SpecFilter)[]) if (f[k] !== f0[k]) (out as Record<string, unknown>)[k] = f[k];
+  return Object.keys(out).length ? { filter: out } : {};
+}
+
+function parseFilter(j: Json): SpecFilter {
+  const f0 = defaultSpecFilter(), f = j && typeof j === 'object' ? j : {}, L = SPEC_FILTER_LIMITS;
+  const num = (k: 'steady' | 'floor' | 'minLen' | 'voices') => clamp(Math.round(fin(f[k], f0[k])), L[k].min, L[k].max);
+  return {
+    steady: num('steady'), floor: num('floor'), minLen: num('minLen'), voices: num('voices'),
+    peaks: typeof f.peaks === 'boolean' ? f.peaks : f0.peaks,
+    snap: typeof f.snap === 'boolean' ? f.snap : f0.snap,
+    even: typeof f.even === 'boolean' ? f.even : f0.even,
+  };
 }
 
 function hitsJson(s: SessionContent): object {
@@ -242,6 +263,8 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
       view: oneOf<SpecView>(SPEC_VIEWS, nt.view, n0.view),
       harmonics: clamp(Math.round(fin(nt.harmonics, n0.harmonics)), HARMONICS_RANGE.min, HARMONICS_RANGE.max),
       range: clamp(Math.round(fin(nt.range, n0.range)), SPEC_RANGE.min, SPEC_RANGE.max),
+      filter: parseFilter(nt.filter),
+      showNotes: typeof nt.showNotes === 'boolean' ? nt.showNotes : n0.showNotes,
       main: oneOf<NoteMainView>(NOTE_MAIN_VIEWS, nt.main, n0.main),
     },
     removedNotes: (Array.isArray(nt.removed) ? nt.removed : [])

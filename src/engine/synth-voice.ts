@@ -46,3 +46,22 @@ export function synthNote(n: SynthNote, when: number, dest?: AudioNode): void {
   lp.connect(out).connect(dest ?? c.destination);
   for (const o of [saw, sub]) { o.start(when); o.stop(when + dur + rel + 0.02); }
 }
+
+/** The note heard last on its own, so the next one cuts it rather than piling up on it. */
+let auditioned: GainNode | null = null;
+
+/** Plays one note now, on its own (a note tapped, a pitch tried), at `level`; the one before is cut. */
+export function auditionNote(n: SynthNote, level: number): void {
+  const c = audioContext(), now = c.currentTime;
+  // A tap is a user gesture: a context the browser started suspended can start now.
+  if (c.state === 'suspended') void c.resume();
+  if (auditioned) {
+    auditioned.gain.setValueAtTime(auditioned.gain.value, now);
+    auditioned.gain.linearRampToValueAtTime(0, now + 0.02);
+  }
+  const g = c.createGain();
+  g.gain.value = level;
+  g.connect(c.destination);
+  auditioned = g;
+  synthNote(n, now + 0.005, g);
+}
