@@ -19,7 +19,7 @@ const RESET_ASK: Record<Step, [string, string]> = {
   [STEP.warp]: ['Reset Warp?', 'The whole file is warped at the tempo it averages, as a full mix, and the warp markers come off. Your grid tempo and material are cleared, the shuffle goes back to 0%, the quantize strength to 100% and gaps are left unfilled; undo brings back the warp markers.'],
   [STEP.slice]: ['Reset Slice?', 'Every transient starts a slice again, and every slice is kept. Dropped slices can\'t be brought back with undo.'],
   [STEP.groove]: ['Reset Groove?', 'The hits go back to how they were found, at the starting sensitivities. Undo brings back your hit edits.'],
-  [STEP.notes]: ['Reset Notes?', 'Every note comes back as found, at the starting sensitivity, as long as it is heard. Undo brings back your deletions.'],
+  [STEP.notes]: ['Reset Notes?', 'Every note comes back as found and the drawn ones go, at the starting sensitivity, as long as it is heard. Undo brings back your note edits.'],
 };
 
 export function bindHeader(app: App, f: Features, openHelp: () => void, openExport: () => void): void {

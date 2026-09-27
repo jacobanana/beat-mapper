@@ -39,7 +39,7 @@ from bar 1.
 | `drums/` | Kick, snare and hats: a log-frequency spectrogram (optionally percussive-only), NMF with semi-adaptive templates, per-voice hit picking and bleed cancelling, sensitivity. See [groove.md](groove.md). |
 | `warp/` | Warping onto a straight grid: the warp map from the tempo map (`map.ts`), warp markers that put single transients on the grid (`markers.ts`), and one algorithm per kind of material (drum slicing, WSOLA, phase-locked phase vocoder, harmonic-percussive split, re-pitch). See [warp.md](warp.md). |
 | `timeline.ts` | `Timeline`: where the audio and the grid are drawn on the editor, and what the pointer lands on, following what is heard. See [Time on screen](#time-on-screen). |
-| `notes/` | Pitched notes, a line or chords: pYIN and a note cutter for a line, harmonic-comb NMF gated by attacks for chords, the tuning, and starts and ends timed on the waveform; selection by sensitivity, deletions, Legato, velocities. See [notes.md](notes.md). |
+| `notes/` | Pitched notes, a line or chords: pYIN and a note cutter for a line, harmonic-comb NMF gated by attacks for chords, the tuning, and starts and ends timed on the waveform; selection by sensitivity, deletions, notes drawn by hand, Legato, velocities. `spectrogram.ts` is the other way from audio to MIDI: a spectrogram on the piano roll's axis (a phase-reassigned STFT, three bins a semitone) and its views, the fundamentals lit or the harmonics taken out, for the user to draw the notes on. See [notes.md](notes.md). |
 | `groove/pocket.ts` | Every drum hit on its grid step, measured against the grid (or, in the core only, a reference voice bar by bar); per-voice and per-step statistics, swing. `transcribe` turns the hits into notes for the synth kit and the MIDI transcript. |
 
 ## Time on screen
@@ -120,7 +120,7 @@ bridge when the app runs inside one).
   undone.
 - **`App`** (`app/app.ts`) holds the document, settings, the audio and its analysis, and derives
   everything else on demand, memoised on the identity of its inputs: the visible markers, the tempo
-  map, the grid, the bars, the slices, the drum hits the sensitivities let through, the notes they make, the pocket, the warp plan, the
+  map, the grid, the bars, the slices, the drum hits the sensitivities let through, the notes they make, the spectrogram's view, the pocket, the warp plan, the
   warp markers the warp follows (`warpMarkers`: those placed by hand, with the quantize laid around them at its strength), the
   warp as Slice and Groove use it (`warpOut`), the warp heard (`heard`), and the timeline everything is drawn on. Nothing derived is stored, so nothing can go stale.
   `App.load` starts a new file from the defaults of everything that belongs to a file (the document,

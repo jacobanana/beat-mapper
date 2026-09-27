@@ -3,6 +3,7 @@ import type { Algo, Band } from '../core/dsp/onset';
 import type { MapSettings } from '../core/beats/edit';
 import type { DrumSource } from '../core/drums/detect';
 import type { PerVoice } from '../core/drums/voices';
+import type { SpecView } from '../core/notes/spectrogram';
 import type { NoteInstrument, NoteMode } from '../core/notes/types';
 import type { RenderOptions } from '../core/slices/slices';
 import type { GrooveGrid } from '../core/groove/pocket';
@@ -113,9 +114,12 @@ export interface GrooveSettings {
   chart: GrooveChartMode;
 }
 
-/** The Notes step: what the audio is played as, how much is let through, and how long notes are held. */
+/**
+ * The Notes step: what the audio is played as, how much is let through, how long notes are held, and
+ * how the spectrogram under the piano roll is shown.
+ */
 export interface NoteSettings {
-  /** One line at a time (bass, lead, voice), or chords (keys, guitar). */
+  /** One line at a time (bass, lead, voice), chords (keys, guitar), or by hand on the spectrogram. */
   mode: NoteMode;
   /** Which instrument plays the chords, when the detector has a profile for it. */
   instrument: NoteInstrument;
@@ -123,6 +127,16 @@ export interface NoteSettings {
   sens: number;
   /** Hold each note until the next one starts, rather than as long as it is heard. */
   legato: boolean;
+  /** The spectrogram drawn under the piano roll. */
+  spec: boolean;
+  /** As heard, the fundamentals lit, or the harmonics taken out. */
+  view: SpecView;
+  /** How many partials a note is taken to have, for the views that use them. */
+  harmonics: number;
+  /** How many dB under the loudest are still drawn. */
+  range: number;
+  /** The pencil: drags on the piano roll draw, move and resize notes. A tool, so not saved. */
+  draw: boolean;
 }
 
 /** How loud each thing that plays is, in percent of its natural level: 100 is as it always was. */
@@ -149,6 +163,9 @@ export interface MuteSettings {
 }
 export const MIX_MAX = 150;
 
+/** How far under the loudest the spectrogram can be asked to draw, dB. */
+export const SPEC_RANGE = { min: 20, max: 100 } as const;
+
 export type GrooveChartMode = 'pocket' | 'midi';
 
 export const defaultDetection = (): DetectionSettings => ({ sens: 55, gap: 60, band: 'full', algo: 'flux', showOdf: true });
@@ -160,7 +177,7 @@ export const defaultSlicer = (): SlicerSettings => ({
 });
 export const defaultTransport = (): TransportState => ({ loop: null, loopOn: false, start: 0, playhead: 0, stay: false, click: false, scrubMode: false });
 export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', exaggerate: true, chart: 'pocket' });
-export const defaultNotes = (): NoteSettings => ({ mode: 'line', instrument: 'any', sens: 55, legato: false });
+export const defaultNotes = (): NoteSettings => ({ mode: 'line', instrument: 'any', sens: 55, legato: false, spec: true, view: 'fundamental', harmonics: 8, range: 60, draw: false });
 /** What every rendered slice gets; the warped .wav gets the same channels and level. */
 export function sliceRenderOptions(o: SlicerSettings): RenderOptions {
   return { fadeIn: o.fadeIn / 1000, fadeOut: o.fadeOut / 1000, mono: o.mono, normalize: o.norm, target: Math.pow(10, o.target / 20) };

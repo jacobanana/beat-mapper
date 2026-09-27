@@ -12,10 +12,11 @@ signal processing the app already has, the way the drum detector was built.
 ## What is built
 
 Step 6, **Notes**, finds the notes in the audio as **one line** (a bass line, a lead, a voice) or as
-**chords** (keys, guitar), draws them as a piano roll, plays them on a synth voice and exports them
-as MIDI: one track, with lengths, velocities and pitch bends, placed where the warp puts them when it
-is heard warped. The sensitivity picks among the notes, a note can be deleted, and **Legato** holds
-each note until the next one starts. No trained model is involved.
+**chords** (keys, guitar), or leaves them to be drawn **by hand** on a spectrogram, draws them as a
+piano roll, plays them on a synth voice and exports them as MIDI: one track, with lengths, velocities
+and pitch bends, placed where the warp puts them when it is heard warped. The sensitivity picks among
+the notes, a note can be deleted, drawn, moved or lengthened, and **Legato** holds each note until the
+next one starts. No trained model is involved.
 
 **One line** (`line.ts`) is pYIN [9]: YIN candidates from one FFT per 10 ms frame, on the audio
 decimated to about 11 kHz, and a Viterbi pass over pitch states 10 cents apart plus an unvoiced state.
@@ -52,6 +53,34 @@ finds 54. Now it finds 54, 43 of them Basic Pitch's; the rest are mostly the sam
 strength the sensitivity reads is a note's rise against the loud notes of the take, so the starting
 sensitivity keeps notes down to about 25 dB under them and turning it down drops the doublings and
 the soft melody before the roots.
+
+**By hand** is the other way round: the detectors decide nothing, and the user draws the notes on a
+**spectrogram** under the piano roll (`spectrogram.ts`), which the other two modes show as well, to
+check the found notes against. It is on the roll's own axis, three bins a semitone from A0 to C8, a
+frame every 23 ms, from the audio decimated to 11 kHz; each FFT bin's energy is put at the frequency
+its phase says it holds (the instantaneous frequency, as a phase vocoder measures it: Auger & Flandrin's
+reassignment along frequency), rather than at the bin's centre, so a steady partial draws one narrow
+line instead of the window's lobe, and a bin pointing more than a bin away (noise, an attack) stays
+where it is. Two windows as chords mode has, 186 ms under 400 Hz and 93 ms above. Three **views**,
+all in dB under the loudest bin, with a **range** of how far down is still drawn:
+
+- **as heard**: every partial of every note.
+- **fundamentals**: each bin scored by its partials together, a weighted mean of their levels (the
+  harmonic product spectrum on a log axis, each partial read from the loudest of the three bins around
+  where it should be), then a bin that is a partial of a lower bin scoring as well or better is pushed
+  down by six times the difference. A note's second partial lands 25 dB and more under it; so does an
+  octave doubling, which is the price.
+- **harmonics removed**: from the bottom up, each bin's level subtracted from where its partials fall
+  (as 1/h, with some slack), so what is left above a note is another note.
+
+**Harmonics** is how many partials a note is taken to have, for both. With **Draw** on, a drag on the
+roll draws a note at that pitch from where it starts to where it ends (on the grid or a transient, as
+the Beats step's magnet is set), a tap draws one grid step, a note is moved by dragging it and
+lengthened by its end; the rows scroll. A drawn note is a `ManualNote` in the document (undo covers
+it, the session keeps it), heard and written beside the found ones; a found note moved or resized
+becomes a drawn one and is marked deleted, so it stays moved at any sensitivity. Its velocity comes
+from the spectrogram's level at its pitch over its length, on the found notes' scale (the median
+ratio of their loudness to their level), so a soft drawn note plays soft.
 
 **Both** time a start on the waveform. The attacks are read on the audio high-passed at 150 Hz by a
 *forward-only* filter, in 2 ms blocks: a zero-phase filter rings before an attack and put starts 8 ms

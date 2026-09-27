@@ -2,6 +2,7 @@ import { type Algo, type Analysis, type Band, analyze } from '../core/dsp/onset'
 import { type DrumAnalysis, type DrumSource, detectDrums } from '../core/drums/detect';
 import { pickCandidates } from '../core/markers/detect';
 import { detectNotes } from '../core/notes/detect';
+import { type PitchSpectrogram, pitchSpectrogram } from '../core/notes/spectrogram';
 import type { NoteAnalysis, NoteInstrument, NoteMode } from '../core/notes/types';
 import type { Candidate } from '../core/types';
 import { type WarpJob, renderWarp } from '../core/warp/modes';
@@ -21,6 +22,8 @@ export interface Analyzer {
   drums(source: DrumSource, onProgress?: (f: number) => void): Promise<DrumAnalysis>;
   /** The notes in the last analysed signal, as one line or as chords of an instrument. */
   notes(mode: NoteMode, instrument: NoteInstrument, onProgress?: (f: number) => void): Promise<NoteAnalysis>;
+  /** The last analysed signal as a spectrogram on the piano roll's axis. */
+  spectrogram(onProgress?: (f: number) => void): Promise<PitchSpectrogram>;
   /** The audio re-timed onto a straight grid. */
   warp(job: WarpJob, onProgress?: (f: number) => void): Promise<Float32Array[]>;
   dispose(): void;
@@ -54,6 +57,11 @@ export class InlineAnalyzer implements Analyzer {
   async notes(mode: NoteMode, instrument: NoteInstrument, onProgress?: (f: number) => void): Promise<NoteAnalysis> {
     if (!this.x) throw new Error('Nothing analysed yet');
     return detectNotes(this.x, this.sr, { mode, instrument, onProgress, yieldToEventLoop: this.yieldToEventLoop });
+  }
+
+  async spectrogram(onProgress?: (f: number) => void): Promise<PitchSpectrogram> {
+    if (!this.x) throw new Error('Nothing analysed yet');
+    return pitchSpectrogram(this.x, this.sr, { onProgress, yieldToEventLoop: this.yieldToEventLoop });
   }
 
   async warp(job: WarpJob, onProgress?: (f: number) => void): Promise<Float32Array[]> {

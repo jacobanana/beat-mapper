@@ -1,7 +1,7 @@
 // What the note detector finds, and what the rest of the app reads from it.
 
-/** One line at a time (bass, lead, voice), or chords (keys, guitar). */
-export const NOTE_MODES = ['line', 'chords'] as const;
+/** One line at a time (bass, lead, voice), chords (keys, guitar), or by hand: nothing found, the notes drawn on the spectrogram. */
+export const NOTE_MODES = ['line', 'chords', 'draw'] as const;
 export type NoteMode = (typeof NOTE_MODES)[number];
 
 /** What plays the chords: any instrument, or one the chord detector has a profile for. */

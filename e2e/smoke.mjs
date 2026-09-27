@@ -321,6 +321,51 @@ try {
     await page.waitForFunction(() => document.getElementById('busy').hidden, null, { timeout: 30000 });
     assert.notEqual(await text('nN'), '');
   });
+  await step('Notes: the spectrogram under the roll, a note drawn on it, moved, and the line drawn by hand', async () => {
+    assert.equal(await page.getAttribute('#nSpec', 'aria-pressed'), 'true');
+    assert.equal(await page.isVisible('#nView'), true);
+    await page.selectOption('#nView', 'clean');
+    await page.click('#nSpec');
+    assert.equal(await page.isVisible('#nView'), false);
+    await page.keyboard.press('s');
+    assert.equal(await page.getAttribute('#nSpec', 'aria-pressed'), 'true');
+    await page.selectOption('#nMode', 'line');
+    await page.waitForFunction(() => document.getElementById('busy').hidden && document.getElementById('nN').textContent === '28', null, { timeout: 30000 });
+    // Draw on: a drag along the top rows, where the bass line has nothing, draws a note there.
+    await page.click('#nDraw');
+    assert.equal(await page.getAttribute('#nDraw', 'aria-pressed'), 'true');
+    const r = await (await page.$('#notesCv')).boundingBox();
+    await page.mouse.move(r.x + 200, r.y + 26);
+    await page.mouse.down();
+    await page.mouse.move(r.x + 230, r.y + 26, { steps: 4 });
+    await page.mouse.move(r.x + 300, r.y + 26, { steps: 4 });
+    await page.mouse.up();
+    assert.equal(await text('nN'), '29');
+    assert.match(await text('nSum'), /· 1 drawn$/);
+    assert.equal(await page.isDisabled('#nDel'), false);
+    // Dragged down a row, it is still one note; deleted, it is gone; undo brings it back.
+    await page.mouse.move(r.x + 240, r.y + 28);
+    await page.mouse.down();
+    await page.mouse.move(r.x + 240, r.y + 40, { steps: 4 });
+    await page.mouse.up();
+    assert.equal(await text('nN'), '29');
+    await page.click('#nDel');
+    assert.equal(await text('nN'), '28');
+    await page.keyboard.press('Control+z');
+    assert.equal(await text('nN'), '29');
+    // By hand: nothing found, and a tap draws one grid step.
+    await page.selectOption('#nMode', 'draw');
+    await page.waitForFunction(() => document.getElementById('nN').textContent === '1', null, { timeout: 30000 });
+    assert.equal(await page.isVisible('#nSens'), false);
+    await page.mouse.click(r.x + 400, r.y + 60);
+    assert.equal(await text('nN'), '2');
+    assert.match(await text('nSum'), /^2 notes/);
+    await page.keyboard.press('Control+e');
+    assert.match(await text('expInfo'), /^2 notes/);
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('d');
+    assert.equal(await page.getAttribute('#nDraw', 'aria-pressed'), 'false');
+  });
   assert.deepEqual(errors, []);
   console.log('e2e smoke passed');
 } finally {
