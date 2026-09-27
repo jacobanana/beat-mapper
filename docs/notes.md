@@ -37,7 +37,9 @@ range. How they were chosen is under [Profiles per instrument](#profiles-per-ins
 
 Which notes a chord has is decided onset by onset, all pitches together. The onsets are peaks of a
 spectral flux (SuperFlux [39]: 46 ms windows every 5 ms, log-compressed, each bin against the loudest
-of its neighbours 15 ms before). The waveform's envelope misses most of a piano part: a soft melody
+of its neighbours 15 ms before), the same code the transients use (`onsetsOf` in
+`core/dsp/superflux.ts`). What else the transients do against held notes helped no chord class;
+see [transients.md](transients.md#what-the-note-detectors-took-from-it). The waveform's envelope misses most of a piano part: a soft melody
 note over a held chord barely moves the level, and on a real piano loop it found 7 of some 25 onsets.
 At each onset every comb is asked how far its activation rose, from just before the window reached
 the onset to the least it holds once the window has passed it and before the next onset is in it: a

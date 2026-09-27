@@ -358,9 +358,9 @@ export async function detectChords(x: Float32Array, sr: number, o: ChordOptions 
  * shows a note that is loud over what is already ringing; a soft melody note over a held chord barely
  * moves the level, but its partials are new, and the flux sees them. It is the transients' SuperFlux
  * (dsp/superflux.ts), read per FFT bin and compressed against the take's loudest partial. What else the
- * transients do against held notes (quarter-tone bands, the group delay, asking what lasts) moved no
- * class here by more than half a point on BabySlakh: `track` below already asks each pitch whether it
- * is still there once the onset has passed, which is what asking what lasts does.
+ * transients do against held notes (quarter-tone bands, asking what lasts) helped no class here on
+ * BabySlakh: `track` below already asks each pitch whether it is still there once the onset has
+ * passed, which is what asking what lasts does.
  */
 function onsets(y: Float32Array, sr: number, p: ChordParams): number[] {
   return onsetsOf(y, sr, {

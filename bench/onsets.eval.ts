@@ -106,7 +106,8 @@ it('marks the onsets of BabySlakh', async () => {
   const classes = [...byClass.keys()].sort();
   for (const c of classes) lines.push(row(c, byClass.get(c)!));
   // Every class counted once: a class with many onsets (drums) doesn't outweigh the rest.
-  lines.push(`| mean of classes | ${ALGOS.map((a) => `${SENS.map((_, i) => pct(classes.reduce((s, c) => s + F(byClass.get(c)![a][i]), 0) / classes.length)).join(' / ')} | |`).join(' | ')} |`);
+  const mean = (a: Algo, i: number) => pct(classes.reduce((s, c) => s + F(byClass.get(c)![a][i]), 0) / classes.length);
+  lines.push(`| mean of classes | ${ALGOS.map((a) => `${SENS.map((_, i) => mean(a, i)).join(' / ')} | `).join(' | ')}|`);
   mkdirSync(OUT, { recursive: true });
   writeFileSync(join(OUT, `onsets-${LABEL}.md`), lines.join('\n') + '\n');
   console.log(lines.join('\n'));

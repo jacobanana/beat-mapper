@@ -24,12 +24,13 @@ from bar 1.
 
 | Module | What it does |
 | --- | --- |
-| `dsp/onset.ts` | One FFT pass → four onset detection functions (spectral flux, complex domain, group delay, energy) in three bands. |
+| `dsp/onset.ts` | One FFT pass → four onset detection functions (spectral flux, complex domain, group delay, energy) in three bands, and a second pass for SuperFlux. |
+| `dsp/superflux.ts` | SuperFlux, the starting detection function: quarter-tone bands against the loudest near them 15 ms before, peaks picked against the mean around them, and what lasts after a peak. The note detectors' onsets come from it too. See [transients.md](transients.md). |
 | `dsp/refine.ts` | Places a coarse onset on the real attack at sample level, then on a zero crossing. |
 | `dsp/tempo.ts` | Starting tempo by autocorrelation. |
 | `dsp/peaks.ts` | Mono mixdown and the min/max pyramid the waveform is drawn from. |
 | `dsp/resample.ts` | Polyphase windowed-sinc resampling, for a .wav written at another sample rate. |
-| `markers/detect.ts` | Candidates from a detection function; which ones the sensitivity and gap let through; merging in manual markers and deletions. |
+| `markers/detect.ts` | Candidates from a detection function (SuperFlux's scored on a fixed scale, the others against the take's own peaks); which ones the sensitivity and gap let through; merging in manual markers and deletions. |
 | `tempo/meter.ts` | Meter and grid: bar/beat lengths, grid levels, nearest grid line. |
 | `tempo/tempo-map.ts` | `TempoMap`: pins → time↔position, BPM at a time, bars. |
 | `beats/track.ts` | Beat tracking outward from a known point, and auto-mapping between pins. |
