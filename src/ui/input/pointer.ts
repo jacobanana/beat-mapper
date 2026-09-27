@@ -356,19 +356,45 @@ export class PointerInput {
     }
   }
 
-  /** Dragging on the overview strip centres the view there. */
+  /**
+   * Dragging on the overview strip centres the view there; two fingers pinch it, spread to zoom in
+   * and together to zoom out, around the moment between them, which follows them as they move.
+   */
   private bindOverview(): void {
-    const { ov, app } = this;
-    let on = false;
-    const go = (e: PointerEvent) => {
-      // The overview is the audio as it is; the editor centres on where it draws that moment.
-      const b = ov.getBoundingClientRect(), t = app.timeline.axisAt(((e.clientX - b.left) / b.width) * app.dur), sp = app.view.span;
-      app.setView(t - sp / 2, t + sp / 2);
+    const { ov, app } = this, fingers = new Map<number, number>();
+    let pinch: { d: number; mid: number; span: number } | null = null;
+    // The overview is the audio as it is; the editor centres on where it draws that moment.
+    const axisAt = (x: number) => app.timeline.axisAt((x / ov.getBoundingClientRect().width) * app.dur);
+    const xOf = (e: PointerEvent) => e.clientX - ov.getBoundingClientRect().left;
+    const go = (x: number) => { const t = axisAt(x), sp = app.view.span; app.setView(t - sp / 2, t + sp / 2); };
+    const startPinch = () => {
+      const [a, b] = [...fingers.values()];
+      pinch = { d: Math.max(8, Math.abs(a - b)), mid: (a + b) / 2, span: app.view.span };
     };
-    ov.addEventListener('pointerdown', (e) => { if (!app.audio) return; ov.setPointerCapture(e.pointerId); on = true; go(e); });
-    ov.addEventListener('pointermove', (e) => { if (on) go(e); });
-    ov.addEventListener('pointerup', () => (on = false));
-    ov.addEventListener('pointercancel', () => (on = false));
+    ov.addEventListener('pointerdown', (e) => {
+      if (!app.audio) return;
+      if (e.isPrimary) { fingers.clear(); pinch = null; }
+      ov.setPointerCapture(e.pointerId);
+      fingers.set(e.pointerId, xOf(e));
+      if (fingers.size === 2) startPinch();
+      else if (fingers.size === 1) go(xOf(e));
+    });
+    ov.addEventListener('pointermove', (e) => {
+      if (!fingers.has(e.pointerId)) return;
+      fingers.set(e.pointerId, xOf(e));
+      if (pinch && fingers.size === 2) {
+        const [a, b] = [...fingers.values()], d = Math.max(8, Math.abs(a - b)), t = axisAt((a + b) / 2);
+        const span = clamp((pinch.span * pinch.d) / d, Math.min(0.004, app.dur), app.dur);
+        app.setView(t - span / 2, t + span / 2);
+      } else if (!pinch) go(xOf(e));
+    });
+    const lift = (e: PointerEvent) => {
+      fingers.delete(e.pointerId);
+      // One finger left after a pinch doesn't jump the view to where it is: it waits to be lifted too.
+      if (!fingers.size) pinch = null;
+    };
+    ov.addEventListener('pointerup', lift);
+    ov.addEventListener('pointercancel', lift);
   }
 
   /** Every frame: while scrubbing near an edge, the view scrolls along. */

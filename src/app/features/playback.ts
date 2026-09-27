@@ -4,6 +4,7 @@ import { lowerBound, nearest } from '../../core/search';
 import type { TimeRange } from '../../core/types';
 import { beatsOf } from '../../core/warp/map';
 import { OneShot, Player, grain } from '../../engine/player';
+import { auditionNote } from '../../engine/synth-voice';
 import { type App, usableLoop } from '../app';
 import { stepRules } from '../steps';
 import type { WarpOut } from '../warp-out';
@@ -63,6 +64,14 @@ export class Playback {
       noteLevel: () => app.mix.notes / 100,
     });
     this.player.onEnded = () => { app.playing = undefined; app.setPlayhead(app.dur, false); app.bus.emit('transport'); };
+  }
+
+  /**
+   * One note on the synth voice, now and on its own: a note tapped on the piano roll, or a pitch tried.
+   * At the synth's mixer level, muted or not, since asking to hear it is the point.
+   */
+  auditionNote(pitch: number, dur: number, vel = 100): void {
+    auditionNote({ pitch, dur: Math.min(1.2, Math.max(0.15, dur)), vel }, this.app.mix.notes / 100);
   }
 
   /** The synth kit is heard: in a step that plays it, once the drums are found, and not muted. */

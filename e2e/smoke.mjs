@@ -397,6 +397,14 @@ try {
     await page.mouse.up();
     await page.waitForTimeout(200);
     assert.notDeepEqual(await roll.screenshot(), shot1, 'a drag scrolls the roll');
+    // A tap on the roll is heard: a pitch played on the synth voice (its oscillators counted).
+    await page.evaluate(() => {
+      const C = AudioContext.prototype, make = C.createOscillator;
+      window.oscillators = 0;
+      C.createOscillator = function () { window.oscillators++; return make.call(this); };
+    });
+    await page.mouse.click(R.x + R.width / 2, R.y + R.height / 2);
+    assert.ok(await page.evaluate(() => window.oscillators) > 0, 'a tap on the roll plays a note');
     // N hides the notes, and the Notes button shows them again.
     assert.equal(await page.getAttribute('#nShow', 'aria-pressed'), 'true');
     await page.keyboard.press('n');

@@ -107,7 +107,7 @@ little better but is at its best at 18 dB, so it starts off. Min length follows 
 dB whatever the range; cut at the range it drops the quiet starts of real notes. Notes only is the
 one to use at a wide range, since what it draws is the notes whatever the range.
 
-**Harmonics** is how many partials a note is taken to have, for all three. **Notes** hides the notes to see the spectrogram alone. With **Draw** on, a drag on the
+**Harmonics** is how many partials a note is taken to have, for all three. **Notes** hides the notes to see the spectrogram alone. A tap on a note plays it on the synth voice, muted or not, and a tap on an empty row or a note name plays that pitch, so a line on the spectrogram can be tried by ear; drawing or dragging a note plays each pitch it reaches. The roll zooms in time and pitch with two fingers, each axis the fingers start spread along, and its rows scroll by fractions of a row. With **Draw** on, a drag on the
 roll draws a note at that pitch from where it starts to where it ends (on the grid or a transient, as
 the Beats step's magnet is set), a tap draws one grid step, a note is moved by dragging it and
 lengthened by its end; the rows scroll. A drawn note is a `ManualNote` in the document (undo covers
