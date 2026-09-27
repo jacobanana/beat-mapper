@@ -366,6 +366,24 @@ try {
     await page.keyboard.press('d');
     assert.equal(await page.getAttribute('#nDraw', 'aria-pressed'), 'false');
   });
+
+  await step('Notes: the piano roll takes the waveform\'s place in the main view, and gives it back', async () => {
+    const small = await (await page.$('#notesCv')).boundingBox();
+    await page.click('#nMainRoll');
+    assert.equal(await page.getAttribute('#nMainRoll', 'aria-pressed'), 'true');
+    assert.equal(await page.$eval('#notesCv', (c) => c.parentElement.id), 'stage');
+    const big = await (await page.$('#notesCv')).boundingBox();
+    assert.ok(big.height > small.height, `the roll grows: ${small.height} → ${big.height}`);
+    // Another step has its waveform back; this one keeps the roll.
+    await page.keyboard.press('5');
+    assert.equal(await page.isVisible('#cv'), true);
+    await page.keyboard.press('6');
+    assert.equal(await page.$eval('#notesCv', (c) => c.parentElement.id), 'stage');
+    await page.keyboard.press('c');
+    assert.equal(await page.getAttribute('#nMainWave', 'aria-pressed'), 'true');
+    assert.notEqual(await page.$eval('#notesCv', (c) => c.parentElement.id), 'stage');
+    assert.equal(await page.isVisible('#cv'), true);
+  });
   assert.deepEqual(errors, []);
   console.log('e2e smoke passed');
 } finally {

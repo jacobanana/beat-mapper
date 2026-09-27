@@ -79,8 +79,8 @@ label.btn{user-select:none}
 canvas:focus-visible{outline-offset:-2px}
 
 main{flex:1;display:flex;flex-direction:column;min-height:0}
-#stage{position:relative;flex:1 1 0;min-height:250px;display:flex;flex-direction:column;background:var(--stage)}
-#ov{display:block;width:100%;height:30px;border-bottom:1px solid var(--line);touch-action:none;cursor:pointer}
+#stage{--ovh:30px;position:relative;flex:1 1 0;min-height:250px;display:flex;flex-direction:column;background:var(--stage)}
+#ov{display:block;width:100%;height:var(--ovh);border-bottom:1px solid var(--line);touch-action:none;cursor:pointer}
 #cv{display:block;width:100%;flex:1;min-height:0;touch-action:none}
 .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--stage)}
 .overlay[hidden]{display:none}
@@ -167,6 +167,9 @@ td.up{color:var(--mark)} td.dn{color:var(--beat)}
 #nSens{accent-color:var(--slice)}
 #nSum{color:var(--dim);margin:0;font-size:14px}
 #notesCv{display:block;width:100%;height:230px;border:1px solid var(--line);border-radius:7px;background:var(--raise);touch-action:manipulation}
+/* The roll in the main view lies over the waveform, which keeps its place so the view keeps its width. */
+#stage.roll #cv{visibility:hidden}
+#stage.roll #notesCv{position:absolute;left:0;top:var(--ovh);width:100%;height:calc(100% - var(--ovh));border:0;border-radius:0}
 #notesCv.draw{touch-action:none;cursor:crosshair}
 #p6 .cap2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.02em}
 #nHarm,#nRange{width:80px}
@@ -241,8 +244,8 @@ kbd{font:inherit;font-size:13px;color:var(--dim);border:1px solid var(--line);bo
   padding:8px 14px;border-radius:8px;max-width:90vw;opacity:0;pointer-events:none;transition:opacity .18s;z-index:9}
 #toast.show{opacity:1}
 @media (max-width:720px){
-  #stage{min-height:180px} #panel{max-height:36%;padding:6px}
-  .top{padding:5px 6px;gap:5px 6px} #ov{height:24px} .bars{max-width:none} .bars .wrap{max-height:110px}
+  #stage{min-height:180px;--ovh:24px} #panel{max-height:36%;padding:6px}
+  .top{padding:5px 6px;gap:5px 6px} .bars{max-width:none} .bars .wrap{max-height:110px}
   /* Phone: file, edit and steps; then the transport and fit; then the readout, with help at its far end
      (the first row is full once the session button sits by Open). */
   .file{order:1} .edit{order:2} .steps{order:3} #helpBtn{order:9;margin-left:auto}
