@@ -334,6 +334,8 @@ try {
     // Draw on: a drag along the top rows, where the bass line has nothing, draws a note there.
     await page.click('#nDraw');
     assert.equal(await page.getAttribute('#nDraw', 'aria-pressed'), 'true');
+    // The panel is taller than the room under the editor: the roll brought out from under it.
+    await page.$eval('#notesCv', (c) => c.scrollIntoView({ block: 'end' }));
     const r = await (await page.$('#notesCv')).boundingBox();
     await page.mouse.move(r.x + 200, r.y + 26);
     await page.mouse.down();
@@ -357,7 +359,9 @@ try {
     await page.selectOption('#nMode', 'draw');
     await page.waitForFunction(() => document.getElementById('nN').textContent === '1', null, { timeout: 30000 });
     assert.equal(await page.isVisible('#nSens'), false);
-    await page.mouse.click(r.x + 400, r.y + 60);
+    await page.$eval('#notesCv', (c) => c.scrollIntoView({ block: 'end' }));
+    const r2 = await (await page.$('#notesCv')).boundingBox();
+    await page.mouse.click(r2.x + 400, r2.y + 60);
     assert.equal(await text('nN'), '2');
     assert.match(await text('nSum'), /^2 notes/);
     await page.keyboard.press('Control+e');
@@ -379,6 +383,26 @@ try {
     assert.equal(await page.isVisible('#cv'), true);
     await page.keyboard.press('6');
     assert.equal(await page.$eval('#notesCv', (c) => c.parentElement.id), 'stage');
+    // It zooms and scrolls as the editor does: Ctrl+wheel zooms in time, a drag scrolls.
+    const roll = await page.$('#notesCv'), R = await roll.boundingBox(), shot0 = await roll.screenshot();
+    await page.mouse.move(R.x + R.width / 2, R.y + R.height / 2);
+    await page.keyboard.down('Control');
+    await page.mouse.wheel(0, -300);
+    await page.keyboard.up('Control');
+    await page.waitForTimeout(200);
+    const shot1 = await roll.screenshot();
+    assert.notDeepEqual(shot1, shot0, 'Ctrl+wheel zooms the roll');
+    await page.mouse.down();
+    await page.mouse.move(R.x + R.width / 2 - 120, R.y + R.height / 2 + 30, { steps: 6 });
+    await page.mouse.up();
+    await page.waitForTimeout(200);
+    assert.notDeepEqual(await roll.screenshot(), shot1, 'a drag scrolls the roll');
+    // N hides the notes, and the Notes button shows them again.
+    assert.equal(await page.getAttribute('#nShow', 'aria-pressed'), 'true');
+    await page.keyboard.press('n');
+    assert.equal(await page.getAttribute('#nShow', 'aria-pressed'), 'false');
+    await page.click('#nShow');
+    assert.equal(await page.getAttribute('#nShow', 'aria-pressed'), 'true');
     await page.keyboard.press('c');
     assert.equal(await page.getAttribute('#nMainWave', 'aria-pressed'), 'true');
     assert.notEqual(await page.$eval('#notesCv', (c) => c.parentElement.id), 'stage');

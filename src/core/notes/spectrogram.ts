@@ -96,10 +96,10 @@ export async function pitchSpectrogram(x: Float32Array, sr0: number, o: PitchSpe
 
 /**
  * How the spectrogram is shown: as heard; the fundamentals, each note lit where it is played and dim
- * where its partials are; or with the harmonics taken out, each note's partials subtracted from the
- * bins above it.
+ * where its partials are; with the harmonics taken out, each note's partials subtracted from the
+ * bins above it; or the notes only, the few most likely in each frame and nothing else.
  */
-export const SPEC_VIEWS = ['audio', 'fundamental', 'clean'] as const;
+export const SPEC_VIEWS = ['audio', 'fundamental', 'clean', 'notes'] as const;
 export type SpecView = (typeof SPEC_VIEWS)[number];
 
 /** The fewest and most partials a view takes as one note. */
@@ -126,9 +126,10 @@ function toDb(data: Float32Array, ref: number): Float32Array {
  * The spectrogram as one view shows it, in dB under the loudest bin of the take, frame after frame.
  * `harmonics` is how many partials a note is taken to have, the first included.
  */
-export function viewSpectrogram(s: PitchSpectrogram, view: SpecView, harmonics: number): Float32Array {
+export function viewSpectrogram(s: PitchSpectrogram, view: SpecView, harmonics: number, voices = 8): Float32Array {
   const H = Math.max(HARMONICS_RANGE.min, Math.min(HARMONICS_RANGE.max, Math.round(harmonics)));
   if (view === 'audio' || H < 2) return toDb(s.data, peak(s.data));
+  if (view === 'notes') return picked(s, H, Math.max(1, Math.min(8, Math.round(voices))));
   return view === 'fundamental' ? fundamentals(s, H) : peeled(s, H);
 }
 
@@ -205,6 +206,65 @@ function peeled(s: PitchSpectrogram, H: number): Float32Array {
     }
   }
   return toDb(Y, ref);
+}
+
+// The notes only: in each frame, the likeliest note is found, its partials are taken out, and the
+// next is found in what is left, up to `voices` notes (Klapuri's estimate and cancel, 2006). A note is
+// scored by its partials together, each weighted 1/h and read from the loudest of the three bins
+// around where it should be; its fundamental must sound, so a note isn't found an octave under where
+// only its partials are. Each partial is taken out up to the smoother of its level and its
+// neighbours' mean, so a partial another note shares is left to that note. A note scoring under a
+// thousandth of the frame's first (-60 dB) ends the search. Only the notes found are drawn, at their
+// score, with the bins next to them a little under it so a note between two bins still reads.
+function picked(s: PitchSpectrogram, H: number, voices: number): Float32Array {
+  const { frames, bins, data } = s, out = new Float32Array(frames * bins), Y = new Float32Array(bins), sal = new Float32Array(bins);
+  const off = Array.from({ length: H }, (_, i) => partialOffset(i + 1)), w = off.map((_, i) => 1 / (i + 1));
+  const at = (k: number): number => {
+    let m = Y[k];
+    if (k > 0 && Y[k - 1] > m) m = Y[k - 1];
+    if (k + 1 < bins && Y[k + 1] > m) m = Y[k + 1];
+    return m;
+  };
+  const lvl = new Float32Array(H);
+  for (let n = 0; n < frames; n++) {
+    const row = n * bins;
+    let top = 0;
+    for (let j = 0; j < bins; j++) { Y[j] = data[row + j]; if (Y[j] > top) top = Y[j]; }
+    if (top <= 0) continue;
+    let first = 0;
+    for (let v = 0; v < voices; v++) {
+      let best = -1, bv = 0;
+      for (let j = 0; j < bins; j++) {
+        // The fundamental has to be there, a hundredth of the loudest at least (-40 dB).
+        if (at(j) < 0.01 * top) { sal[j] = 0; continue; }
+        let sum = 0;
+        for (let h = 0; h < H; h++) { const k = j + off[h]; if (k >= bins) break; sum += w[h] * at(k); }
+        sal[j] = sum;
+        if (sum > bv) { bv = sum; best = j; }
+      }
+      if (best < 0 || (v > 0 && bv < 0.001 * first)) break;
+      if (v === 0) first = bv;
+      out[row + best] = Math.max(out[row + best], bv);
+      if (best > 0) out[row + best - 1] = Math.max(out[row + best - 1], 0.5 * sal[best - 1]);
+      if (best + 1 < bins) out[row + best + 1] = Math.max(out[row + best + 1], 0.5 * sal[best + 1]);
+      for (let h = 0; h < H; h++) { const k = best + off[h]; lvl[h] = k < bins ? at(k) : 0; }
+      for (let h = 0; h < H; h++) {
+        const k = best + off[h];
+        if (k >= bins) break;
+        const nb = (lvl[Math.max(0, h - 1)] + lvl[h] + lvl[Math.min(H - 1, h + 1)]) / 3;
+        // The fundamental goes whole, so the same note isn't found twice.
+        let budget = h === 0 ? Infinity : Math.min(lvl[h], nb);
+        for (let q = -1; q <= 1 && budget > 0; q++) {
+          const b = k + q;
+          if (b < 0 || b >= bins) continue;
+          const take = Math.min(Y[b], budget);
+          Y[b] -= take;
+          if (h > 0) budget -= take;
+        }
+      }
+    }
+  }
+  return toDb(out, peak(out));
 }
 
 /** The loudest the spectrogram gets at a pitch (its three bins) between times a and b, as a magnitude. */

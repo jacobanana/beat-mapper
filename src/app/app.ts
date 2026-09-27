@@ -8,6 +8,7 @@ import type { DrumHit, PerVoice, Voice } from '../core/drums/voices';
 import { type Groove, type VoiceNote, analyseGroove, transcribe } from '../core/groove/pocket';
 import { detectMarkers, filterMarkers, sensToThr } from '../core/markers/detect';
 import { type HeardNote, type NoteEdits, heardNotes, selectNotes } from '../core/notes/select';
+import { postFilter, preFilter } from '../core/notes/spec-filter';
 import { type PitchSpectrogram, type SpecView, viewSpectrogram } from '../core/notes/spectrogram';
 import type { Note, NoteAnalysis } from '../core/notes/types';
 import { type Slice, isExcluded, loopInfo, planSlices, sliceKey } from '../core/slices/slices';
@@ -219,9 +220,19 @@ export class App {
    */
   get heardNotes(): readonly HeardNote[] { return this._heardNotes(this.pickedNotes, this.notes.legato); }
 
-  private readonly _pitchView = memo((s: PitchSpectrogram | null, view: SpecView, harmonics: number) => (s ? viewSpectrogram(s, view, harmonics) : null));
-  /** The spectrogram as the Notes step shows it: in dB under the loudest bin, in the view and with the partials the settings ask for. */
-  get pitchView(): Float32Array | null { return this._pitchView(this.spectrum, this.notes.view, this.notes.harmonics); }
+  // In three memoised stages, so moving one filter redoes only its stage and the ones after it.
+  private readonly _pitchPre = memo((s: PitchSpectrogram | null, steady: number, floor: number) => (s ? preFilter(s, { ...this.notes.filter, steady, floor }) : null));
+  private readonly _pitchAlgo = memo((s: PitchSpectrogram | null, view: SpecView, harmonics: number, voices: number) => (s ? viewSpectrogram(s, view, harmonics, voices) : null));
+  private readonly _pitchView = memo((s: PitchSpectrogram | null, V: Float32Array | null, even: boolean, peaks: boolean, minLen: number, snap: boolean) =>
+    (s && V ? postFilter(s, V, { ...this.notes.filter, even, peaks, minLen, snap }) : null));
+  /**
+   * The spectrogram as the Notes step shows it: in dB under the loudest bin, filtered, in the view and
+   * with the partials the settings ask for.
+   */
+  get pitchView(): Float32Array | null {
+    const n = this.notes, f = n.filter, pre = this._pitchPre(this.spectrum, f.steady, f.floor);
+    return this._pitchView(pre, this._pitchAlgo(pre, n.view, n.harmonics, f.voices), f.even, f.peaks, f.minLen, f.snap);
+  }
 
   // Always against the grid: the tempo map the user set is the beat the drums are heard against. When
   // the warp is heard, that grid is its straight one and the hits are where it puts them, quantized or

@@ -3,9 +3,12 @@
 // scrolls with playback; bar and beat lines from the tempo map. Everything is placed by the timeline,
 // as in the editor, so heard warped a note is where the warp puts it, and the spectrogram is drawn
 // column by column through the same timeline, so its lines sit under the notes wherever they are put.
-// Tap a note to select it and put the playhead on it; double-tap it to delete it. With the pencil on,
-// drag on the roll to draw a note, drag a note to move it, or its end to lengthen it. The rows scroll
-// with the wheel, or by dragging the note names.
+// Tap a note to select it and put the playhead on it; double-tap it to delete it; tap anywhere else to
+// put the playhead there. With the pencil on, drag on the roll to draw a note, drag a note to move it,
+// or its end to lengthen it; off, a drag scrolls in time and pitch. Two fingers pinch to zoom, apart
+// in time and apart in pitch, and move to scroll; the wheel scrolls the rows, and zooms in time with
+// Ctrl (a trackpad's pinch), scrolls in time with Shift, and zooms the rows with Alt. The rows also
+// scroll by dragging the note names.
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { type HeardNote, MIN_NOTE, noteKey } from '../../core/notes/select';
@@ -22,12 +25,15 @@ const LABEL_W = 36, TOP = 18, BOTTOM = 20;
  * the main view gets a little more, so it shows the notes bigger rather than octaves nothing plays in.
  */
 const MIN_ROW = 6, MAX_ROW = 12, MAX_ROW_BIG = 18;
+/** How far the rows can be zoomed, as a row's height: past the fit above, down to a hair, up to a thumb. */
+const ZOOM_ROW = { min: 3, max: 48 };
 const BLACK = new Set([1, 3, 6, 8, 10]);
 
 interface Box { x0: number; x1: number; y0: number; y1: number; n: HeardNote }
 
 type Drag =
   | { kind: 'scroll'; y0: number; top0: number }
+  | { kind: 'pan'; x0: number; y0: number; top0: number; v0: { t0: number; t1: number }; box: Box | undefined; moved: boolean }
   | { kind: 'new'; x0: number; y0: number; pitch: number; t: number; moved: boolean }
   | { kind: 'move' | 'resize'; x0: number; y0: number; box: Box; from: Note; moved: boolean };
 
@@ -45,6 +51,14 @@ export class PianoRoll {
   /** Where the last draw put things, for the pointer. */
   private axis = { t0: 0, span: 1, L: LABEL_W + 4, R: 100, rh: MIN_ROW, top: 60, rows: 12 };
   private drag: Drag | null = null;
+  /** Where each finger is, for the pinch. */
+  private readonly ptrs = new Map<number, { x: number; y: number }>();
+  /** Two fingers down: where they started, and the view and rows then. */
+  private pinch: { dx: number; dy: number; mx: number; my: number; v0: { t0: number; t1: number }; rh0: number; zoom0: number; pitch: number } | null = null;
+  /** The rows zoomed by the user, over the height that fits the notes. */
+  private zoomY = 1;
+  /** A pitch to keep at a height on the next draw, while the rows are zoomed around it. */
+  private anchor: { pitch: number; y: number } | null = null;
   /** A note being drawn, before it is let go. */
   private preview: { pitch: number; t: number; end: number } | null = null;
   /** The spectrogram's pixels, kept between redraws that only moved the playhead. */
@@ -56,8 +70,8 @@ export class PianoRoll {
     app.bus.on(['transcript', 'spectrum', 'notes', 'doc', 'transport', 'step', 'audio', 'beats', 'heard', 'selection', 'playhead', 'view'], () => this.invalidate());
     cv.addEventListener('pointerdown', (e) => this.down(e));
     cv.addEventListener('pointermove', (e) => this.move(e));
-    cv.addEventListener('pointerup', () => this.up());
-    cv.addEventListener('pointercancel', () => this.cancel());
+    cv.addEventListener('pointerup', (e) => this.up(e));
+    cv.addEventListener('pointercancel', (e) => this.cancel(e));
     cv.addEventListener('wheel', (e) => this.wheel(e), { passive: false });
   }
 
@@ -113,15 +127,36 @@ export class PianoRoll {
   }
 
   private down(e: PointerEvent): void {
-    if (this.drag) return;
     const { x, y } = this.local(e), touch = e.pointerType === 'touch', a = this.axis;
+    // The first finger (or the mouse) down means no other is: one lifted where the roll didn't hear it
+    // must not turn the next drag into a pinch.
+    if (e.isPrimary) this.ptrs.clear();
+    this.ptrs.set(e.pointerId, { x, y });
+    if (this.ptrs.size === 2 && this.app.audio) {
+      // A second finger: whatever the first was doing is let go, and the two zoom and scroll.
+      this.cancelDrag();
+      this.cv.setPointerCapture(e.pointerId);
+      const [p, q] = [...this.ptrs.values()], mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
+      this.pinch = {
+        dx: Math.max(24, Math.abs(p.x - q.x)), dy: Math.max(24, Math.abs(p.y - q.y)), mx, my,
+        v0: { t0: this.app.view.t0, t1: this.app.view.t1 }, rh0: a.rh, zoom0: this.zoomY, pitch: a.top + 0.5 - (my - TOP) / a.rh,
+      };
+      return;
+    }
+    if (this.drag || this.pinch) return;
     if (x < LABEL_W && this.top != null) {
       this.drag = { kind: 'scroll', y0: y, top0: this.top };
       this.cv.setPointerCapture(e.pointerId);
       return;
     }
     const box = this.hit(x, y, touch);
-    if (!this.app.notes.draw) { if (box) this.tapNote(box); return; }
+    if (!this.app.notes.draw) {
+      // A tap selects a note or moves the playhead, told apart from a drag when the finger lifts.
+      if (!this.app.audio) return;
+      this.cv.setPointerCapture(e.pointerId);
+      this.drag = { kind: 'pan', x0: x, y0: y, top0: this.top ?? a.top, v0: { t0: this.app.view.t0, t1: this.app.view.t1 }, box, moved: false };
+      return;
+    }
     if (!this.app.audio || y < TOP || y > TOP + a.rows * a.rh) return;
     e.preventDefault();
     this.cv.setPointerCapture(e.pointerId);
@@ -137,9 +172,19 @@ export class PianoRoll {
   }
 
   private move(e: PointerEvent): void {
+    const { x, y } = this.local(e), touch = e.pointerType === 'touch', a = this.axis;
+    if (this.ptrs.has(e.pointerId)) this.ptrs.set(e.pointerId, { x, y });
+    if (this.pinch) { if (this.ptrs.size === 2) this.pinchTo(); return; }
     const d = this.drag;
     if (!d) return;
-    const { x, y } = this.local(e), touch = e.pointerType === 'touch', a = this.axis;
+    if (d.kind === 'pan') {
+      if (!d.moved && Math.hypot(x - d.x0, y - d.y0) < (touch ? 8 : 4)) return;
+      d.moved = true;
+      this.panBy(d.v0, x - d.x0);
+      this.top = this.clampTop(Math.round(d.top0 + (y - d.y0) / a.rh));
+      this.invalidate();
+      return;
+    }
     if (d.kind === 'scroll') {
       this.top = this.clampTop(Math.round(d.top0 + (y - d.y0) / a.rh));
       this.invalidate();
@@ -160,11 +205,19 @@ export class PianoRoll {
     }
   }
 
-  private up(): void {
+  private up(e: PointerEvent): void {
+    this.ptrs.delete(e.pointerId);
+    if (this.pinch) { if (this.ptrs.size < 2) this.pinch = null; return; }
     const d = this.drag;
     if (!d) return;
     this.drag = null;
     if (d.kind === 'scroll') return;
+    if (d.kind === 'pan') {
+      if (d.moved) return;
+      if (d.box) this.tapNote(d.box);
+      else { this.app.select(null); this.f.playback.seek(Math.max(0, Math.min(this.app.dur, this.tOf(d.x0)))); }
+      return;
+    }
     if (d.kind === 'new') {
       const p = this.preview;
       this.preview = null;
@@ -175,19 +228,63 @@ export class PianoRoll {
     else this.f.notes.endDrag();
   }
 
-  private cancel(): void {
+  private cancel(e: PointerEvent): void {
+    this.ptrs.delete(e.pointerId);
+    if (this.ptrs.size < 2) this.pinch = null;
+    this.cancelDrag();
+  }
+
+  /** Lets go of a drag: a note being drawn is dropped, one being moved stays where it got to. */
+  private cancelDrag(): void {
     const d = this.drag;
     this.drag = null;
     this.preview = null;
-    if (d && d.kind !== 'scroll' && d.kind !== 'new' && d.moved) this.f.notes.endDrag();
+    if (d && (d.kind === 'move' || d.kind === 'resize') && d.moved) this.f.notes.endDrag();
+    this.invalidate();
+  }
+
+  /** Scrolls the view in time by dx pixels from where it was, the audio following the finger. */
+  private panBy(v0: { t0: number; t1: number }, dx: number): void {
+    const a = this.axis, dt = (dx / Math.max(1, a.R - a.L)) * (v0.t1 - v0.t0);
+    this.app.setView(v0.t0 - dt, v0.t1 - dt);
+  }
+
+  /** Two fingers: spread apart in time zooms the time, apart in pitch the rows; moved together, scrolls. */
+  private pinchTo(): void {
+    const P = this.pinch!, [p, q] = [...this.ptrs.values()], a = this.axis, W = Math.max(1, a.R - a.L);
+    const dx = Math.max(24, Math.abs(p.x - q.x)), dy = Math.max(24, Math.abs(p.y - q.y)), mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
+    // Only the direction the fingers are spread in zooms, so a pinch along the time doesn't zoom the
+    // rows by the wobble of the fingers across it, and the other way round.
+    const horiz = P.dx >= P.dy, span0 = P.v0.t1 - P.v0.t0;
+    const span = horiz ? Math.max(Math.min(0.05, this.app.dur), Math.min(this.app.dur, (span0 * P.dx) / dx)) : span0;
+    const tc = P.v0.t0 + ((P.mx - a.L) / W) * span0, t0 = tc - ((mx - a.L) / W) * span;
+    this.app.setView(t0, t0 + span);
+    const rh = horiz ? P.rh0 : Math.max(ZOOM_ROW.min, Math.min(ZOOM_ROW.max, (P.rh0 * dy) / P.dy));
+    this.zoomY = (P.zoom0 * rh) / P.rh0;
+    this.anchor = { pitch: P.pitch, y: my };
     this.invalidate();
   }
 
   private wheel(e: WheelEvent): void {
     if (this.top == null || !this.app.audio) return;
     e.preventDefault();
-    this.top = this.clampTop(this.top - Math.sign(e.deltaY) * (e.deltaMode === 0 ? Math.max(1, Math.round(Math.abs(e.deltaY) / 40)) : 2));
-    this.invalidate();
+    const { x, y } = { x: e.offsetX, y: e.offsetY }, a = this.axis, unit = e.deltaMode === 0 ? 1 : 16;
+    if (e.ctrlKey || e.metaKey) {
+      // Zoomed in time around the pointer, as the editor's wheel does.
+      const v = this.app.view, tc = v.t0 + ((x - a.L) / Math.max(1, a.R - a.L)) * v.span;
+      v.zoomAt(Math.exp(Math.max(-120, Math.min(120, e.deltaY * unit)) * 0.01), tc);
+      this.app.bus.emit('view');
+    } else if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      const d = (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) * unit, v = this.app.view;
+      this.panBy({ t0: v.t0, t1: v.t1 }, -d);
+    } else if (e.altKey) {
+      this.zoomY = Math.max(0.25, Math.min(8, this.zoomY * Math.exp(-Math.sign(e.deltaY) * 0.15)));
+      this.anchor = { pitch: a.top + 0.5 - (y - TOP) / a.rh, y };
+      this.invalidate();
+    } else {
+      this.top = this.clampTop(this.top - Math.sign(e.deltaY) * (e.deltaMode === 0 ? Math.max(1, Math.round(Math.abs(e.deltaY) / 40)) : 2));
+      this.invalidate();
+    }
   }
 
   private clampTop(top: number): number { return Math.max(SPEC_LO + this.axis.rows - 1, Math.min(SPEC_HI, top)); }
@@ -199,11 +296,13 @@ export class PianoRoll {
     const hex = (h: string) => { const s = h.replace('#', ''), n = parseInt(s.length === 3 ? s.split('').map((c) => c + c).join('') : s, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
     const lo = hex(C.wave), hi = hex(C.mark), out = new Uint8ClampedArray(256 * 4);
     for (let i = 0; i < 256; i++) {
-      const t = i / 255, m = t * t;
+      // Brighter low down than a plain square: with the filters taking the noise out, what is left
+      // near the bottom of the range is quiet notes, which should still read.
+      const t = i / 255, m = Math.pow(t, 1.5);
       out[i * 4] = lo[0] + (hi[0] - lo[0]) * m;
       out[i * 4 + 1] = lo[1] + (hi[1] - lo[1]) * m;
       out[i * 4 + 2] = lo[2] + (hi[2] - lo[2]) * m;
-      out[i * 4 + 3] = 255 * Math.pow(t, 1.2);
+      out[i * 4 + 3] = 255 * Math.pow(t, 0.7);
     }
     this.ramp = { C, rgba: out };
     return out;
@@ -257,7 +356,9 @@ export class PianoRoll {
     g.font = '12px ' + FONT;
     g.textBaseline = 'middle';
     this.boxes = [];
-    const notes = app.heardNotes, spec = app.notes.spec && !!app.spectrum, byHand = app.transcript?.mode === 'draw';
+    const spec = app.notes.spec && !!app.spectrum, byHand = app.transcript?.mode === 'draw';
+    // Hidden, the notes are neither drawn nor hit, so the spectrogram is seen, and tapped, alone.
+    const shown = app.notes.showNotes, notes = shown ? app.heardNotes : [];
     if (!notes.length && !spec) {
       g.fillStyle = C.dim; g.textAlign = 'center';
       g.fillText(app.transcript ? (byHand ? 'Switch on Draw, then drag on the roll' : 'No notes at this sensitivity') : app.audio ? 'Finding the notes…' : '', w / 2, h / 2);
@@ -268,10 +369,12 @@ export class PianoRoll {
     // least a finger's width. More notes than fit scroll; a new take's rows are centred on its notes.
     const found = app.transcript?.notes ?? [];
     let lo = 127, hi = 0;
-    for (const n of found.length ? found : notes) { lo = Math.min(lo, n.pitch); hi = Math.max(hi, n.pitch); }
+    for (const n of found.length ? found : app.heardNotes) { lo = Math.min(lo, n.pitch); hi = Math.max(hi, n.pitch); }
     if (lo > hi) { lo = 40; hi = 64; }
     const big = app.notes.main === 'roll', area = h - TOP - BOTTOM;
-    const rh = Math.max(MIN_ROW, Math.min(big ? MAX_ROW_BIG : MAX_ROW, area / Math.max(12, hi - lo + 3))), rows = Math.max(1, Math.floor(area / rh));
+    const fit = Math.max(MIN_ROW, Math.min(big ? MAX_ROW_BIG : MAX_ROW, area / Math.max(12, hi - lo + 3)));
+    const rh = Math.max(ZOOM_ROW.min, Math.min(ZOOM_ROW.max, fit * this.zoomY)), rows = Math.max(1, Math.floor(area / rh));
+    this.zoomY = rh / fit;
     // Grown or shrunk (moved to the main view and back, or the window resized), the rows keep the
     // pitch in their middle.
     const was = this.axis.rows;
@@ -282,9 +385,13 @@ export class PianoRoll {
       this.centredOn = app.transcript;
       this.top = this.clampTop(Math.round((lo + hi) / 2 + rows / 2));
     }
+    // Zoomed around a pitch: that pitch stays under the fingers or the pointer.
+    if (this.anchor) { this.top = this.clampTop(Math.round(this.anchor.pitch - 0.5 + (this.anchor.y - TOP) / rh)); this.anchor = null; }
     const top = this.top, bottom = top - rows + 1, yOf = (p: number) => TOP + (top - p) * rh;
 
-    const tl = app.timeline, loop = app.activeLoop;
+    // In the main view the roll is the editor, and zooms and scrolls as it does; beside the controls
+    // it shows the loop when it is on, so the loop can be watched while the editor is elsewhere.
+    const tl = app.timeline, loop = big ? null : app.activeLoop;
     const range = loop ? { a: tl.axisAt(loop.a), b: tl.axisAt(loop.b) } : { a: app.view.t0, b: app.view.t1 };
     const L = LABEL_W + 4, R = w - 8, t0 = range.a, span = Math.max(1e-3, range.b - range.a);
     Object.assign(this.axis, { t0, span, L, R, top });
@@ -302,12 +409,15 @@ export class PianoRoll {
     if (app.hasMap && !tl.map.isEmpty) {
       const bq = barQ(meter), btq = beatQ(meter), q0 = tl.posAtAxis(t0), q1 = tl.posAtAxis(t0 + span);
       const pxQ = (R - L) / Math.max(1e-6, q1 - q0), unit = pxQ * btq >= 8 ? btq : bq;
+      // Zoomed out, a bar number every so many bars, as many as fit.
+      let every = 1;
+      while (pxQ * bq * every < 28 && every < 1e4) every *= 2;
       g.font = '11px ' + FONT;
       for (let k = Math.max(0, Math.floor(q0 / unit)); k * unit <= q1 + 1e-9 && k < 1e5; k++) {
         const q = k * unit, bar = Math.abs(q / bq - Math.round(q / bq)) < 1e-6, x = Math.round(xOf(tl.axisOfPos(q))) + 0.5;
         g.strokeStyle = bar ? rgba(C.ink, 0.35) : rgba(C.ink, 0.12);
         g.beginPath(); g.moveTo(x, TOP - 4); g.lineTo(x, axisY); g.stroke();
-        if (bar) { g.fillStyle = C.ink; g.fillText(String(Math.round(q / bq) + 1), x + 3, axisY + 10); }
+        if (bar && Math.round(q / bq) % every === 0) { g.fillStyle = C.ink; g.fillText(String(Math.round(q / bq) + 1), x + 3, axisY + 10); }
       }
     }
     // Notes: as long as they are held, darker the louder, lit while they sound; a bend drawn through
@@ -353,9 +463,9 @@ export class PianoRoll {
       if (every === 1 ? !BLACK.has(p % 12) : p % every === 0) g.fillText(noteName(p), 4, yOf(p) + rh / 2);
     }
     g.textAlign = 'center';
-    const shown = this.boxes.length, n0 = app.selectedNote();
+    const count = this.boxes.length, n0 = shown ? app.selectedNote() : null;
     const hint = app.notes.draw ? ' · Draw: drag to add' : '';
-    g.fillText(n0 ? `${noteName(n0.pitch)} selected · Del deletes it` : `${shown} note${shown === 1 ? '' : 's'} ${loop ? 'in the loop' : 'in view'}${hint}`, (L + R) / 2, 8);
+    g.fillText(!shown ? 'Notes hidden · N shows them' : n0 ? `${noteName(n0.pitch)} selected · Del deletes it` : `${count} note${count === 1 ? '' : 's'} ${loop ? 'in the loop' : 'in view'}${hint}`, (L + R) / 2, 8);
     g.textAlign = 'left'; g.font = '12px ' + FONT;
   }
 }

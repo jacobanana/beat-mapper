@@ -20,6 +20,19 @@ export function bindNotesPanel(app: App, f: Features): PianoRoll {
   $sel('nView').onchange = (e) => nt.setView((e.target as HTMLSelectElement).value as SpecView);
   $in('nHarm').oninput = (e) => nt.setHarmonics(+(e.target as HTMLInputElement).value);
   $in('nRange').oninput = (e) => nt.setRange(+(e.target as HTMLInputElement).value);
+  $('nShow').onclick = () => nt.toggleNotes();
+  // The filters run over the whole take, a moment's work each: the number follows the finger and the
+  // picture is redrawn where the slider is let go.
+  const labels = { nSteady: (v: number) => (v ? String(v) : 'off'), nFloor: (v: number) => (v ? v + ' dB' : 'off'), nMinLen: (v: number) => (v ? v + ' ms' : 'off'), nVoices: String };
+  const keys = { nSteady: 'steady', nFloor: 'floor', nMinLen: 'minLen', nVoices: 'voices' } as const;
+  for (const id of Object.keys(keys) as (keyof typeof keys)[]) {
+    $in(id).oninput = (e) => setText($(id + 'O'), labels[id](+(e.target as HTMLInputElement).value));
+    $in(id).onchange = (e) => nt.setFilter({ [keys[id]]: +(e.target as HTMLInputElement).value });
+  }
+  $('nEven').onclick = () => nt.setFilter({ even: !app.notes.filter.even });
+  $('nPeaks').onclick = () => nt.setFilter({ peaks: !app.notes.filter.peaks });
+  $('nSnap').onclick = () => nt.setFilter({ snap: !app.notes.filter.snap });
+  $('nFilterReset').onclick = () => nt.resetFilter();
   $('nLegato').onclick = () => nt.toggleLegato();
   $('nSynth').onclick = () => nt.toggleSynth();
   $('nDraw').onclick = () => nt.toggleDraw();
@@ -57,9 +70,20 @@ export function bindNotesPanel(app: App, f: Features): PianoRoll {
     setText($('nHarmO'), String(s.harmonics));
     setValue($in('nRange'), s.range);
     setText($('nRangeO'), s.range + ' dB');
-    // The views and their partials only matter while the spectrogram is shown.
+    setPressed($('nShow'), s.showNotes);
+    const f = s.filter;
+    for (const id of Object.keys(keys) as (keyof typeof keys)[]) {
+      setValue($in(id), f[keys[id]]);
+      setText($(id + 'O'), labels[id](f[keys[id]]));
+    }
+    setPressed($('nEven'), f.even);
+    setPressed($('nPeaks'), f.peaks);
+    setPressed($('nSnap'), f.snap);
+    // The views, their partials and the filters only matter while the spectrogram is shown.
     for (const id of ['nView', 'nHarm', 'nRange']) $(id).closest('label, select')!.toggleAttribute('hidden', !s.spec);
+    $('nLab').hidden = !s.spec;
     $in('nHarm').disabled = s.view === 'audio';
+    ($in('nVoices').parentElement as HTMLElement).hidden = s.view !== 'notes';
     setPressed($('nLegato'), s.legato);
     setPressed($('nDraw'), s.draw);
     $('notesCv').classList.toggle('draw', s.draw);

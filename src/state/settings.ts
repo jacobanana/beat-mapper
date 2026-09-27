@@ -3,6 +3,7 @@ import type { Algo, Band } from '../core/dsp/onset';
 import type { MapSettings } from '../core/beats/edit';
 import type { DrumSource } from '../core/drums/detect';
 import type { PerVoice } from '../core/drums/voices';
+import { type SpecFilter, defaultSpecFilter } from '../core/notes/spec-filter';
 import type { SpecView } from '../core/notes/spectrogram';
 import type { NoteInstrument, NoteMode } from '../core/notes/types';
 import type { RenderOptions } from '../core/slices/slices';
@@ -135,6 +136,10 @@ export interface NoteSettings {
   harmonics: number;
   /** How many dB under the loudest are still drawn. */
   range: number;
+  /** What is filtered out of the spectrogram around the view, to leave the notes. */
+  filter: SpecFilter;
+  /** The notes drawn over the spectrogram; hidden, the spectrogram is seen alone. */
+  showNotes: boolean;
   /** What fills the stage: the waveform, as in every other step, or the piano roll over its spectrogram. */
   main: NoteMainView;
   /** The pencil: drags on the piano roll draw, move and resize notes. A tool, so not saved. */
@@ -182,7 +187,7 @@ export const defaultSlicer = (): SlicerSettings => ({
 });
 export const defaultTransport = (): TransportState => ({ loop: null, loopOn: false, start: 0, playhead: 0, stay: false, click: false, scrubMode: false });
 export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', exaggerate: true, chart: 'pocket' });
-export const defaultNotes = (): NoteSettings => ({ mode: 'line', instrument: 'any', sens: 55, legato: false, spec: true, view: 'fundamental', harmonics: 8, range: 60, main: 'wave', draw: false });
+export const defaultNotes = (): NoteSettings => ({ mode: 'line', instrument: 'any', sens: 55, legato: false, spec: true, view: 'fundamental', harmonics: 4, range: 30, filter: defaultSpecFilter(), showNotes: true, main: 'wave', draw: false });
 /** What every rendered slice gets; the warped .wav gets the same channels and level. */
 export function sliceRenderOptions(o: SlicerSettings): RenderOptions {
   return { fadeIn: o.fadeIn / 1000, fadeOut: o.fadeOut / 1000, mono: o.mono, normalize: o.norm, target: Math.pow(10, o.target / 20) };

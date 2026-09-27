@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { isSessionJson, parseSession, toSessionJson } from '../src/io/session';
+import { defaultSpecFilter } from '../src/core/notes/spec-filter';
 import { defaultWarp } from '../src/state/settings';
 
 const legacy = JSON.parse(readFileSync(new URL('./fixtures/legacy-session.json', import.meta.url), 'utf8'));
@@ -22,7 +23,7 @@ describe('session files', () => {
   });
 
   it('carries the Notes step: its settings and deleted notes, only when they differ from how it starts', () => {
-    const s = parseSession(legacy, legacy.audio.duration, fb), n0 = { mode: 'line' as const, instrument: 'any' as const, sens: 55, legato: false, spec: true, view: 'fundamental' as const, harmonics: 8, range: 60, main: 'wave' as const };
+    const s = parseSession(legacy, legacy.audio.duration, fb), n0 = { mode: 'line' as const, instrument: 'any' as const, sens: 55, legato: false, spec: true, view: 'fundamental' as const, harmonics: 4, range: 30, filter: defaultSpecFilter(), showNotes: true, main: 'wave' as const };
     expect(s.notes).toEqual(n0);
     expect(s.removedNotes).toEqual([]);
     expect('notes' in toSessionJson(s)).toBe(false);
@@ -59,6 +60,17 @@ describe('session files', () => {
     expect(json.notes).toEqual({ main: 'roll' });
     expect(parseSession(JSON.parse(JSON.stringify(json)), legacy.audio.duration, fb).notes).toEqual(set.notes);
     expect(parseSession({ ...legacy, notes: { main: 'sideways' } }, legacy.audio.duration, fb).notes.main).toBe('wave');
+  });
+
+  it('carries the spectrogram\'s filters and hidden notes, only what differs from how they start', () => {
+    const s = parseSession(legacy, legacy.audio.duration, fb);
+    expect([s.notes.filter, s.notes.showNotes]).toEqual([defaultSpecFilter(), true]);
+    const set = { ...s, notes: { ...s.notes, view: 'notes' as const, filter: { ...s.notes.filter, steady: 40, peaks: true, voices: 3 }, showNotes: false } };
+    const json = toSessionJson(set) as { notes: object };
+    expect(json.notes).toEqual({ view: 'notes', filter: { steady: 40, peaks: true, voices: 3 }, showNotes: false });
+    expect(parseSession(JSON.parse(JSON.stringify(json)), legacy.audio.duration, fb).notes).toEqual(set.notes);
+    const odd = parseSession({ ...legacy, notes: { filter: { steady: 900, floor: -5, minLen: 'long', voices: 0, peaks: 'yes', snap: true }, showNotes: 1 } }, legacy.audio.duration, fb).notes;
+    expect([odd.filter, odd.showNotes]).toEqual([{ ...defaultSpecFilter(), steady: 100, floor: 0, voices: 1, snap: true }, true]);
   });
 
   it('carries warp markers, and leaves them out when there are none', () => {

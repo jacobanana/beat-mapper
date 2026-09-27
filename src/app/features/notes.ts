@@ -4,6 +4,7 @@ import type { Analyzer } from '../../analysis/analyzer';
 import { fmtBpm, safeName } from '../../core/format';
 import { drawnByHand } from '../../core/notes/detect';
 import { MIN_NOTE, addManualNote, moveNote, noteKey, removeNote } from '../../core/notes/select';
+import { SPEC_FILTER_LIMITS, type SpecFilter, defaultSpecFilter } from '../../core/notes/spec-filter';
 import { HARMONICS_RANGE, type SpecView, levelAt } from '../../core/notes/spectrogram';
 import type { Note, NoteInstrument, NoteMode } from '../../core/notes/types';
 import { noteName } from '../../core/notes/types';
@@ -144,6 +145,23 @@ export class Notes {
     this.app.set('notes', { harmonics: clamp(Math.round(n), HARMONICS_RANGE.min, HARMONICS_RANGE.max) });
   }
 
+  /** One or more of the spectrogram's filters, each kept in its range. */
+  setFilter(patch: Partial<SpecFilter>): void {
+    const f = { ...this.app.notes.filter, ...patch }, L = SPEC_FILTER_LIMITS;
+    for (const k of ['steady', 'floor', 'minLen', 'voices'] as const) f[k] = clamp(Math.round(f[k]), L[k].min, L[k].max);
+    this.app.set('notes', { filter: f });
+  }
+
+  /** The spectrogram's filters as they start. */
+  resetFilter(): void { this.app.set('notes', { filter: defaultSpecFilter() }); }
+
+  /** The notes over the spectrogram shown or hidden, to see the spectrogram alone. */
+  toggleNotes(): void {
+    const { app } = this, showNotes = !app.notes.showNotes;
+    app.set('notes', { showNotes });
+    app.notify.toast(showNotes ? 'Notes: shown' : 'Notes: hidden, the spectrogram alone');
+  }
+
   setRange(db: number): void {
     this.app.set('notes', { range: clamp(Math.round(db), SPEC_RANGE.min, SPEC_RANGE.max) });
   }
@@ -156,7 +174,8 @@ export class Notes {
   /** The pencil: drags on the roll draw notes, move them and resize them, rather than scrolling the page. */
   toggleDraw(): void {
     const { app } = this, draw = !app.notes.draw;
-    app.set('notes', { draw });
+    // Drawing on notes that can't be seen would move and delete them blind.
+    app.set('notes', draw ? { draw, showNotes: true } : { draw });
     app.notify.toast(draw ? 'Draw: drag on the roll to draw a note, drag a note to move it, its end to lengthen it' : 'Draw: off');
   }
 
