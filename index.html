@@ -49,6 +49,8 @@
 <symbol id="i-tol" viewBox="0 0 20 20"><path d="M10 4v12M6 7l-3 3 3 3M14 7l3 3-3 3"/></symbol>
 <symbol id="i-groove" viewBox="0 0 20 20"><path d="M2 5h16M2 10h16M2 15h16" stroke-dasharray="1 3" stroke-width="1"/><path class="f" d="M4 5m-1.8 0a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0-3.6 0M12.5 10m-2.2 0a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0M7 15m-2.2 0a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0-4.4 0"/><path d="M10 7.5v5"/></symbol>
 <symbol id="i-warp" viewBox="0 0 20 20"><path d="M4 3v14M10 3v14M16 3v14" stroke-dasharray="1.5 2" stroke-width="1"/><path d="M1.5 10c1.5-4 3-4 4.5 0s3.5 4 5 0 3.5-4 7.5 0"/></symbol>
+<symbol id="i-spec" viewBox="0 0 20 20"><path class="f" d="M3 12h3v5H3ZM8 7h3v10H8ZM13 3h3v14h-3Z"/><path d="M3 3v2M3 7v2M8 3v2M13 17v0" stroke-width="1.2"/></symbol>
+<symbol id="i-draw" viewBox="0 0 20 20"><path d="M3 17l1-4L14 3l3 3L7 16Z"/><path d="M12 5l3 3"/></symbol>
 <symbol id="i-notes" viewBox="0 0 20 20"><path d="M3 3v14" stroke-width="1.2"/><path class="f" d="M5 4h5.5v2.4H5ZM9 8.8h6.5v2.4H9ZM12.5 13.6H17V16h-4.5Z"/></symbol>
 <symbol id="i-slice" viewBox="0 0 20 20"><path d="M1.5 13h2.2l1.4-3.5L7 16l2-13 2 10.5 1.4-2.5h4.1"/><path d="M6.2 2v16M13.8 2v16" stroke-dasharray="2 2.4"/></symbol>
 </defs></svg>
@@ -320,9 +322,17 @@
         <div class="col flow">
           <div class="row2">
             <span class="cap" title="The notes found in the audio">Find</span><span class="items">
-              <select id="nMode" title="What the audio is: one note at a time (a bass line, a lead, a voice), or chords (keys, guitar). Works best on one instrument alone" aria-label="Line or chords"><option value="line">one line</option><option value="chords">chords</option></select>
+              <select id="nMode" title="What the audio is: one note at a time (a bass line, a lead, a voice), or chords (keys, guitar), found for you; or by hand, nothing found and every note drawn on the spectrogram. Works best on one instrument alone" aria-label="Line, chords or by hand"><option value="line">one line</option><option value="chords">chords</option><option value="draw">by hand</option></select>
               <select id="nInst" title="What plays the chords: the detector knows what a piano, a guitar, an organ or mallets (vibes, marimba, bells) sound like" aria-label="Instrument" hidden><option value="any">any instrument</option><option value="piano">piano</option><option value="guitar">guitar</option><option value="organ">organ</option><option value="mallets">mallets</option></select>
               <label class="sl" title="Sensitivity: raise it for quiet notes, lower it to drop strays"><svg class="ic"><use href="#i-sens"/></svg><input type="range" id="nSens" min="0" max="100" value="55" aria-label="Note sensitivity"><output id="nN"></output></label>
+            </span>
+          </div>
+          <div class="row2">
+            <span class="cap" title="The spectrogram under the piano roll: what sounds at each pitch, to check the notes against or to draw them on">See</span><span class="items">
+              <button class="btn on" id="nSpec" title="Show the spectrogram under the piano roll (S)" aria-pressed="true"><svg class="ic"><use href="#i-spec"/></svg>Spectrogram</button>
+              <select id="nView" title="How the spectrogram is shown: as heard, every partial of every note; fundamentals, each note lit where it is played and its partials dimmed; or harmonics removed, each note's partials taken out of the picture so what is left above it is another note" aria-label="Spectrogram view"><option value="audio">as heard</option><option value="fundamental">fundamentals</option><option value="clean">harmonics removed</option></select>
+              <label class="sl" title="Harmonics: how many partials a note is taken to have, for the fundamentals and harmonics-removed views. More takes brighter tones as one note; fewer keeps a note's high partials as they are"><span class="cap2">Harmonics</span><input type="range" id="nHarm" min="1" max="16" value="8" aria-label="Harmonics"><output id="nHarmO"></output></label>
+              <label class="sl" title="Range: how far under the loudest the spectrogram is still drawn. Wider shows the quiet notes, narrower the loud ones alone"><span class="cap2">Range</span><input type="range" id="nRange" min="20" max="100" step="5" value="60" aria-label="Range in dB"><output id="nRangeO"></output></label>
             </span>
           </div>
           <div class="row2">
@@ -336,14 +346,15 @@
             </span>
           </div>
           <div class="row2">
-            <span class="cap" title="Fix single notes: tap one in the piano roll, double-tap to delete">Fix</span><span class="items">
+            <span class="cap" title="Fix single notes: tap one in the piano roll, double-tap to delete; with Draw on, drag to draw, move and lengthen them">Fix</span><span class="items">
+              <button class="btn" id="nDraw" title="Draw: drag on the piano roll to draw a note, drag a note to move it, its end to lengthen it, tap to add one grid step (D)" aria-pressed="false"><svg class="ic"><use href="#i-draw"/></svg>Draw</button>
               <button class="btn" id="nDel" title="Delete the selected note (Del)" aria-label="Delete note"><svg class="ic"><use href="#i-del"/></svg>Delete</button>
-              <button class="btn end" id="nReset" title="Reset Notes: every note as found, at the starting sensitivity" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
+              <button class="btn end" id="nReset" title="Reset Notes: every note as found, none drawn, at the starting sensitivity" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
             </span>
           </div>
           <p id="nSum"></p>
         </div>
-        <div class="groove"><canvas id="notesCv" role="img" aria-label="The notes found, as a piano roll"></canvas></div>
+        <div class="groove"><canvas id="notesCv" role="img" aria-label="The notes found or drawn, as a piano roll over the spectrogram"></canvas></div>
       </div>
     </section>
   </main>
@@ -485,8 +496,10 @@
     <div><svg class="ic"><use href="#i-warp"/></svg><span>Heard warped, the hits are measured, heard on the kit and exported where the warp puts them: quantized in the Warp step, they sit on the grid. Heard as the original, where they were played</span><span><kbd>W</kbd></span></div>
     <div><svg class="ic"><use href="#i-export"/></svg><span>Save the drums as MIDI (as heard: warped, at the grid's one tempo and lined up with the warped .wav; the original, on the tempo map), or the typical bar as a Pocket Science groove file: in Export</span><span><kbd>Ctrl/⌘</kbd><kbd>E</kbd></span></div>
     <h3>Notes</h3>
-    <div><svg class="ic"><use href="#i-notes"/></svg><span>The notes of a bass line, a lead or a voice (one line), or of keys or guitar (chords), found in the audio with their pitch, length, loudness and bends, and drawn as a piano roll. It works best on one instrument on its own</span><span></span></div>
-    <div><span>Find</span><span>One line or chords, and the sensitivity, with how many notes it lets through. A line is followed note to note and keeps its bends; chords find every note that sounds at once</span></div>
+    <div><svg class="ic"><use href="#i-notes"/></svg><span>The notes of a bass line, a lead or a voice (one line), or of keys or guitar (chords), found in the audio with their pitch, length, loudness and bends, or drawn by hand on its spectrogram, as a piano roll. It works best on one instrument on its own</span><span></span></div>
+    <div><span>Find</span><span>One line, chords or by hand, and the sensitivity, with how many notes it lets through. A line is followed note to note and keeps its bends; chords find every note that sounds at once; by hand finds nothing and leaves the drawing to you</span></div>
+    <div><svg class="ic"><use href="#i-spec"/></svg><span>See: the spectrogram under the piano roll, as heard, with the fundamentals lit (each note bright where it is played, its partials dimmed), or with the harmonics removed (each note's partials taken out). Harmonics is how many partials a note is taken to have; Range how far under the loudest is still drawn. The rows scroll with the wheel or by dragging the note names</span><span><kbd>S</kbd></span></div>
+    <div><svg class="ic"><use href="#i-draw"/></svg><span>Draw: drag on the roll to draw a note at that pitch (on the grid, as the magnet is set), tap for one grid step, drag a note to move it, its end to lengthen it. Undo takes it back</span><span><kbd>D</kbd></span></div>
     <div><span>Legato</span><span>Hold each note until the next one starts (the next chord, in chords); off, each note is as long as it is heard</span></div>
     <div><svg class="ic"><use href="#i-notes"/></svg><span>Synth: hear the notes on a synth voice. Mute the audio in the mixer to hear it alone</span><span><kbd>M</kbd></span></div>
     <div><svg class="ic"><use href="#i-del"/></svg><span>Tap a note in the piano roll to select it, double-tap it to delete it</span><span><kbd>Del</kbd></span></div>
@@ -550,6 +563,8 @@
     <div><span>Loop</span><span>With the loop on, only the bars inside it are measured</span></div>
     <h3>Step 6 – Notes</h3>
     <div><span><kbd>M</kbd></span><span>Mute or unmute the synth playing the notes</span></div>
+    <div><span><kbd>S</kbd></span><span>Show or hide the spectrogram under the piano roll</span></div>
+    <div><span><kbd>D</kbd></span><span>Draw: drag on the roll to draw, move and lengthen notes</span></div>
     <div><span><kbd>Del</kbd></span><span>Delete the selected note</span></div>
     <div><span>Piano roll</span><span>Tap a note to select it and put the playhead on it · double-tap it to delete it</span></div>
     <h3>Where you touch decides what happens</h3>

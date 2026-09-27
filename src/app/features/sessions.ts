@@ -40,7 +40,8 @@ export class Sessions {
 
   /** The current work as a session. */
   content(): SessionContent {
-    const { app } = this, a = app.audio!, t = app.transport;
+    // The pencil is a tool in hand, not part of the work.
+    const { app } = this, a = app.audio!, t = app.transport, { draw: _draw, ...notes } = app.notes;
     return {
       audio: { name: a.name, fileName: a.fileName, duration: a.dur, sampleRate: a.sr },
       detection: app.detection,
@@ -64,8 +65,9 @@ export class Sessions {
         manual: app.doc.drums.manual.map((h) => ({ voice: h.voice, t: h.t, a: h.a })),
         removed: app.doc.drums.removed.map((h) => ({ voice: h.voice, t: h.t })),
       },
-      notes: { ...app.notes },
+      notes,
       removedNotes: app.doc.notes.removed.map((r) => ({ pitch: r.pitch, t: r.t })),
+      manualNotes: app.doc.notes.manual.map((m) => ({ pitch: m.pitch, t: m.t, end: m.end, a: m.a })),
     };
   }
 
@@ -122,7 +124,7 @@ export class Sessions {
       markers: { manual, removed: matchRemoved(app.cands, s.markers.removed).map((i) => app.cands[i].t), nextId: manual.length + 1 },
       drums: { removed: s.hits.removed, manual: s.hits.manual.map((h, i) => ({ id: i + 1, ...h })), nextId: s.hits.manual.length + 1 },
       warpMarkers: s.warpMarkers,
-      notes: { removed: s.removedNotes },
+      notes: { removed: s.removedNotes, manual: s.manualNotes },
     };
     app.edit(() => doc, false);
     app.set('beats', s.beats);

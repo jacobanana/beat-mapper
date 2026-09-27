@@ -34,7 +34,7 @@ moved down when Session joined the file group: ten 38 px buttons don't fit one r
 - Every step's panel is laid out in the order the work goes, one captioned row per stage, with what
   changes how a stage behaves folded under **Options** below them:
   Transients **Find · Fix**, Beats **Tempo · Map · Fix**, Warp **Tempo · Align · Warp**, Slice
-  **Cut · Pick**, Groove **Find · Grid · Chart · Fix**, Notes **Find · Length · Hear · Fix**. Buttons in these rows carry a text label where
+  **Cut · Pick**, Groove **Find · Grid · Chart · Fix**, Notes **Find · See · Length · Hear · Fix**. Buttons in these rows carry a text label where
   there is room, since the caption and the label together say what a button does and what it changes.
 - Every step has a **Reset** with a text label, last in its bar: it starts that step again, as it was
   on arriving, greys out while there is nothing to reset, and asks first in a small dialog (not the

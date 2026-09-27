@@ -8,6 +8,7 @@ import type { DrumHit, PerVoice, Voice } from '../core/drums/voices';
 import { type Groove, type VoiceNote, analyseGroove, transcribe } from '../core/groove/pocket';
 import { detectMarkers, filterMarkers, sensToThr } from '../core/markers/detect';
 import { type HeardNote, type NoteEdits, heardNotes, selectNotes } from '../core/notes/select';
+import { type PitchSpectrogram, type SpecView, viewSpectrogram } from '../core/notes/spectrogram';
 import type { Note, NoteAnalysis } from '../core/notes/types';
 import { type Slice, isExcluded, loopInfo, planSlices, sliceKey } from '../core/slices/slices';
 import { Grid, barQ } from '../core/tempo/meter';
@@ -38,8 +39,8 @@ export type { WarpOut, WarpPlan } from './warp-out';
 export type Topic =
   | 'audio' | 'doc' | 'candidates' | 'detection' | 'beats' | 'export' | 'slicer' | 'slices'
   | 'warp' | 'transport' | 'playhead' | 'view' | 'step' | 'selection' | 'hover' | 'display' | 'drums' | 'groove' | 'mix' | 'mute'
-  /** The notes found in the audio (`transcript`), and the Notes step's settings (`notes`). */
-  | 'transcript' | 'notes'
+  /** The notes found in the audio (`transcript`), the Notes step's settings (`notes`), and the spectrogram under its piano roll (`spectrum`). */
+  | 'transcript' | 'notes' | 'spectrum'
   /**
    * Derived: what is heard changed (the warp or the original, and which warp), and with it the
    * timeline, the slices and the pocket. Emitted by the App itself after whichever topic caused it, so
@@ -92,6 +93,8 @@ export class App {
   drums: DrumAnalysis | null = null;
   /** The notes in the audio, found the first time the Notes step opens, as a line or as chords. */
   transcript: NoteAnalysis | null = null;
+  /** The audio as a spectrogram on the piano roll's axis, made the first time the Notes step shows it. */
+  spectrum: PitchSpectrogram | null = null;
   doc: ProjectDoc = emptyDoc();
   /** The tempo the audio was opened at, before any tapping or typing: where resetting Beats goes back to. */
   startBpm = 120;
@@ -215,6 +218,10 @@ export class App {
    * note with Legato on. Times in the original; the warp places them, as it does the drums.
    */
   get heardNotes(): readonly HeardNote[] { return this._heardNotes(this.pickedNotes, this.notes.legato); }
+
+  private readonly _pitchView = memo((s: PitchSpectrogram | null, view: SpecView, harmonics: number) => (s ? viewSpectrogram(s, view, harmonics) : null));
+  /** The spectrogram as the Notes step shows it: in dB under the loudest bin, in the view and with the partials the settings ask for. */
+  get pitchView(): Float32Array | null { return this._pitchView(this.spectrum, this.notes.view, this.notes.harmonics); }
 
   // Always against the grid: the tempo map the user set is the beat the drums are heard against. When
   // the warp is heard, that grid is its straight one and the hits are where it puts them, quantized or
@@ -369,6 +376,7 @@ export class App {
     this.cands = cands;
     this.drums = null;
     this.transcript = null;
+    this.spectrum = null;
     this.startBpm = startBpm;
     this.doc = emptyDoc(startBpm);
     this.history.clear();
@@ -381,11 +389,12 @@ export class App {
     this.view.reset(audio.dur);
     this.transport = { ...this.transport, playhead: 0, start: 0, loop: null, loopOn: false };
     // The grid tempo, the material, what is warped and whether it is heard are this file's; so is the
-    // shuffle, which is the feel of this take, and how its notes are found and held.
+    // shuffle, which is the feel of this take, and how its notes are found and held. The pencil stays
+    // in hand.
     this.warp = defaultWarp();
-    this.notes = defaultNotes();
+    this.notes = { ...defaultNotes(), draw: this.notes.draw };
     this.beats = { ...this.beats, shuffle: defaultBeats().shuffle };
-    this.bus.emit('audio', 'doc', 'candidates', 'drums', 'transcript', 'transport', 'view', 'playhead', 'selection', 'slices', 'warp', 'beats', 'notes');
+    this.bus.emit('audio', 'doc', 'candidates', 'drums', 'transcript', 'spectrum', 'transport', 'view', 'playhead', 'selection', 'slices', 'warp', 'beats', 'notes');
   }
 
   /** Applies an edit to the document, recorded for undo unless `record` is false. */

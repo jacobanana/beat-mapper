@@ -2,7 +2,7 @@
 // and a keyboard part in chords.
 import { beforeAll, describe, expect, it } from 'vitest';
 import { detectNotes } from '../src/core/notes/detect';
-import { heardNotes, noNoteEdits, noteVelocities, selectNotes } from '../src/core/notes/select';
+import { addManualNote, heardNotes, moveNote, noNoteEdits, noteVelocities, removeNote, selectNotes } from '../src/core/notes/select';
 import { type PlayedNote, synthBass, synthKeys, synthPiano } from '../src/core/notes/synth';
 import type { Note, NoteAnalysis } from '../src/core/notes/types';
 import { noteName } from '../src/core/notes/types';
@@ -127,7 +127,24 @@ describe('from found to heard', () => {
     const all = [n(40, 0, 0.2, 1, 0.9), n(43, 0.3, 0.5, 1, 0.05), n(45, 0.6, 0.8, 1, 0.5)];
     expect(selectNotes(all, 55, noNoteEdits()).map((k) => k.pitch)).toEqual([40, 45]);
     expect(selectNotes(all, 100, noNoteEdits()).map((k) => k.pitch)).toEqual([40, 43, 45]);
-    expect(selectNotes(all, 55, { removed: [{ pitch: 45, t: 0.6 }] }).map((k) => k.pitch)).toEqual([40]);
+    expect(selectNotes(all, 55, { removed: [{ pitch: 45, t: 0.6 }], manual: [] }).map((k) => k.pitch)).toEqual([40]);
+  });
+
+  it('adds the drawn notes, lets one stand in for a found note it moves, and deletes either', () => {
+    const all = [n(40, 0, 0.2, 1, 0.9), n(45, 0.6, 0.8, 1, 0.5)];
+    let e = addManualNote(noNoteEdits(), { pitch: 47, t: 0.3, end: 0.5, a: 0.7 });
+    expect(selectNotes(all, 55, e).map((k) => [k.pitch, k.t, k.s])).toEqual([[40, 0, 0.9], [47, 0.3, 1], [45, 0.6, 0.5]]);
+    // A drawn note at a found note's pitch and start is the found note resized: only one of them is heard.
+    e = addManualNote(e, { pitch: 40, t: 0, end: 0.4, a: 1 });
+    expect(selectNotes(all, 55, e).map((k) => [k.pitch, k.end])).toEqual([[40, 0.4], [47, 0.5], [45, 0.8]]);
+    // Moved, the found note stays deleted so it doesn't come back beside the moved one, however low the sensitivity goes.
+    e = moveNote(e, all[1], true, { pitch: 46, t: 0.65, end: 0.9 });
+    expect(selectNotes(all, 100, e).map((k) => [k.pitch, k.t])).toEqual([[40, 0], [47, 0.3], [46, 0.65]]);
+    expect(e.removed).toEqual([{ pitch: 45, t: 0.6 }]);
+    e = removeNote(e, { pitch: 47, t: 0.3 }, false);
+    e = removeNote(e, { pitch: 40, t: 0 }, true);
+    expect(selectNotes(all, 100, e).map((k) => k.pitch)).toEqual([46]);
+    expect(e.removed.map((r) => r.pitch)).toEqual([45, 40]);
   });
 
   it('holds each note to the next with Legato, a chord to the next chord, never into its own pitch', () => {

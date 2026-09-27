@@ -11,8 +11,12 @@ export interface NoteOptions {
   yieldToEventLoop?: boolean;
 }
 
+/** By hand: nothing is found; every note is one the user draws. */
+export const drawnByHand = (): NoteAnalysis => ({ mode: 'draw', instrument: 'any', notes: [], tuning: 0 });
+
 export async function detectNotes(x: Float32Array, sr: number, o: NoteOptions = {}): Promise<NoteAnalysis> {
-  const { mode = 'line', onProgress, yieldToEventLoop = true } = o, instrument = mode === 'line' ? 'any' : (o.instrument ?? 'any');
+  const { mode = 'line', onProgress, yieldToEventLoop = true } = o, instrument = mode === 'chords' ? (o.instrument ?? 'any') : 'any';
+  if (mode === 'draw') return drawnByHand();
   const r = mode === 'line' ? await detectLine(x, sr, { onProgress, yieldToEventLoop }) : await detectChords(x, sr, { params: CHORD_PROFILES[instrument], onProgress, yieldToEventLoop });
   return { mode, instrument, notes: [...r.notes].sort((a, b) => a.t - b.t || a.pitch - b.pitch), tuning: r.tuning };
 }

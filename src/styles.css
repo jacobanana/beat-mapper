@@ -105,7 +105,7 @@ main{flex:1;display:flex;flex-direction:column;min-height:0}
 .seg .btn{border-radius:0}
 .seg .btn:first-child{border-radius:6px 0 0 6px}
 .seg .btn:last-child{border-radius:0 6px 6px 0;margin-left:-1px}
-.sl{display:inline-flex;align-items:center;gap:5px;color:var(--dim)}
+.sl{display:inline-flex;align-items:center;gap:5px;color:var(--dim)} .sl[hidden]{display:none}
 .sl input{width:110px}
 .sl output{min-width:44px;color:var(--dim);font-size:14px}
 .num{color:var(--dim);font-size:14px;padding:0 4px}
@@ -166,7 +166,10 @@ td.up{color:var(--mark)} td.dn{color:var(--beat)}
 #p6 .sl output{min-width:28px}
 #nSens{accent-color:var(--slice)}
 #nSum{color:var(--dim);margin:0;font-size:14px}
-#notesCv{display:block;width:100%;height:170px;border:1px solid var(--line);border-radius:7px;background:var(--raise);touch-action:manipulation}
+#notesCv{display:block;width:100%;height:230px;border:1px solid var(--line);border-radius:7px;background:var(--raise);touch-action:manipulation}
+#notesCv.draw{touch-action:none;cursor:crosshair}
+#p6 .cap2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.02em}
+#nHarm,#nRange{width:80px}
 
 dialog{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:18px 20px;max-width:min(760px,94vw);max-height:88vh}
 dialog::backdrop{background:rgba(0,0,0,.5)}

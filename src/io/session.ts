@@ -3,6 +3,7 @@
 // Everything read back is validated and clamped, so a hand-edited or older file can't break the app.
 import { ALGOS, type Algo, BANDS, type Band } from '../core/dsp/onset';
 import { VOICES, type Voice } from '../core/drums/voices';
+import { HARMONICS_RANGE, SPEC_VIEWS, type SpecView } from '../core/notes/spectrogram';
 import { NOTE_INSTRUMENTS, NOTE_MODES, type NoteInstrument, type NoteMode } from '../core/notes/types';
 import { DENOMINATORS, GRID_DIVISIONS, type GridDivision, type Meter } from '../core/tempo/meter';
 import type { Anchor, TimeRange } from '../core/types';
@@ -10,8 +11,8 @@ import { type WarpMarker, placeWarpMarker } from '../core/warp/markers';
 import { WARP_MODES, type WarpMode } from '../core/warp/modes';
 import { WAV_RATES } from './formats/wav';
 import {
-  type BeatSettings, type DetectionSettings, type ExportSettings, type NoteSettings, SNAP_MODES, type SlicerSettings, type SnapMode, type TransportState, type WarpSettings,
-  defaultNotes, defaultWarp,
+  type BeatSettings, type DetectionSettings, type ExportSettings, type NoteSettings, SNAP_MODES, SPEC_RANGE, type SlicerSettings, type SnapMode, type TransportState,
+  type WarpSettings, defaultNotes, defaultWarp,
 } from '../state/settings';
 import { STEPS, type Step } from '../state/steps';
 
@@ -39,10 +40,12 @@ export interface SessionContent {
   warp: WarpSettings;
   /** Drum hits edited by hand in the Groove step: added (with their loudness) and deleted, by time. */
   hits: { manual: { voice: Voice; t: number; a: number }[]; removed: { voice: Voice; t: number }[] };
-  /** The Notes step's settings: a line or chords, the sensitivity, Legato. */
-  notes: NoteSettings;
+  /** The Notes step's settings: a line, chords or by hand, the sensitivity, Legato, and the spectrogram's view. */
+  notes: Omit<NoteSettings, 'draw'>;
   /** Notes deleted by hand in the Notes step, by pitch and start. */
   removedNotes: { pitch: number; t: number }[];
+  /** Notes drawn by hand in the Notes step (or found ones moved or resized), with their loudness. */
+  manualNotes: { pitch: number; t: number; end: number; a: number }[];
 }
 
 /** The JSON written to disk (format version 1). */
@@ -92,7 +95,9 @@ function warpJson(s: SessionContent): object {
 }
 
 // The Notes step came after the hit edits, and is written the same way: only what differs from how
-// the step starts, so a session that never opened it saves byte-identical.
+// the step starts, so a session that never opened it saves byte-identical. The spectrogram's view and
+// the notes drawn by hand came later still; a reader that predates them ignores the fields, and reads
+// the by-hand mode as a line.
 function notesJson(s: SessionContent): object {
   const n0 = defaultNotes(), n = s.notes;
   const out = {
@@ -100,7 +105,12 @@ function notesJson(s: SessionContent): object {
     ...(n.instrument !== n0.instrument ? { instrument: n.instrument } : {}),
     ...(n.sens !== n0.sens ? { sens: n.sens } : {}),
     ...(n.legato !== n0.legato ? { legato: n.legato } : {}),
+    ...(n.spec !== n0.spec ? { spectrogram: n.spec } : {}),
+    ...(n.view !== n0.view ? { view: n.view } : {}),
+    ...(n.harmonics !== n0.harmonics ? { harmonics: n.harmonics } : {}),
+    ...(n.range !== n0.range ? { range: n.range } : {}),
     ...(s.removedNotes.length ? { removed: s.removedNotes.map((r) => ({ pitch: r.pitch, t: r.t })) } : {}),
+    ...(s.manualNotes.length ? { manual: s.manualNotes.map((m) => ({ pitch: m.pitch, t: m.t, end: m.end, a: m.a })) } : {}),
   };
   return Object.keys(out).length ? { notes: out } : {};
 }
@@ -134,6 +144,7 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
   if (!isSessionJson(d)) throw new Error('Not a BeatMapper session');
   const det = d.detection || {}, mk = d.markers || {}, bt = d.beats || {}, tr = d.transport || {}, ex = d.export || {}, sl = d.slicer || {};
   const T = (t: unknown): t is number => Number.isFinite(t) && (t as number) >= 0 && (t as number) <= dur + 1e-6;
+  const P = (p: unknown): p is number => Number.isInteger(p) && (p as number) >= 0 && (p as number) <= 127;
 
   const anchors: Anchor[] = [];
   const raw = (Array.isArray(bt.anchors) ? bt.anchors : []).filter((a: Json) => a && Number.isFinite(a.q) && T(a.t)).sort((p: Json, q: Json) => p.q - q.q);
@@ -226,9 +237,17 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
       instrument: oneOf<NoteInstrument>(NOTE_INSTRUMENTS, nt.instrument, n0.instrument),
       sens: clamp(Math.round(fin(nt.sens, n0.sens)), 0, 100),
       legato: typeof nt.legato === 'boolean' ? nt.legato : n0.legato,
+      spec: typeof nt.spectrogram === 'boolean' ? nt.spectrogram : n0.spec,
+      view: oneOf<SpecView>(SPEC_VIEWS, nt.view, n0.view),
+      harmonics: clamp(Math.round(fin(nt.harmonics, n0.harmonics)), HARMONICS_RANGE.min, HARMONICS_RANGE.max),
+      range: clamp(Math.round(fin(nt.range, n0.range)), SPEC_RANGE.min, SPEC_RANGE.max),
     },
     removedNotes: (Array.isArray(nt.removed) ? nt.removed : [])
-      .filter((r: Json) => r && Number.isInteger(r.pitch) && r.pitch >= 0 && r.pitch <= 127 && T(r.t)).slice(0, 20000)
+      .filter((r: Json) => r && P(r.pitch) && T(r.t)).slice(0, 20000)
       .map((r: Json) => ({ pitch: r.pitch, t: r.t })),
+    // A drawn note ends after it starts, and may run a little past the audio, as a held note does.
+    manualNotes: (Array.isArray(nt.manual) ? nt.manual : [])
+      .filter((m: Json) => m && P(m.pitch) && T(m.t) && Number.isFinite(m.end) && m.end > m.t && m.end <= dur + 10).slice(0, 20000)
+      .map((m: Json) => ({ pitch: m.pitch, t: m.t, end: m.end, a: clamp(fin(m.a, 1), 0, 1e6) })),
   };
 }

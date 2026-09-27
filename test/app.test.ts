@@ -816,6 +816,94 @@ describe('notes', () => {
     expect(a.app.notes.legato).toBe(false);
   });
 
+  it('draws notes by hand on the spectrogram, moves and lengthens them in one undo step each, and keeps them in the session', async () => {
+    const a = createTestApp();
+    const bass = synthBass(44100);
+    await a.f.loader.open(fakeBuffer([bass.x], 44100), 'bass-demo', 'bass-demo.wav', null, 100);
+    a.f.workflow.goTo(6);
+    await a.f.notes.ensureNotes();
+    // The spectrogram is made with the notes, and the view follows the settings.
+    expect(a.app.spectrum?.frames).toBeGreaterThan(100);
+    const fund = a.app.pitchView;
+    a.f.notes.setView('audio');
+    expect(a.app.pitchView).not.toBe(fund);
+    a.f.notes.setHarmonics(40);
+    expect(a.app.notes.harmonics).toBe(16);
+    a.f.notes.setRange(5);
+    expect(a.app.notes.range).toBe(20);
+    // By hand: nothing is found, and the sensitivity has nothing to pick among.
+    await a.f.notes.setMode('draw');
+    expect(a.app.transcript?.mode).toBe('draw');
+    expect(a.app.pickedNotes).toEqual([]);
+    expect(a.f.notes.summary()).toMatch(/^No notes yet/);
+    // A drawn note is heard, written, selected, and as loud as the spectrogram says at its pitch.
+    const n0 = bass.notes[0];
+    a.f.notes.addNote(n0.pitch, n0.t, n0.end);
+    a.f.notes.addNote(n0.pitch + 5, n0.t, n0.end);
+    expect(a.app.pickedNotes.map((n) => n.pitch)).toEqual([n0.pitch, n0.pitch + 5]);
+    expect(a.app.selectedNote()?.pitch).toBe(n0.pitch + 5);
+    const [loud, quiet] = a.app.heardNotes.map((n) => n.vel);
+    expect(loud).toBeGreaterThan(quiet + 30);
+    expect(a.f.notes.midi()!.notes.length).toBe(2);
+    expect(a.f.notes.summary()).toMatch(/^2 notes/);
+    // A drag is one undo step however many moves it makes; a resize keeps the start.
+    const n = a.app.pickedNotes[1];
+    a.f.notes.beginDrag();
+    a.f.notes.dragTo(n, { pitch: n.pitch + 1, t: n.t + 0.1, end: n.end + 0.1 });
+    a.f.notes.dragTo(n, { pitch: n.pitch + 2, t: n.t + 0.2, end: n.end + 0.2 });
+    a.f.notes.endDrag();
+    expect(a.app.pickedNotes[1]).toMatchObject({ pitch: n.pitch + 2, t: n.t + 0.2 });
+    expect(a.app.selectedNote()?.pitch).toBe(n.pitch + 2);
+    a.app.undo();
+    expect(a.app.pickedNotes[1]).toMatchObject({ pitch: n.pitch, t: n.t });
+    const m = a.app.pickedNotes[1];
+    a.f.notes.beginDrag();
+    a.f.notes.dragTo(m, { pitch: m.pitch, t: m.t, end: m.t + 0.005 });
+    a.f.notes.endDrag();
+    expect(a.app.pickedNotes[1].end).toBeCloseTo(m.t + 0.02, 6);
+    // Deleted, a drawn note is gone; undo brings it back.
+    a.f.notes.removeNote(m.pitch, m.t);
+    expect(a.app.pickedNotes.length).toBe(1);
+    a.app.undo();
+    expect(a.app.pickedNotes.length).toBe(2);
+    const saved = a.f.sessions.content();
+    expect(saved.notes).toMatchObject({ mode: 'draw', view: 'audio', harmonics: 16, range: 20 });
+    expect('draw' in saved.notes).toBe(false);
+    expect(saved.manualNotes.map((k) => k.pitch)).toEqual([n0.pitch, n0.pitch + 5]);
+    // Back as a line, the found notes join the drawn ones, and reset takes the drawn ones away.
+    await a.f.notes.setMode('line');
+    expect(a.app.pickedNotes.length).toBe(bass.notes.length + 2);
+    expect(a.f.notes.summary()).toMatch(/· 2 drawn$/);
+    expect(a.f.workflow.canReset).toBe(true);
+    a.f.workflow.resetStep();
+    expect(a.app.pickedNotes.length).toBe(bass.notes.length);
+    a.app.undo();
+    expect(a.app.pickedNotes.length).toBe(bass.notes.length + 2);
+  });
+
+  it('moves a found note by hand: it stays moved at any sensitivity, and the spectrogram is off when asked', async () => {
+    const a = createTestApp();
+    const bass = synthBass(44100);
+    await a.f.loader.open(fakeBuffer([bass.x], 44100), 'bass-demo', 'bass-demo.wav', null, 100);
+    a.f.notes.setSpectrogram(false);
+    a.f.workflow.goTo(6);
+    await a.f.notes.ensureNotes();
+    expect(a.app.spectrum).toBeNull();
+    const n = a.app.pickedNotes[2];
+    a.f.notes.beginDrag();
+    a.f.notes.dragTo(n, { pitch: n.pitch + 12, t: n.t, end: n.end });
+    a.f.notes.endDrag();
+    a.f.notes.setSensitivity(100);
+    const same = a.app.pickedNotes.filter((k) => k.t === n.t);
+    expect(same.map((k) => k.pitch)).toEqual([n.pitch + 12]);
+    expect(a.app.doc.notes.removed).toEqual([{ pitch: n.pitch, t: n.t }]);
+    // Its velocity is the found note's.
+    expect(a.app.heardNotes.find((k) => k.t === n.t)?.vel).toBe(a.app.heardNotes.find((k) => k.t === n.t)?.vel);
+    a.f.notes.setSpectrogram(true);
+    await a.f.notes.ensureSpectrogram();
+    expect(a.app.spectrum).not.toBeNull();
+  });
+
   it('finds them again as chords when the mode changes', async () => {
     const a = createTestApp();
     const keys = synthKeys(44100);

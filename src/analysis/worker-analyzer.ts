@@ -1,5 +1,6 @@
 import type { Algo, Analysis, Band } from '../core/dsp/onset';
 import type { DrumAnalysis, DrumSource } from '../core/drums/detect';
+import type { PitchSpectrogram } from '../core/notes/spectrogram';
 import type { NoteAnalysis, NoteInstrument, NoteMode } from '../core/notes/types';
 import type { Candidate } from '../core/types';
 import type { WarpJob } from '../core/warp/modes';
@@ -85,6 +86,13 @@ export class WorkerAnalyzer implements Analyzer {
     const r = await this.request({ type: 'notes', mode, instrument }, [], onProgress);
     if (r.type !== 'notes') throw new Error('Unexpected reply ' + r.type);
     return r.notes;
+  }
+
+  async spectrogram(onProgress?: (f: number) => void): Promise<PitchSpectrogram> {
+    if (this.inline) return this.inline.spectrogram(onProgress);
+    const r = await this.request({ type: 'spectrogram' }, [], onProgress);
+    if (r.type !== 'spectrogram') throw new Error('Unexpected reply ' + r.type);
+    return r.spectrogram;
   }
 
   async warp(job: WarpJob, onProgress?: (f: number) => void): Promise<Float32Array[]> {

@@ -15,17 +15,33 @@ describe('session files', () => {
   });
 
   it('carries the Notes step: its settings and deleted notes, only when they differ from how it starts', () => {
-    const s = parseSession(legacy, legacy.audio.duration, fb);
-    expect(s.notes).toEqual({ mode: 'line', instrument: 'any', sens: 55, legato: false });
+    const s = parseSession(legacy, legacy.audio.duration, fb), n0 = { mode: 'line' as const, instrument: 'any' as const, sens: 55, legato: false, spec: true, view: 'fundamental' as const, harmonics: 8, range: 60 };
+    expect(s.notes).toEqual(n0);
     expect(s.removedNotes).toEqual([]);
     expect('notes' in toSessionJson(s)).toBe(false);
-    const set = { ...s, step: 6 as const, notes: { mode: 'chords' as const, instrument: 'piano' as const, sens: 70, legato: true }, removedNotes: [{ pitch: 40, t: 1.5 }] };
+    const set = { ...s, step: 6 as const, notes: { ...n0, mode: 'chords' as const, instrument: 'piano' as const, sens: 70, legato: true }, removedNotes: [{ pitch: 40, t: 1.5 }] };
     const json = toSessionJson(set) as { notes: object };
     expect(json.notes).toEqual({ mode: 'chords', instrument: 'piano', sens: 70, legato: true, removed: [{ pitch: 40, t: 1.5 }] });
     const back = parseSession(JSON.parse(JSON.stringify(json)), legacy.audio.duration, fb);
     expect([back.step, back.notes, back.removedNotes]).toEqual([6, set.notes, set.removedNotes]);
     const odd = parseSession({ ...legacy, notes: { mode: 'drone', instrument: 'kazoo', sens: 400, legato: 'yes', removed: [{ pitch: 300, t: 1 }, { pitch: 40.5, t: 1 }, { pitch: 40, t: -1 }] } }, legacy.audio.duration, fb);
-    expect([odd.notes, odd.removedNotes]).toEqual([{ mode: 'line', instrument: 'any', sens: 100, legato: false }, []]);
+    expect([odd.notes, odd.removedNotes]).toEqual([{ ...n0, sens: 100 }, []]);
+  });
+
+  it('carries the spectrogram\'s view and the notes drawn by hand, and reads the by-hand mode', () => {
+    const s = parseSession(legacy, legacy.audio.duration, fb), dur = legacy.audio.duration;
+    expect(s.manualNotes).toEqual([]);
+    const set = {
+      ...s, notes: { ...s.notes, mode: 'draw' as const, spec: false, view: 'clean' as const, harmonics: 12, range: 80 },
+      manualNotes: [{ pitch: 45, t: 0.5, end: 1.25, a: 0.4 }, { pitch: 52, t: dur - 0.1, end: dur + 0.5, a: 1 }],
+    };
+    const json = toSessionJson(set) as { notes: object };
+    expect(json.notes).toEqual({ mode: 'draw', spectrogram: false, view: 'clean', harmonics: 12, range: 80, manual: set.manualNotes });
+    const back = parseSession(JSON.parse(JSON.stringify(json)), dur, fb);
+    expect([back.notes, back.manualNotes]).toEqual([set.notes, set.manualNotes]);
+    // Out of range: the view and the counts fall back or clamp, and a note that ends before it starts, or far past the audio, is dropped.
+    const odd = parseSession({ ...legacy, notes: { view: 'xray', harmonics: 99, range: 5, spectrogram: 'yes', manual: [{ pitch: 40, t: 1, end: 0.5, a: 1 }, { pitch: 40, t: 1, end: dur + 30, a: 1 }, { pitch: 41, t: 1, end: 1.5 }] } }, dur, fb);
+    expect([odd.notes.view, odd.notes.harmonics, odd.notes.range, odd.notes.spec, odd.manualNotes]).toEqual(['fundamental', 16, 20, true, [{ pitch: 41, t: 1, end: 1.5, a: 1 }]]);
   });
 
   it('carries warp markers, and leaves them out when there are none', () => {
