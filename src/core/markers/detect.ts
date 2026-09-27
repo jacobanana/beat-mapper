@@ -1,5 +1,7 @@
-import { type Algo, type Analysis, type Band, frameTime, localDiff, odfOf } from '../dsp/onset';
+import { type Algo, type Analysis, BAND_HZ, type Band, frameTime, localDiff, odfOf } from '../dsp/onset';
+import { peakOf } from '../dsp/peaks';
 import { refineOnset, snapToZero } from '../dsp/refine';
+import { BandFrames, lasting, pickPeaks } from '../dsp/superflux';
 import type { Candidate, Marker } from '../types';
 
 /**
@@ -7,6 +9,7 @@ import type { Candidate, Marker } from '../types';
  * The settings (sensitivity, gap) pick among these later without re-running the analysis.
  */
 export function pickCandidates(an: Analysis, band: Band, x: Float32Array, sr: number, algo: Algo = 'flux'): Candidate[] {
+  if (algo === 'superflux') return pickLasting(an, band, x, sr);
   const odf = odfOf(an, algo, band), fr = an.fr;
   const d = localDiff(odf, Math.max(2, Math.round(0.1 * fr))), m = Math.max(1, Math.round(0.016 * fr));
   const raw: { n: number; d: number }[] = [];
@@ -27,6 +30,29 @@ export function pickCandidates(an: Analysis, band: Band, x: Float32Array, sr: nu
     const s = Math.min(1, r.d / ref);
     if (s < 0.02) continue;
     out.push({ t: snapToZero(x, sr, refineOnset(x, sr, frameTime(an, r.n, sr))), s });
+  }
+  out.sort((a, b) => a.t - b.t);
+  return out;
+}
+
+/**
+ * SuperFlux's candidates. A peak must stand over the mean of the detection function from 100 ms
+ * before it to 70 ms after (Böck, Krebs & Schedl 2012); it is placed on the waveform, and asked how
+ * much more the spectrum holds once the window has passed it than before (`lasting`). Its strength
+ * is a geometric mean of the two, each on a fixed scale: the levels are compressed against the
+ * loudest sample of the take, so the scale holds from one take to the next. It nears 1 without
+ * reaching it, so the lowest sensitivities still thin out even the loud hits. Scaled against a take's own
+ * loudest peaks instead, as flux is, a sparse piano part's few loud peaks set a scale that lets every
+ * wobble through. The scales and the weights were chosen on the odd-numbered songs of BabySlakh
+ * (`bench/onsets.eval.ts`, docs/transients.md).
+ */
+function pickLasting(an: Analysis, band: Band, x: Float32Array, sr: number): Candidate[] {
+  const odf = odfOf(an, 'superflux', band), fr = an.fr, r = (s: number) => Math.max(1, Math.round(s * fr));
+  const bf = new BandFrames(sr, { N: 2 * an.N, ref: peakOf(x) }), out: Candidate[] = [];
+  for (const p of pickPeaks(odf, { preMax: r(0.03), postMax: r(0.03), preAvg: r(0.1), postAvg: r(0.07) })) {
+    const t = snapToZero(x, sr, refineOnset(x, sr, frameTime(an, p.n, sr)));
+    const v = Math.pow(lasting(x, sr, bf, t, 0.005, BAND_HZ[band]) / 60, 0.4) * Math.pow(p.d / 12, 0.6), s = 1 - Math.exp(-v);
+    if (s >= 0.02) out.push({ t, s });
   }
   out.sort((a, b) => a.t - b.t);
   return out;

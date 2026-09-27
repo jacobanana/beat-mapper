@@ -133,3 +133,41 @@ export function synthPiano(sr: number): PitchedPart {
   notes.sort((a, b) => a.t - b.t || a.pitch - b.pitch);
   return { x, notes, beats, dur, tuning: 0 };
 }
+
+/**
+ * A piano as its strings really are: two or three to a note, tuned a cent or so apart, so every partial
+ * swells and dips a few times a second and dies away in two stages. `held` is one chord held for five
+ * seconds with a soft note over it at 3 s; otherwise four chords with a soft melody among them. What
+ * a detector hears in the held chord's beating is not a note.
+ */
+export function synthStrings(sr: number, held: boolean): { x: Float32Array; onsets: number[] } {
+  let seed = 5;
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+  const dur = held ? 6 : 8, x = new Float32Array(dur * sr), on: number[] = [];
+  const play = (pitch: number, t0: number, L: number, g: number) => {
+    on.push(t0);
+    const s0 = Math.round(t0 * sr), n = Math.round(L * sr), B = pitch < 48 ? 4e-4 : 2e-4;
+    // [cents off, level, how fast it dies] of each string.
+    for (const [dc, gs, dk] of [[0, 1, 1], [1.3, 0.9, 0.6], [-0.9, 0.8, 1.6]]) {
+      for (let h = 1; h <= 16; h++) {
+        const f = hz(pitch, dc) * h * Math.sqrt(1 + B * h * h);
+        if (f > sr * 0.45) break;
+        const ph = rnd() * 2 * Math.PI, w = (2 * Math.PI * f) / sr, a = gs * Math.pow(h, -0.9), dec = 0.7 * dk * (1 + 0.3 * (h - 1));
+        for (let i = 0; i < n && s0 + i < x.length; i++) {
+          const tt = i / sr, rel = tt > L - 0.012 ? Math.max(0, (L - tt) / 0.012) : 1;
+          x[s0 + i] += g * a * Math.sin(ph + w * i) * Math.exp(-tt * dec) * Math.min(1, tt / 0.002) * rel;
+        }
+      }
+    }
+    // The hammer.
+    for (let i = 0; i < 0.004 * sr; i++) x[s0 + i] += g * 0.3 * (rnd() * 2 - 1) * (1 - i / (0.004 * sr));
+  };
+  if (held) {
+    for (const p of [36, 48, 55, 60, 64]) play(p, 0.3, 5.5, 0.05);
+    play(76, 3, 2.5, 0.02);
+  } else {
+    [[40, 55, 64, 67], [41, 57, 60, 64], [43, 55, 59, 62], [45, 57, 60, 64]].forEach((c, i) => c.forEach((p) => play(p, 0.3 + i * 1.8, 1.75, 0.05)));
+    [[1.2, 72], [1.5, 74], [4, 71], [6.4, 69], [6.7, 72]].forEach(([t, p]) => play(p, t, 0.6, 0.015));
+  }
+  return { x, onsets: [...new Set(on)].sort((a, b) => a - b) };
+}

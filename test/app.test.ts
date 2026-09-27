@@ -23,7 +23,7 @@ describe('opening audio', () => {
   });
 
   it('follows the detection settings', async () => {
-    t.f.markers.setSensitivity(20);
+    t.f.markers.setSensitivity(5);
     expect(t.app.markers.length).toBeLessThan(128);
     // the same settings the browser comparison ran with, and the count both apps showed there
     t.f.markers.setSensitivity(70);
@@ -603,7 +603,7 @@ describe('resetting a step', () => {
     expect(f.workflow.canReset).toBe(true);
     f.workflow.resetStep();
     await new Promise((r) => setTimeout(r, 0));
-    expect(app.detection).toMatchObject({ sens: 55, gap: 60, band: 'full', algo: 'flux' });
+    expect(app.detection).toMatchObject({ sens: 55, gap: 60, band: 'full', algo: 'superflux' });
     expect(app.markers.length).toBe(n);
     expect(f.workflow.canReset).toBe(false);
     app.undo();

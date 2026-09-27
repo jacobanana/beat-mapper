@@ -22,6 +22,7 @@
 // Everything that was tuned by ear or on the benchmark is a `ChordParams` field, so an instrument
 // profile is a set of values and the benchmark's tuning harness can run the stages one at a time.
 import { makeFFT } from '../dsp/fft';
+import { onsetsOf } from '../dsp/superflux';
 import { type Attacks, attacks, centsOf, decimate, hzOfCents, placeStart, tuningOf } from './common';
 import type { Note, NoteInstrument } from './types';
 
@@ -355,42 +356,17 @@ export async function detectChords(x: Float32Array, sr: number, o: ChordOptions 
  * bin measured against the loudest of its neighbours 15 ms before, so a partial that wobbles in pitch
  * doesn't read as a new note (Böck & Widmer's SuperFlux, DAFx 2013). The waveform's own envelope only
  * shows a note that is loud over what is already ringing; a soft melody note over a held chord barely
- * moves the level, but its partials are new, and the flux sees them.
+ * moves the level, but its partials are new, and the flux sees them. It is the transients' SuperFlux
+ * (dsp/superflux.ts), read per FFT bin and compressed against the take's loudest partial. What else the
+ * transients do against held notes (quarter-tone bands, the group delay, asking what lasts) moved no
+ * class here by more than half a point on BabySlakh: `track` below already asks each pitch whether it
+ * is still there once the onset has passed, which is what asking what lasts does.
  */
 function onsets(y: Float32Array, sr: number, p: ChordParams): number[] {
-  const N = 512, K = N / 2, hop = Math.round(0.005 * sr), F = Math.ceil(y.length / hop), fft = makeFFT(N);
-  const win = Float64Array.from({ length: N }, (_, i) => 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / N));
-  const re = new Float64Array(N), im = new Float64Array(N), S = new Float32Array(F * K);
-  let mx = 0;
-  for (let f = 0; f < F; f++) {
-    const st = f * hop - N / 2;
-    for (let i = 0; i < N; i++) { const k = st + i; re[i] = k >= 0 && k < y.length ? y[k] * win[i] : 0; im[i] = 0; }
-    fft(re, im);
-    for (let k = 0; k < K; k++) { const v = Math.hypot(re[k], im[k]); S[f * K + k] = v; if (v > mx) mx = v; }
-  }
-  // Compressed, so a soft note's partials count as much as a loud one's.
-  for (let i = 0; i < S.length; i++) S[i] = Math.log10(1 + (1000 * S[i]) / (mx || 1));
-  const mu = Math.max(1, Math.round(p.onsetLag / 0.005)), k0 = Math.max(1, Math.floor((60 * N) / sr)), nov = new Float32Array(F);
-  let top = 0;
-  for (let f = mu; f < F; f++) {
-    const q = (f - mu) * K;
-    let s = 0;
-    for (let k = k0; k < K - 1; k++) { const d = S[f * K + k] - Math.max(S[q + k - 1], S[q + k], S[q + k + 1]); if (d > 0) s += d; }
-    nov[f] = s;
-    if (s > top) top = s;
-  }
-  // A peak, the highest within the peak window, standing over the mean of the frames before it by a
-  // fraction of the highest of the take.
-  const W = Math.round(p.onsetPeakWindow / 0.005), M = Math.round(p.onsetMeanWindow / 0.005), out: number[] = [];
-  for (let f = 1; f < F; f++) {
-    let peak = nov[f] > 0;
-    for (let j = Math.max(0, f - W); peak && j <= Math.min(F - 1, f + W); j++) if (nov[j] > nov[f] || (nov[j] === nov[f] && j < f)) peak = false;
-    if (!peak) continue;
-    let mean = 0, n = 0;
-    for (let j = Math.max(0, f - M); j <= Math.min(F - 1, f + W); j++) { mean += nov[j]; n++; }
-    if (nov[f] >= mean / n + p.onsetThreshold * top) out.push((f * hop) / sr);
-  }
-  return out;
+  return onsetsOf(y, sr, {
+    N: 512, hop: 0.005, lag: p.onsetLag, bpo: 0, byPartial: true,
+    peakWindow: p.onsetPeakWindow, meanWindow: p.onsetMeanWindow, threshold: p.onsetThreshold,
+  }).map((o) => o.t);
 }
 
 interface Start {

@@ -1,9 +1,13 @@
 import { makeFFT } from './fft';
+import { peakOf } from './peaks';
+import { BandFrames, superflux } from './superflux';
 
-export const ALGOS = ['flux', 'complex', 'gdelay', 'energy'] as const;
+export const ALGOS = ['flux', 'complex', 'gdelay', 'energy', 'superflux'] as const;
 export type Algo = (typeof ALGOS)[number];
 export const BANDS = ['full', 'low', 'high'] as const;
 export type Band = (typeof BANDS)[number];
+/** The frequencies each band covers, Hz. */
+export const BAND_HZ: Record<Band, readonly [number, number]> = { full: [0, Infinity], low: [0, 250], high: [3000, Infinity] };
 
 export type BandSet = Record<Band, Float32Array>;
 
@@ -37,12 +41,15 @@ export interface AnalyzeOptions {
 //            magnitude. A tick collects every vote at one instant; a steady tone votes for the
 //            window centre, which slides along and blurs into a floor.
 //   energy:  the rise in log energy since the previous frame. The plain loudness jump.
+//   superflux: for held and pitched notes as much as for drums (see superflux.ts). Each quarter-tone
+//            band, in a window twice as long, against the loudest of it and its neighbours 15 ms
+//            before, so a partial that wobbles never looks new. A second pass, after the other four.
 export async function analyze(x: Float32Array, sr: number, opts: AnalyzeOptions = {}): Promise<Analysis> {
   const { onProgress, yieldToEventLoop = true } = opts;
   const N = sr > 60000 ? 2048 : 1024, hop = N >> 2, pad = N, half = N >> 1;
   const frames = Math.max(1, Math.floor((x.length + pad - N) / hop) + 1);
   const mk = (): BandSet => ({ full: new Float32Array(frames), low: new Float32Array(frames), high: new Float32Array(frames) });
-  const odfs: Record<Algo, BandSet> = { flux: mk(), complex: mk(), gdelay: mk(), energy: mk() };
+  const odfs: Record<Algo, BandSet> = { flux: mk(), complex: mk(), gdelay: mk(), energy: mk(), superflux: mk() };
   const G = odfs.gdelay, E = odfs.energy;
   const fft = makeFFT(N), re = new Float64Array(N), im = new Float64Array(N), win = new Float64Array(N);
   const prev = new Float32Array(half), ph1 = new Float32Array(half), ph2 = new Float32Array(half);
@@ -86,7 +93,7 @@ export async function analyze(x: Float32Array, sr: number, opts: AnalyzeOptions 
     E.high[n] = Math.max(0, Math.log(eh + eps) - Math.log(e1h + eps));
     e1 = e; e1l = el; e1h = eh;
     if ((n & 2047) === 0 && onProgress) {
-      onProgress(n / frames);
+      onProgress(0.6 * (n / frames));
       if (yieldToEventLoop) await new Promise((r) => setTimeout(r, 0));
     }
   }
@@ -96,7 +103,20 @@ export async function analyze(x: Float32Array, sr: number, opts: AnalyzeOptions 
     for (let n = 0; n < frames; n++) b[n] = (2 * a[n] + (n ? a[n - 1] : 0) + (n + 1 < frames ? a[n + 1] : 0)) / 4;
     G[k] = b;
   }
+  odfs.superflux = await superfluxOf(x, sr, N, hop, pad, frames, (f) => onProgress?.(0.6 + 0.4 * f), yieldToEventLoop);
   return { odfs, fr: sr / hop, N, hop, pad, frames };
+}
+
+async function superfluxOf(x: Float32Array, sr: number, N: number, hop: number, pad: number, frames: number, onProgress: (f: number) => void, yieldToEventLoop: boolean): Promise<BandSet> {
+  const bf = new BandFrames(sr, { N: 2 * N, ref: peakOf(x) });
+  // Each band against 15 ms before. The long window is centred a tenth of N before the short ones'
+  // centre: on the synthetic parts, whose attacks are known, that puts SuperFlux's peaks within a
+  // few milliseconds of the attack as `frameTime` reads them, where the placement on the waveform
+  // starts looking.
+  const r = await superflux(x, bf, {
+    hop, c0: Math.round(0.4 * N) - pad, frames, lag: Math.max(1, Math.round((0.015 * sr) / hop)), ranges: BAND_HZ, onProgress, yieldToEventLoop,
+  });
+  return { full: r.full, low: r.low, high: r.high };
 }
 
 export function odfOf(an: Analysis, algo: Algo, band: Band): Float32Array {

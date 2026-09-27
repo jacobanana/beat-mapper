@@ -21,6 +21,8 @@ import { crc32, zipFiles } from '../src/io/formats/zip';
 import type { Anchor, Candidate, Marker } from '../src/core/types';
 
 const SR = 44100;
+// SuperFlux came after the original app, so it has nothing to be compared with there.
+const LEGACY_ALGOS = ALGOS.filter((a) => a !== 'superflux');
 const demo = synthDemo(SR);
 let an: Analysis;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,18 +56,18 @@ describe('analysis', () => {
   });
 
   it('computes identical detection functions', () => {
-    for (const algo of ALGOS) for (const band of BANDS) sameFloats(an.odfs[algo][band], legacyAn.odfs[algo][band]);
+    for (const algo of LEGACY_ALGOS) for (const band of BANDS) sameFloats(an.odfs[algo][band], legacyAn.odfs[algo][band]);
     expect(an.fr).toBe(legacyAn.fr);
   });
 
   it('computes identical detection functions at high sample rates', async () => {
     const sr = 96000, x = new Float32Array(sr).map((_, i) => Math.sin(i * 0.01) * (i % 20000 < 300 ? 1 : 0.1));
     const a = await analyze(x, sr, { yieldToEventLoop: false }), b = await Core.analyze(x, sr);
-    for (const algo of ALGOS) sameFloats(a.odfs[algo].full, b.odfs[algo].full);
+    for (const algo of LEGACY_ALGOS) sameFloats(a.odfs[algo].full, b.odfs[algo].full);
   });
 
   it('picks the same candidates for every algorithm and band', () => {
-    for (const algo of ALGOS) for (const band of BANDS) {
+    for (const algo of LEGACY_ALGOS) for (const band of BANDS) {
       expect(plainCands(pickCandidates(an, band, demo.x, SR, algo))).toEqual(plainCands(Core.pickCandidates(legacyAn, band, demo.x, SR, algo)));
     }
   });
