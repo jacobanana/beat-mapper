@@ -57,6 +57,10 @@ loud hits. The scales and the weights were chosen on the odd-numbered songs of B
 best mean over sensitivities 40, 55 and 70. The peak alone scored within half a point of the blend
 at 55 and a little under it either side; what lasts alone, five points under.
 
+SuperFlux is a second pass over the audio, after the other four functions, with an FFT twice as
+long. Two frames share one FFT, so it adds about half again to the analysis: four minutes of audio
+took 3.9 s and take 5.8 s.
+
 **Not built:** a pitch detector as a third opinion (Collins, ISMIR 2005 [8]; Holzapfel et al.,
 IEEE TASLP 2010 [9], who gained 8% F by fusing phase, magnitude and pitch on monophonic
 recordings). The markers are asked of any material, mixes included, where one pitch track says
@@ -111,7 +115,8 @@ attack has become audible.
 ## What the note detectors took from it
 
 The chord detector already found its onsets with SuperFlux, on its own FFT bins. That code is now
-the shared `onsetsOf`, which reads them the same way in half the time. The rest was scored on the
+the shared `onsetsOf`, which reads them the same way: on the notes benchmark every class scores
+within a tenth of a point of before, at the same speed. The rest was scored on the
 chord classes (`bench/tune.eval.ts`, odd-numbered songs) and none of it helped: quarter-tone bands
 and the group delay moved each class by under a point either way, and keeping only the onsets that
 leave something lasting behind gained at most a tenth of a point and, made stricter, lost up to nine
