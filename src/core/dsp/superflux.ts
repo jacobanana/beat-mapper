@@ -42,6 +42,8 @@ export class BandFrames {
   private readonly re: Float64Array;
   private readonly im: Float64Array;
   private readonly win: Float64Array;
+  private readonly mag: Float64Array;
+  private readonly mag2: Float64Array;
   private gain = 1;
 
   constructor(sr: number, o: BandOptions) {
@@ -65,6 +67,8 @@ export class BandFrames {
     this.re = new Float64Array(N);
     this.im = new Float64Array(N);
     this.win = Float64Array.from({ length: N }, (_, i) => 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / N));
+    this.mag = new Float64Array(N / 2);
+    this.mag2 = new Float64Array(N / 2);
     this.setRef(o.ref);
   }
 
@@ -90,12 +94,40 @@ export class BandFrames {
 
   /** The frame whose window is centred on sample c: each band's level into S, from index o. */
   read(x: Float32Array, c: number, S: Float32Array, o = 0): void {
-    const { re, im } = this, sc = 4 / this.N;
+    const { re, im, mag } = this;
     this.transform(x, c);
+    for (let b = 1; b < this.N / 2; b++) mag[b] = Math.sqrt(re[b] * re[b] + im[b] * im[b]);
+    this.bands(mag, S, o);
+  }
+
+  /**
+   * Two frames at once, one FFT between them: the first frame goes in as the real part and the second
+   * as the imaginary, and the spectrum of each is read back from the halves that are symmetric and
+   * antisymmetric about the middle.
+   */
+  readPair(x: Float32Array, c1: number, c2: number, S: Float32Array, o1: number, o2: number): void {
+    const { N, re, im, win, mag, mag2 } = this, a = Math.round(c1) - N / 2, b0 = Math.round(c2) - N / 2;
+    for (let i = 0; i < N; i++) {
+      const s = a + i, t = b0 + i;
+      re[i] = (s >= 0 && s < x.length ? x[s] : 0) * win[i];
+      im[i] = (t >= 0 && t < x.length ? x[t] : 0) * win[i];
+    }
+    this.fft(re, im);
+    for (let b = 1; b < N / 2; b++) {
+      const pr = re[b] + re[N - b], mr = re[b] - re[N - b], pi = im[b] + im[N - b], mi = im[b] - im[N - b];
+      mag[b] = 0.5 * Math.sqrt(pr * pr + mi * mi);
+      mag2[b] = 0.5 * Math.sqrt(pi * pi + mr * mr);
+    }
+    this.bands(mag, S, o1);
+    this.bands(mag2, S, o2);
+  }
+
+  private bands(mag: Float64Array, S: Float32Array, o: number): void {
+    const sc = 4 / this.N;
     for (let k = 0; k < this.K; k++) {
       let s = 0;
-      for (let b = this.first[k], z = this.last[k]; b <= z; b++) s += Math.hypot(re[b], im[b]) * sc;
-      S[o + k] = Math.log10(1 + this.gain * s);
+      for (let b = this.first[k], z = this.last[k]; b <= z; b++) s += mag[b];
+      S[o + k] = Math.log10(1 + this.gain * s * sc);
     }
   }
 
@@ -142,16 +174,19 @@ export function superfluxNow(x: Float32Array, bf: BandFrames, o: SuperFluxOption
 
 // The work, pausing every 2048 frames with how far it has got.
 function* frames(x: Float32Array, bf: BandFrames, o: SuperFluxOptions): Generator<number, Record<string, Float32Array>> {
-  const { hop, c0, frames: F, lag } = o, K = bf.K, spread = o.spread ?? 1, R = lag + 1;
+  const { hop, c0, frames: F, lag } = o, K = bf.K, spread = o.spread ?? 1, R = lag + 2;
   const ranges = o.ranges ?? { full: [0, Infinity] as const }, names = Object.keys(ranges);
   const out: Record<string, Float32Array> = {};
   for (const n of names) out[n] = new Float32Array(F);
   const inRange = names.map((n) => Uint8Array.from(bf.hz, (f) => (f >= ranges[n][0] && f < ranges[n][1] ? 1 : 0)));
-  // The last lag+1 frames of levels, the current one among them.
+  // The last lag+2 frames of levels: frames are read two at a time, so the next one is in too.
   const S = new Float32Array(R * K), ref = new Float32Array(K), sums = new Float64Array(names.length);
   for (let n = 0; n < F; n++) {
     const cur = (n % R) * K;
-    bf.read(x, c0 + n * hop, S, cur);
+    if (n % 2 === 0) {
+      if (n + 1 < F) bf.readPair(x, c0 + n * hop, c0 + (n + 1) * hop, S, cur, ((n + 1) % R) * K);
+      else bf.read(x, c0 + n * hop, S, cur);
+    }
     sums.fill(0);
     if (n >= lag) {
       const old = ((n - lag) % R) * K;
