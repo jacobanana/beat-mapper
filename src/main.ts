@@ -3,7 +3,9 @@
 import './styles.css';
 import { App } from './app/app';
 import { createFeatures } from './app/features';
+import { isMidiFile } from './app/features/beats';
 import { isSessionFile } from './app/features/sessions';
+import { STEP } from './state/steps';
 import { createAnalyzer } from './analysis/worker-analyzer';
 import { EditorRenderer } from './ui/canvas/editor-renderer';
 import { $, $in } from './ui/dom';
@@ -46,13 +48,17 @@ $('helpClose').onclick = () => help.close();
 
 // ---------- opening files ----------
 const fileIn = $in('fileIn');
-const open = (file: File) => void (isSessionFile(file) ? f.sessions.import(file) : f.loader.loadFile(file));
+// A MIDI file is a tempo map for the audio already open; it lands in Beats, where the map is made.
+const openMidi = async (file: File) => {
+  if ((await f.beats.importMidi(file, file.name)) && app.step === STEP.transients) f.workflow.goTo(STEP.beats);
+};
+const open = (file: File) => void (isSessionFile(file) ? f.sessions.import(file) : isMidiFile(file) ? openMidi(file) : f.loader.loadFile(file));
 const onPick = (e: Event) => {
   const input = e.target as HTMLInputElement, file = input.files && input.files[0];
   if (file) open(file);
   input.value = '';
 };
-if (matchMedia('(pointer:fine)').matches) fileIn.accept = 'audio/*,.wav,.mp3,.m4a,.aac,.flac,.ogg,.aif,.aiff';
+if (matchMedia('(pointer:fine)').matches) fileIn.accept = 'audio/*,.wav,.mp3,.m4a,.aac,.flac,.ogg,.aif,.aiff,.mid,.midi';
 for (const id of ['openBtn', 'chooseBtn']) {
   $(id).addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); fileIn.click(); }

@@ -33,6 +33,7 @@ from bar 1.
 | `markers/detect.ts` | Candidates from a detection function (SuperFlux's scored on a fixed scale, the others against the take's own peaks); which ones the sensitivity and gap let through; merging in manual markers and deletions. |
 | `tempo/meter.ts` | Meter and grid: bar/beat lengths, grid levels, nearest grid line. |
 | `tempo/tempo-map.ts` | `TempoMap`: pins → time↔position, BPM at a time, bars. |
+| `tempo/import.ts` | A MIDI file's tempo map laid onto the audio as pins: one on every tempo change (a ramp thinned to sixteenths), a pickup bar before bar 1, its time signature as the meter. |
 | `beats/track.ts` | Beat tracking outward from a known point, and auto-mapping between pins. |
 | `beats/edit.ts` | Every edit to the pins as a pure function: set bar 1, pin, unpin, drag, auto-map, derive from a loop, one steady tempo from a loop fitted to the take, half/double time, tap tempo. |
 | `slices/` | Slice planning, rendering (fades, mono, normalize), loop info, file naming. |
@@ -104,7 +105,7 @@ timeline.
 
 ## io/
 
-`formats/` writes MIDI (type 1, tempo track + click, and a drum track when given notes), REAPER
+`formats/` reads a MIDI file's tempo map (`midi-read.ts`), and writes MIDI (type 1, tempo track + click, and a drum track when given notes), REAPER
 `.rpp` (with the drums and notes as inline MIDI items when given them), PCM WAV (16 or 24-bit, at the audio's rate or resampled to another, dithered if asked) and stored ZIP, all byte-for-byte what the single-file app wrote by default, plus the Pocket
 Science groove file (`groove.ts`). `session.ts` reads and writes the session JSON,
 validating and clamping everything it reads. `download.ts` saves a file (through a host's download

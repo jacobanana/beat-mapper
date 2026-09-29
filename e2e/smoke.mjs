@@ -10,6 +10,7 @@ const server = await preview({ preview: { port: 4174, strictPort: true } });
 const url = 'http://localhost:4174/beat-mapper/';
 const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
 const errors = [];
+let midiPath = '';
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, acceptDownloads: true });
   page.on('pageerror', (e) => errors.push(e.message));
@@ -70,6 +71,14 @@ try {
     const [d] = await Promise.all([page.waitForEvent('download'), page.click('#expSave')]);
     assert.equal(await page.isVisible('#exportDlg'), false);
     assert.equal(d.suggestedFilename(), 'drifting-drum-loop-tempo-map.mid');
+    midiPath = await d.path();
+  });
+  await step('Beats: From MIDI reads the exported map back onto the audio', async () => {
+    await page.setInputFiles('#midiIn', midiPath);
+    await page.waitForFunction(() => /^Tempo map from/.test(document.getElementById('toast')?.textContent ?? ''));
+    assert.match(await text('sum'), /^17 bars · avg 98\.1/);
+    await page.keyboard.press('Control+z');
+    assert.equal(await text('aCount'), '64 pins');
   });
   await step('Warp: the grid tempo from a looped section', async () => {
     await page.keyboard.press('3');
