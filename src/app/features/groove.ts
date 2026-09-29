@@ -2,7 +2,7 @@
 import type { Analyzer } from '../../analysis/analyzer';
 import type { DrumSource } from '../../core/drums/detect';
 import { loudnessAt } from '../../core/drums/edit';
-import { GM_NOTE, VOICES, type Voice } from '../../core/drums/voices';
+import { VOICES, type Voice, gmNote } from '../../core/drums/voices';
 import { fmtBpm, safeName } from '../../core/format';
 import { type GrooveGrid, describeGroove } from '../../core/groove/pocket';
 import { nearest } from '../../core/search';
@@ -190,7 +190,7 @@ export class Groove {
   drumNotes(): DrumNote[] | null {
     const { app } = this, g = app.pocket;
     if (!app.audio || !g) return null;
-    return g.hits.map((h) => ({ t: app.placed(h.t), note: GM_NOTE[h.voice], vel: h.vel }));
+    return g.hits.map((h) => ({ t: app.placed(h.t), note: gmNote(h.voice, h.open), vel: h.vel }));
   }
 
   drumMidi(): { bytes: Uint8Array; notes: readonly DrumNote[] } | null {

@@ -7,7 +7,7 @@ import { type SynthNote, synthNote } from './synth-voice';
 /** Calls `emit(time, downbeat)` for every click due in [a, b) of the audio's timeline. */
 export type ClickSource = (a: number, b: number, emit: (t: number, down: boolean) => void) => void;
 /** Calls `emit(time, voice, velocity)` for every drum hit due in [a, b) of the audio's timeline. */
-export type HitSource = (a: number, b: number, emit: (t: number, voice: Voice, vel: number) => void) => void;
+export type HitSource = (a: number, b: number, emit: (t: number, voice: Voice, vel: number, open?: boolean) => void) => void;
 /** Calls `emit(time, note)` for every note starting in [a, b) of the audio's timeline. */
 export type NoteSource = (a: number, b: number, emit: (t: number, note: SynthNote) => void) => void;
 
@@ -143,7 +143,7 @@ export class Player {
       const e0 = ea;
       const at = (t: number) => Math.max(c.currentTime, this.ctx0 + e0 + (t - p0));
       if (clicks) S.clicks(p0, p0 + len, (t, down) => blip(at(t), down, this.clickBus!));
-      if (hits) S.hits(p0, p0 + len, (t, voice, vel) => drumHit(voice, at(t), vel, this.hitBus!));
+      if (hits) S.hits(p0, p0 + len, (t, voice, vel, open) => drumHit(voice, at(t), vel, this.hitBus!, open));
       if (notes) S.notes(p0, p0 + len, (t, n) => synthNote(n, at(t), this.noteBus!));
       ea += len;
     }

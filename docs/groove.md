@@ -32,11 +32,20 @@ marker. So each voice gets its own stream, as in automatic drum transcription ge
   filters' pre-ringing moves no voice by more than 0.2 ms.
 - **Bleed**: what is left of one voice in another is a steady fraction of the loud voice's
   level. That fraction is measured from the recording, and subtracted from each hit with a margin.
+- **Open hats** (`open-hat.ts`): a closed hat is gone in a few tens of milliseconds; an open one rings
+  until the pedal closes it, often on the next hat. So each hat is timed on how long its activation
+  takes to fall 12 dB from its peak, read up to the next hat. When the next one comes first, the decay
+  seen so far is carried on at the same rate. Longer than 100 ms is open. The activation it is read
+  from has the other voices' bleed taken out frame by frame, with twice their measured share: a
+  snare's wires ring on in the hats' range, and a closed hat under the snare would otherwise ring as
+  long as they do. It is read after the hand edits, since a hat placed by hand can be the one that
+  closes the one before it.
 
 On the synthetic kit (`synthKit`: 8 bars, a pocket of kick −6 ms, snare +16 ms, ghosts +6 ms, hats
 on the grid, each hit scattered ±2 ms), every kick, snare (ghost notes included) and hat is found,
 90% of them to within 0.5 ms. The only misses are hats directly under a snare, which the snare's
-wires mask.
+wires mask. With open hats (`synthKit(sr, 8, true)`, the pocket demo), the closed hats ring for at most
+75 ms, backbeat ones included, and the open ones for 125 ms and more: each is told apart.
 
 ## 2. The pocket (`core/groove/pocket.ts`)
 
@@ -59,7 +68,8 @@ hits, so a ghost note 16 dB down lands in the 50s.
 
 ## 3. Out
 
-- **MIDI** (`io/formats/midi.ts`): the drums as they are heard in the Groove step. Heard warped (the
+- **MIDI** (`io/formats/midi.ts`): the drums as they are heard in the Groove step, kick on 36, snare
+  on 38, closed hats on 42 and open hats on 46. Heard warped (the
   Warped switch), every hit is where the warp puts it, on a single tempo track at the grid's tempo, so
   the notes line up with the warped .wav; quantized in the Warp step, the hits it lined up are on
   their steps. Heard as the original, it is the tempo map plus a drum track, every hit at the tick
@@ -67,7 +77,7 @@ hits, so a ghost note 16 dB down lands in the 50s.
   Quantize is the only quantize: the Groove step had one of its own, and a session that still has it
   (`groove.quantize`) opens with it ignored.
 - **Groove file** (`io/formats/groove.ts`): the typical bar as a Pocket Science `groove-atlas-v2`
-  pattern. It holds the steps played in at least half the bars, with offsets in ticks at 480 PPQ.
+  pattern, open and closed hats together as its one hat voice. It holds the steps played in at least half the bars, with offsets in ticks at 480 PPQ.
   `swing_16th` is null because the swing is already in the offsets.
 
 ## Full mixes: where this goes next

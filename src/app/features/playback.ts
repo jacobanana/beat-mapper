@@ -48,7 +48,7 @@ export class Playback {
       clicks: (a, b, emit) => this.clicksIn(a, b, emit),
       clicksOn: () => app.transport.click,
       // The notes are timed on the original; under the warp each plays where the warp puts its hit.
-      hits: (a, b, emit) => this.eachHeard(app.drumNotes, a, b, (n, t) => emit(t, n.voice, n.vel)),
+      hits: (a, b, emit) => this.eachHeard(app.drumNotes, a, b, (n, t) => emit(t, n.voice, n.vel, n.open)),
       // The synth kit only plays in the steps that play it (Groove and Notes).
       hitsOn: () => this.kitOn,
       audioLevel: () => this.audioLevel,

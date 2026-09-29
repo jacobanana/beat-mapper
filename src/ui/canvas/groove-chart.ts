@@ -3,7 +3,7 @@
 // dot per step with its size for velocity and a tail for its lean. Or, switched over, the hits as a
 // MIDI transcript: one lane per voice, every note where it was played, under a moving playhead.
 import type { App } from '../../app/app';
-import { GM_NOTE, VOICES, VOICE_LABEL, type Voice } from '../../core/drums/voices';
+import { GM_NOTE, GM_OPEN_HAT, VOICES, VOICE_LABEL, type Voice } from '../../core/drums/voices';
 import { GROOVE_GRID_Q, type Groove } from '../../core/groove/pocket';
 import { lowerBound } from '../../core/search';
 import { barQ, beatQ } from '../../core/tempo/meter';
@@ -167,6 +167,8 @@ export class GrooveChart {
       g.fillStyle = rgba(C[n.voice], 0.3 + 0.7 * v);
       g.beginPath(); if (g.roundRect) g.roundRect(x, y - nh / 2, nw, nh, 2); else g.rect(x, y - nh / 2, nw, nh); g.fill();
       if (ph >= at && ph < at + Math.max(0.08, noteLen)) { g.strokeStyle = C.ink; g.lineWidth = 1.5; g.stroke(); g.lineWidth = 1; }
+      // An open hat carries the small circle drum notation puts over it.
+      if (n.open) { g.strokeStyle = C[n.voice]; g.lineWidth = 1.5; g.beginPath(); g.arc(x + nw / 2, y - nh / 2 - 5, 3, 0, Math.PI * 2); g.stroke(); g.lineWidth = 1; }
     }
     if (ph >= t0 && ph <= t0 + span) {
       const x = Math.round(xOf(ph)) + 0.5;
@@ -176,7 +178,8 @@ export class GrooveChart {
     ROWS.forEach((v, i) => {
       const y = this.rowY(i);
       g.fillStyle = C[v]; g.font = '600 12px ' + FONT; g.fillText(VOICE_LABEL[v].toUpperCase(), 4, y - 5);
-      g.fillStyle = C.dim; g.font = '11px ' + FONT; g.fillText('note ' + GM_NOTE[v], 4, y + 8);
+      g.fillStyle = C.dim; g.font = '11px ' + FONT; // The hats' row holds both notes; the open one wears the ring its notes do.
+      g.fillText(v === 'hat' ? `${GM_NOTE[v]}, o ${GM_OPEN_HAT}` : 'note ' + GM_NOTE[v], 4, y + 8);
     });
     g.fillStyle = C.dim; g.font = '11px ' + FONT; g.textAlign = 'center';
     const shown = notes.length ? lowerBound(notes, t0 + span) - lowerBound(notes, t0) : 0;

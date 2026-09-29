@@ -57,7 +57,7 @@ export class Loader {
     this.playback.stop(true);
     this.busy('Building the groove', 0.05);
     await new Promise((r) => setTimeout(r, 20));
-    const sr = 44100, d = synthKit(sr), buf = audioContext().createBuffer(1, d.x.length, sr);
+    const sr = 44100, d = synthKit(sr, 8, true), buf = audioContext().createBuffer(1, d.x.length, sr);
     buf.getChannelData(0).set(d.x);
     await this.open(buf, 'pocket-demo', 'pocket-demo.wav', null, 92);
   }

@@ -59,6 +59,8 @@ export interface KitHit {
   step: number;
   /** How far it was played off the grid, ms. Positive is late. */
   offMs: number;
+  /** An open hat, ringing until the next hat closes it. */
+  open?: boolean;
 }
 
 export interface KitLoop {
@@ -76,8 +78,10 @@ export const KIT_POCKET = { kick: -6, snare: 16, ghost: 6, hat: 0 };
 /**
  * A four-bar-and-over funk groove on a synthesised kit, with a known pocket: every voice played off
  * the grid by its own amount, plus a little human scatter. The tempo breathes a bit, as a player's does.
+ * With `openHats`, the hat on the and of 4 is open, and so is the one on the and of 2 in every other
+ * bar: each rings for most of an eighth and is closed by the next hat.
  */
-export function synthKit(sr: number, bars = 8): KitLoop {
+export function synthKit(sr: number, bars = 8, openHats = false): KitLoop {
   let seed = 424242;
   const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
   const beats: number[] = [];
@@ -110,12 +114,12 @@ export function synthKit(sr: number, bars = 8): KitLoop {
         return g * (0.45 * Math.sin(p1) * Math.exp(-tt / 0.05) + 0.5 * (0.6 * hp + 0.4 * r) * Math.exp(-tt / 0.07)) * Math.min(1, tt / 0.0008);
       });
     },
-    hat: (t0: number, g: number) => {
+    hat: (t0: number, g: number, open = false) => {
       let a = 0, b = 0;
-      put(t0, 0.08, (tt) => {
+      put(t0, open ? 0.3 : 0.08, (tt) => {
         const r = rnd() * 2 - 1, d1 = r - a; a = r;
         const d2 = d1 - b; b = d1;
-        return g * 0.3 * d2 * Math.exp(-tt / 0.022);
+        return g * 0.3 * d2 * Math.exp(-tt / (open ? 0.12 : 0.022));
       });
     },
   };
@@ -130,8 +134,9 @@ export function synthKit(sr: number, bars = 8): KitLoop {
     for (const [step, voice, vel, off] of pattern) {
       const bi = bar * 4 + (step >> 2), b = beats[bi], nb = beats[bi + 1];
       const grid = b + ((nb - b) * (step & 3)) / 4, offMs = off + (rnd() - 0.5) * 4, th = grid + offMs / 1000;
-      sound[voice](th, Math.pow(vel / 127, 1.6));
-      hits.push({ voice, t: th, vel, bar, step, offMs });
+      const open = openHats && voice === 'hat' && (step === 14 || (step === 6 && bar % 2 === 1));
+      sound[voice](th, Math.pow(vel / 127, 1.6), open);
+      hits.push({ voice, t: th, vel, bar, step, offMs, ...(open && { open }) });
     }
   }
   hits.sort((a, b) => a.t - b.t);

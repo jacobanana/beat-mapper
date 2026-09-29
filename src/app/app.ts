@@ -3,6 +3,7 @@
 import type { Analysis } from '../core/dsp/onset';
 import type { DrumAnalysis } from '../core/drums/detect';
 import { type EditedHit, type HitEdits, applyHitEdits } from '../core/drums/edit';
+import { markOpenHats } from '../core/drums/open-hat';
 import { selectHits } from '../core/drums/select';
 import type { DrumHit, PerVoice, Voice } from '../core/drums/voices';
 import { type Groove, type VoiceNote, analyseGroove, transcribe } from '../core/groove/pocket';
@@ -198,9 +199,17 @@ export class App {
   /** The drum hits the sensitivities let through, before any edits by hand. */
   get detectedHits(): PerVoice<DrumHit[]> | null { return this._selected(this.drums, this.groove.sens); }
 
-  private readonly _drumHits = memo((sel: PerVoice<DrumHit[]> | null, e: HitEdits) => (sel ? applyHitEdits(sel, e) : null));
-  /** The drum hits the sensitivities let through, with the ones added, moved and deleted by hand. */
-  get drumHits(): PerVoice<EditedHit[]> | null { return this._drumHits(this.detectedHits, this.doc.drums); }
+  private readonly _drumHits = memo((d: DrumAnalysis | null, sel: PerVoice<DrumHit[]> | null, e: HitEdits) => {
+    if (!d || !sel) return null;
+    const hits = applyHitEdits(sel, e);
+    // Open or closed is read after the edits: a hat rings until the next one, and that may be one placed by hand.
+    return { ...hits, hat: markOpenHats(hits.hat, d.hatRing, d.fr) };
+  });
+  /**
+   * The drum hits the sensitivities let through, with the ones added, moved and deleted by hand, and
+   * the hats that ring on marked open.
+   */
+  get drumHits(): PerVoice<EditedHit[]> | null { return this._drumHits(this.drums, this.detectedHits, this.doc.drums); }
 
   private readonly _drumNotes = memo((hits: PerVoice<EditedHit[]> | null) => (hits ? transcribe(hits) : []));
   /**

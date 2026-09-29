@@ -16,6 +16,8 @@ export interface DrumAnalysis {
   readonly hits: PerVoice<DrumHit[]>;
   /** Each voice's activation, one value per spectrogram frame, for drawing. */
   readonly activation: PerVoice<Float32Array>;
+  /** The hat activation without the kick's and snare's bleed: how long each hat rings, open or closed. */
+  readonly hatRing: Float32Array;
   /** Frames per second of the activations; frame n sits at n / fr seconds. */
   readonly fr: number;
   readonly source: DrumSource;
@@ -85,7 +87,8 @@ export async function detectDrums(x: Float32Array, sr: number, o: DrumOptions = 
     raw[v] = pickHits(activation[v], sp.fr, xv, sr);
     await report(0.8 + 0.2 * ((VOICES.indexOf(v) + 1) / VOICES.length));
   }
-  return { hits: cancelLeaks(raw, activation, sp.fr), activation, fr: sp.fr, source };
+  const ratio = leakRatios(raw, activation, sp.fr);
+  return { hits: cancelLeaks(raw, activation, sp.fr, ratio), activation, hatRing: withoutLeaks('hat', activation, ratio), fr: sp.fr, source };
 }
 
 /** The loudest a voice's activation gets around time t: from 15 ms before to 25 ms after. */
@@ -103,7 +106,8 @@ function levelAt(h: Float32Array, fr: number, t: number): number {
 // bleed any other voice could have put there subtracted, with a margin; what is left is its own level.
 const LEAK_MARGIN = 1.3;
 
-export function cancelLeaks(raw: PerVoice<DrumHit[]>, act: PerVoice<Float32Array>, fr: number): PerVoice<DrumHit[]> {
+/** How much of voice u's level shows in voice v's activation: `ratio[u][v]`, from the recording. */
+export function leakRatios(raw: PerVoice<DrumHit[]>, act: PerVoice<Float32Array>, fr: number): PerVoice<PerVoice<number>> {
   const ratio = perVoice(() => perVoice(() => 0));
   for (const u of VOICES) {
     const hits = raw[u].filter((h) => h.s >= 0.1);
@@ -113,12 +117,37 @@ export function cancelLeaks(raw: PerVoice<DrumHit[]>, act: PerVoice<Float32Array
       ratio[u][v] = r[Math.floor(r.length * 0.1)];
     }
   }
+  return ratio;
+}
+
+export function cancelLeaks(raw: PerVoice<DrumHit[]>, act: PerVoice<Float32Array>, fr: number, ratio = leakRatios(raw, act, fr)): PerVoice<DrumHit[]> {
   return perVoice((v) => raw[v].flatMap((h) => {
     let leak = 0;
     for (const u of VOICES) if (u !== v) leak = Math.max(leak, ratio[u][v] * levelAt(act[u], fr, h.t));
     const a = h.a - LEAK_MARGIN * leak;
     return a > 0 ? [{ t: h.t, s: (h.s * a) / h.a, a }] : [];
   }));
+}
+
+// A bleed's tail need not fade at the same rate as the voice it comes from: a snare's wires ring on
+// in the hat's range after its body, which leads its activation, has faded. So the margin is wider
+// than for a hit's level. On the synthetic kit it takes a closed hat under the snare from ringing up
+// to 96 ms to at most 75, and leaves the open hats (125 ms and more) as they were.
+const RING_MARGIN = 2;
+
+/**
+ * Voice v's activation with the others' bleed taken out frame by frame, as `cancelLeaks` takes it out
+ * of each hit: what is left rings only as long as v itself does. A closed hat under a snare otherwise
+ * rings as long as the snare's wires.
+ */
+export function withoutLeaks(v: Voice, act: PerVoice<Float32Array>, ratio: PerVoice<PerVoice<number>>): Float32Array {
+  const h = act[v], out = new Float32Array(h.length);
+  for (let n = 0; n < h.length; n++) {
+    let leak = 0;
+    for (const u of VOICES) if (u !== v) leak = Math.max(leak, ratio[u][v] * act[u][n]);
+    out[n] = Math.max(0, h[n] - RING_MARGIN * leak);
+  }
+  return out;
 }
 
 /**
