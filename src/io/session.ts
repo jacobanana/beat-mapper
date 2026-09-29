@@ -81,6 +81,10 @@ export function toSessionJson(s: SessionContent): object {
   };
 }
 
+// The Warped switch used to start on, so a session that doesn't say was heard warped and still is. A
+// file now starts with it off, which a session says in so many words; one left on saves as it always did.
+const LISTEN_UNSAID = true;
+
 function warpJson(s: SessionContent): object {
   const w0 = defaultWarp(), w = s.warp;
   const out = {
@@ -89,7 +93,7 @@ function warpJson(s: SessionContent): object {
     ...(w.mode !== w0.mode ? { mode: w.mode } : {}),
     ...(w.bpm !== w0.bpm ? { bpm: w.bpm } : {}),
     ...(w.range !== w0.range ? { range: w.range } : {}),
-    ...(w.listen !== w0.listen ? { listen: w.listen } : {}),
+    ...(w.listen !== LISTEN_UNSAID ? { listen: w.listen } : {}),
     ...(w.fill !== w0.fill ? { fill: w.fill } : {}),
   };
   return Object.keys(out).length ? { warp: out } : {};
@@ -249,7 +253,7 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
       mode: oneOf<WarpMode>(WARP_MODES, w.mode, w0.mode),
       bpm: Number.isFinite(w.bpm) ? clamp(+w.bpm, 20, 400) : w0.bpm,
       range: w.range === 'loop' ? 'loop' : w0.range,
-      listen: typeof w.listen === 'boolean' ? w.listen : w0.listen,
+      listen: typeof w.listen === 'boolean' ? w.listen : LISTEN_UNSAID,
       quantize: clamp(Math.round(fin(w.strength, w0.quantize)), 0, 100),
       fill: typeof w.fill === 'boolean' ? w.fill : w0.fill,
     },

@@ -14,7 +14,7 @@ adding a control.
 | File | Open, Session, Export, file name | File actions come first in every editor and DAW. Session (save the work, or open a saved one) sits by Open since it is opened like a file and wanted from every step. |
 | Edit | Undo, Redo | Undo and redo are a pair next to the file actions, and grey out when there is nothing to undo or redo. |
 | Steps | Transients, Beats, Warp, Slice, Groove, Notes | Main navigation, as tabs; icon only, with a text label from 1520 px wide. |
-| Transport (middle) | Go to start ⏮, Play/Stop ▶ · Loop, Scrub, Stay-on-stop · Warped, Click, Mixer | DAWs put "go to start" left of play, then loop. Warped, the click and the mixer sit together, since all three are about what you hear. Warped shows from step 3 on only: Transients and Beats always use the original. Toggles show their state with `aria-pressed`. |
+| Transport (middle) | Go to start ⏮, Play/Stop ▶ · Loop, Scrub, Stay-on-stop · Warped, Click, Mixer | DAWs put "go to start" left of play, then loop. Warped, the click and the mixer sit together, since all three are about what you hear. Warped shows from step 3 on only: Transients and Beats always use the original. It starts off for every file, and the Warp panel's Warp row has the same switch with a label, where it is turned on. Toggles show their state with `aria-pressed`. |
 | Readout | time · bar.beat · BPM | Next to the transport, as a DAW's position display is. |
 | View (right) | Zoom out, Zoom in, Fit | Zoom out and zoom in sit together, with fit after them. Zoom out/in are hidden on touch, where you pinch instead. |
 | Help | ? | Help goes at the far right. |

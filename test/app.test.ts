@@ -162,6 +162,8 @@ describe('loop', () => {
 });
 
 describe('slices', () => {
+  // The Warped switch starts off; these hear the warp, as once it is turned on.
+  beforeEach(() => t.f.warp.setListen(true));
   it('slices at every marker, inside the loop when it is on', () => {
     const { app, f } = t;
     expect(app.slices.length).toBe(app.markers.length);
@@ -257,6 +259,8 @@ describe('export', () => {
 });
 
 describe('the Warp step', () => {
+  // The Warped switch starts off; these hear the warp, as once it is turned on.
+  beforeEach(() => t.f.warp.setListen(true));
   it('lines a transient up with the grid by dragging it, as one undo step', () => {
     const { app, f } = t;
     f.workflow.goTo(2);
@@ -462,18 +466,21 @@ describe('the Warp step', () => {
     }
   });
 
-  it('plays it warped by default, and renders once until the warp changes', async () => {
+  it('plays the original until the switch is turned on, and renders once until the warp changes', async () => {
     const { app, f } = t;
+    // A file opens with the switch off: the warp isn't heard until it is asked for.
+    await openDemo(t);
+    expect(app.warp.listen).toBe(false);
     f.workflow.goTo(2);
     f.beats.autoMap();
     f.warp.update({ mode: 'repitch' });
     expect(f.warpRender.wanted()).toBe(false);
     f.workflow.goTo(3);
-    expect(app.warp.listen).toBe(true);
-    expect(f.warpRender.wanted()).toBe(true);
-    f.warp.toggleListen();
+    expect(app.hearingWarp).toBe(false);
     expect(f.warpRender.wanted()).toBe(false);
     f.warp.toggleListen();
+    expect(app.warp.listen).toBe(true);
+    expect(f.warpRender.wanted()).toBe(true);
     const r = (await f.warpRender.render())!;
     expect(r.chans[0].length).toBe(Math.round(r.plan.outDur * 44100));
     // Nothing changed: the same render, for listening and for saving.
@@ -540,11 +547,14 @@ describe('the Warp step', () => {
     expect(f.warp.summary()).toMatch(new RegExp(`^The file averages .* warped to ${p.bpm} BPM`));
     expect(f.workflow.canReset).toBe(true);
     f.workflow.resetStep();
+    // Reset leaves the switch as it was set.
     expect(app.warp).toEqual({ mode: 'music', bpm: null, range: 'file', listen: true, quantize: 0, fill: false });
   });
 });
 
 describe('what is heard', () => {
+  // The Warped switch starts off; these hear the warp, as once it is turned on.
+  beforeEach(() => t.f.warp.setListen(true));
   it("tells whoever shows it when what is heard changes, whatever changed it", () => {
     const { app, f } = t, heard: number[] = [];
     app.bus.on('heard', () => heard.push(1));
@@ -917,6 +927,8 @@ describe('notes', () => {
 });
 
 describe('groove', () => {
+  // The Warped switch starts off; these hear the warp, as once it is turned on.
+  beforeEach(() => t.f.warp.setListen(true));
   it('finds the demo loop\'s kick, snare and hats and measures their pocket', async () => {
     const { app, f } = t;
     f.workflow.goTo(2);
@@ -936,6 +948,24 @@ describe('groove', () => {
     // The demo plays every voice on the beat; only its off-beat hats wander (±4 ms).
     for (const v of g.voices) expect(Math.abs(v.median), v.voice).toBeLessThan(1.5);
     expect(f.groove.summary()).toMatch(/^16 bars · 9\d\.\d BPM/);
+  });
+
+  it('plays the kit and the synth together with the audio, in Groove and in Notes', async () => {
+    const { app, f } = t;
+    f.workflow.goTo(5);
+    await f.groove.ensureDrums();
+    f.workflow.goTo(6);
+    await f.notes.ensureNotes();
+    expect(app.drums).not.toBeNull();
+    expect(app.transcript).not.toBeNull();
+    f.mixer.toggleMute('drums');
+    f.mixer.toggleMute('notes');
+    for (const step of [5, 6] as const) {
+      f.workflow.goTo(step);
+      expect([f.playback.kitOn, f.playback.synthOn, f.playback.audioLevel > 0], `step ${step}`).toEqual([true, true, true]);
+    }
+    f.workflow.goTo(4);
+    expect([f.playback.kitOn, f.playback.synthOn]).toEqual([false, false]);
   });
 
   it('follows the settings', async () => {

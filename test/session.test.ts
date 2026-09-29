@@ -105,14 +105,18 @@ describe('session files', () => {
   });
 
   it('carries the Warp step\'s material, grid tempo, range, switch and gap filling, and leaves them out at their defaults', () => {
+    // The Warped switch used to start on: a session that doesn't say opens warped, as it was saved.
     const s = parseSession(legacy, legacy.audio.duration, fb);
-    expect(s.warp).toEqual(defaultWarp());
+    expect(s.warp).toEqual({ ...defaultWarp(), listen: true });
+    expect('warp' in toSessionJson(s)).toBe(false);
+    // A file now starts with it off, and a session says so.
+    expect((toSessionJson({ ...s, warp: defaultWarp() }) as { warp: object }).warp).toEqual({ listen: false });
     const set = { ...s, warp: { mode: 'beats' as const, bpm: 96.5, range: 'loop' as const, listen: false, quantize: 0, fill: true } };
     const json = toSessionJson(set) as { warp: object };
     expect(json.warp).toEqual({ mode: 'beats', bpm: 96.5, range: 'loop', listen: false, fill: true });
     expect(parseSession(JSON.parse(JSON.stringify(json)), legacy.audio.duration, fb).warp).toEqual(set.warp);
     const odd = parseSession({ ...legacy, warp: { mode: 'x', bpm: 9000, range: 'y', listen: 'no', fill: 'yes' } }, legacy.audio.duration, fb);
-    expect(odd.warp).toEqual({ ...defaultWarp(), bpm: 400 });
+    expect(odd.warp).toEqual({ ...defaultWarp(), bpm: 400, listen: true });
   });
 
   it('carries the drum hits edited by hand, and leaves them out when there are none', () => {

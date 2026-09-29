@@ -49,7 +49,7 @@ export class Playback {
       clicksOn: () => app.transport.click,
       // The notes are timed on the original; under the warp each plays where the warp puts its hit.
       hits: (a, b, emit) => this.eachHeard(app.drumNotes, a, b, (n, t) => emit(t, n.voice, n.vel)),
-      // The synth kit only plays where its drums are drawn.
+      // The synth kit only plays in the steps that play it (Groove and Notes).
       hitsOn: () => this.kitOn,
       audioLevel: () => this.audioLevel,
       clickLevel: () => app.mix.click / 100,
@@ -78,7 +78,7 @@ export class Playback {
   get kitOn(): boolean { return this.kitLive && !this.app.mute.drums; }
   /** The synth kit would be heard here, muted or not. */
   get kitLive(): boolean { return stepRules(this.app.step).kit && !!this.app.drums; }
-  /** The synth voice is heard: in the Notes step, once the notes are found, and not muted. */
+  /** The synth voice is heard: in a step that plays it, once the notes are found, and not muted. */
   get synthOn(): boolean { return this.synthLive && !this.app.mute.notes; }
   /** The synth voice would be heard here, muted or not. */
   get synthLive(): boolean { return stepRules(this.app.step).synth && !!this.app.transcript; }

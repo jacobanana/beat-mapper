@@ -83,15 +83,15 @@ export class Warp {
   }
 
   /**
-   * Back to how the step starts: the averaged tempo, the whole file, the full-mix method, heard warped,
-   * no warp markers, a straight grid, no quantize and Drums mode's gaps left silent. The shuffle is the Beats grid's
+   * Back to how the step starts: the averaged tempo, the whole file, the full-mix method, no warp markers, a straight grid, no quantize and Drums mode's gaps left silent. The shuffle is the Beats grid's
    * too, but it is set here, so it goes back here as well.
    */
   reset(): void {
     if (!this.changed) return;
     this.app.edit((d) => (d.warpMarkers.length ? { ...d, warpMarkers: [] } : d));
     this.beats.setShuffle(defaultBeats().shuffle);
-    this.update(defaultWarp());
+    // Whether it is heard warped is the switch's, turned on and off by hand, not something the step reset.
+    this.update({ ...defaultWarp(), listen: this.app.warp.listen });
     this.app.notify.toast('Warp reset: the whole file at the tempo it averages. Undo brings the warp markers back.');
   }
 

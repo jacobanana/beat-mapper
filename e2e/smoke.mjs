@@ -75,8 +75,12 @@ try {
     await page.keyboard.press('3');
     assert.equal(await page.isVisible('#p3'), true);
     assert.equal(await page.isVisible('#warpListen'), false);
-    // The Warped switch shows from this step on, since Slice and Groove follow it too.
+    // The Warped switch shows from this step on, since Slice and Groove follow it too. It starts off,
+    // and is turned on here, in the Warp row; the top bar's follows.
     assert.equal(await page.isVisible('#warpBtn'), true);
+    assert.equal(await page.getAttribute('#warpBtn', 'aria-pressed'), 'false');
+    await page.click('#wListen');
+    assert.equal(await page.getAttribute('#wListen', 'aria-pressed'), 'true');
     assert.equal(await page.getAttribute('#warpBtn', 'aria-pressed'), 'true');
     assert.match(await text('wSum'), /^The file averages 97\.87 BPM · warped to 98 BPM, stretched \d+ %–\d+ %/);
     assert.equal(await page.getAttribute('#warpBpmB', 'placeholder'), '98');

@@ -1,7 +1,7 @@
 // Step 3 – Warp: the grid tempo and where it comes from, the grid transients are lined up on, what
 // is warped, and the material. The Export window's warped .wav is made from these, and only says how
-// the file is written. Whether it is heard is the Warped switch in the top bar, since Slice and Groove
-// follow it too.
+// the file is written. Whether it is heard is the Warped switch: off until it is turned on here (or by
+// its twin in the top bar, which Slice, Groove and Notes follow too).
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import { type GridDivision, swings } from '../../core/tempo/meter';
@@ -21,6 +21,7 @@ export function bindWarpPanel(app: App, f: Features, refocus: () => void): void 
   $in('warpShuffle').oninput = (e) => f.beats.setShuffle(+(e.target as HTMLInputElement).value);
   $sel('warpRange').onchange = (e) => w.setRange((e.target as HTMLSelectElement).value === 'loop' ? 'loop' : 'file');
   $sel('warpModeB').onchange = (e) => w.setMode((e.target as HTMLSelectElement).value as WarpMode);
+  $('wListen').onclick = () => { w.toggleListen(); refocus(); };
   // Only Drums mode cuts, so only it leaves gaps to fill.
   $('wFill').onclick = () => { w.setFill(!app.warp.fill); refocus(); };
   $in('warpBpmB').onchange = (e) => {
@@ -42,6 +43,7 @@ export function bindWarpPanel(app: App, f: Features, refocus: () => void): void 
     setText($('qStrengthO'), s.quantize + '%');
     setValue($sel('warpRange'), s.range);
     if ((WARP_MODES as readonly string[]).includes(s.mode)) setValue($sel('warpModeB'), s.mode);
+    setPressed($btn('wListen'), s.listen);
     $btn('wFill').disabled = s.mode !== 'beats' || !p;
     setPressed($btn('wFill'), s.fill);
     const bpm = $in('warpBpmB');

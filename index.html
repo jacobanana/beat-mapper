@@ -114,12 +114,12 @@
       <div class="ch" id="mixDrums">
         <span class="chn"><button class="btn mute" id="mute-drums" title="Mute or unmute the synth kit playing the drums (M)" aria-label="Drums on" aria-pressed="false"><svg class="ic"><use href="#i-groove"/></svg></button>Drums</span>
         <input type="range" id="mix-drums" min="0" max="150" step="5" value="100" aria-label="Drums level"><output id="mixO-drums">100%</output>
-        <p class="hint" id="mixHint">The synth kit plays the drums found in the Groove step.</p>
+        <p class="hint" id="mixHint">The synth kit plays the drums found in Groove, in the Groove and Notes steps.</p>
       </div>
       <div class="ch" id="mixNotes">
         <span class="chn"><button class="btn mute" id="mute-notes" title="Mute or unmute the synth playing the notes (M)" aria-label="Notes on" aria-pressed="false"><svg class="ic"><use href="#i-notes"/></svg></button>Notes</span>
         <input type="range" id="mix-notes" min="0" max="150" step="5" value="100" aria-label="Notes level"><output id="mixO-notes">100%</output>
-        <p class="hint" id="mixNotesHint">The synth plays the notes found in the Notes step.</p>
+        <p class="hint" id="mixNotesHint">The synth plays the notes found in Notes, in the Groove and Notes steps.</p>
       </div>
     </div>
   </header>
@@ -243,6 +243,7 @@
             <span class="cap" title="What is warped, and how it is stretched">Warp</span><span class="items">
               <select id="warpRange" title="What is warped, heard and saved" aria-label="What is warped"><option value="file">whole file</option><option value="loop">just the loop</option></select>
               <select id="warpModeB" title="Material: sets how the audio is stretched" aria-label="Material, which sets the warp algorithm"><option value="beats">Drums</option><option value="mono">Mono</option><option value="vocal">Vocal</option><option value="poly">Poly</option><option value="music">Full mix</option><option value="repitch">Re-pitch</option></select>
+              <button class="btn" id="wListen" title="Warped (W): hear, cut, measure and export the audio moved onto the grid; off, the original as it is" aria-label="Hear it warped" aria-pressed="false"><svg class="ic"><use href="#i-warp"/></svg>Warped</button>
               <button class="btn" id="wFill" title="Fill gaps (Drums): a hit moved away from the next rings on into it instead of leaving silence" aria-label="Fill the gaps Drums mode leaves" aria-pressed="false">Fill gaps</button>
               <button class="btn end" id="resetW" title="Reset Warp: the whole file at the tempo it averages, Full mix, no warp markers, no shuffle, no quantize, gaps not filled" aria-label="Reset this step"><svg class="ic"><use href="#i-reset"/></svg>Reset</button>
             </span>

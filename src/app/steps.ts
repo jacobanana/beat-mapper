@@ -10,7 +10,10 @@ export interface StepRules {
   hearsWarp: boolean;
   /** What the metronome clicks on: every transient, or the beats of the grid. */
   clicks: 'transients' | 'beats';
-  /** The synth kit plays the drums found, where they are drawn. */
+  /**
+   * The synth kit plays the drums found. Groove and Notes both play the kit and the synth voice, so the
+   * drums, the notes and the audio can be heard together while either is being worked on.
+   */
   kit: boolean;
   /** The synth voice plays the notes found. */
   synth: boolean;
@@ -27,8 +30,8 @@ const RULES: Record<Step, StepRules> = {
   [STEP.beats]: { hearsWarp: false, clicks: 'beats', kit: false, synth: false, editable: true, recede: true, needsBar1: true },
   [STEP.warp]: { hearsWarp: true, clicks: 'beats', kit: false, synth: false, editable: true, recede: true, needsBar1: true },
   [STEP.slice]: { hearsWarp: true, clicks: 'transients', kit: false, synth: false, editable: false, recede: true, needsBar1: false },
-  [STEP.groove]: { hearsWarp: true, clicks: 'beats', kit: true, synth: false, editable: false, recede: true, needsBar1: true },
-  [STEP.notes]: { hearsWarp: true, clicks: 'beats', kit: false, synth: true, editable: false, recede: true, needsBar1: true },
+  [STEP.groove]: { hearsWarp: true, clicks: 'beats', kit: true, synth: true, editable: false, recede: true, needsBar1: true },
+  [STEP.notes]: { hearsWarp: true, clicks: 'beats', kit: true, synth: true, editable: false, recede: true, needsBar1: true },
 };
 
 export const stepRules = (step: Step): StepRules => RULES[step];
