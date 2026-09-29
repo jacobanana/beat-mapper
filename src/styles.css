@@ -253,6 +253,11 @@ kbd{font:inherit;font-size:13px;color:var(--dim);border:1px solid var(--line);bo
   .brk{display:block;order:5;flex-basis:100%;height:0}
   .transport{order:6;margin-left:0} .view{order:7} .read{order:8}
   #fileInfo{display:none} .sl input{width:96px}
+  /* The three drum sensitivities are too short to drag side by side on a phone: one per line, full width,
+     with a taller track to land a thumb on. */
+  #p5 .voices{flex-basis:100%;grid-template-columns:1fr;gap:4px}
+  #p5 .voices input{height:36px}
+  #p5 .vs b{width:18px;font-size:17px}
   .read{font-size:15px;gap:8px;padding:0 2px}
   .pop{right:6px}
 }

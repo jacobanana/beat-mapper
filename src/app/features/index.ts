@@ -8,6 +8,7 @@ import { Markers } from './markers';
 import { Mixer } from './mixer';
 import { Notes } from './notes';
 import { Playback } from './playback';
+import { ReaperProject } from './reaper-project';
 import { type KeyValueStore, Sessions } from './sessions';
 import { Slicer } from './slicer';
 import { Warp } from './warp';
@@ -28,6 +29,8 @@ export interface Features {
   warpRender: WarpRender;
   groove: Groove;
   notes: Notes;
+  /** Everything in one REAPER project. */
+  reaper: ReaperProject;
   sessions: Sessions;
   loader: Loader;
 }
@@ -42,9 +45,10 @@ export function createFeatures(app: App, analyzer: Analyzer, store: KeyValueStor
   const notes = new Notes(app, analyzer, exports, playback);
   const warpRender = new WarpRender(app, analyzer, playback);
   const warp = new Warp(app, beats, warpRender);
+  const reaper = new ReaperProject(app, beats, exports, warp, groove, notes);
   const slicer = new Slicer(app, playback, exports, warpRender);
   const workflow = new Workflow(app, markers, beats, slicer, warp, groove, notes);
   const sessions = new Sessions(app, markers, playback, workflow, store);
   const loader = new Loader(app, analyzer, playback, sessions, workflow);
-  return { playback, mixer, markers, beats, workflow, exports, slicer, warp, warpRender, groove, notes, sessions, loader };
+  return { playback, mixer, markers, beats, workflow, exports, slicer, warp, warpRender, groove, notes, reaper, sessions, loader };
 }

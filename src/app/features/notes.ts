@@ -289,13 +289,19 @@ export class Notes {
    * was played, on the tempo map. Null with nothing to write.
    */
   midi(): { bytes: Uint8Array; notes: readonly PitchedNote[] } | null {
-    const { app } = this, out = app.warpOut;
+    const { app } = this, out = app.warpOut, notes = this.pitchedNotes();
+    if (!notes) return null;
+    return { bytes: buildMidi({ ...this.exports.options(out), clicks: false, pitched: notes }).bytes, notes };
+  }
+
+  /** The notes heard, each where what is heard has it (its start, end and bends). Null with none to write. */
+  pitchedNotes(): PitchedNote[] | null {
+    const { app } = this;
     if (!app.audio || !app.hasMap || !app.heardNotes.length) return null;
     const at = (t: number) => app.placed(t);
-    const notes: PitchedNote[] = app.heardNotes.map((n) => ({
+    return app.heardNotes.map((n) => ({
       t: at(n.t), end: at(n.end), pitch: n.pitch, vel: n.vel, ...(n.bend ? { bend: n.bend.map((b) => ({ t: at(b.t), cents: b.cents })) } : {}),
     }));
-    return { bytes: buildMidi({ ...this.exports.options(out), clicks: false, pitched: notes }).bytes, notes };
   }
 
   async saveMidi(): Promise<void> {

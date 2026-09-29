@@ -36,7 +36,7 @@ export function bindMixerPanel(app: App, f: Features): void {
     }
   };
   const syncMutes = () => { for (const ch of MIX_CHANNELS) setPressed($('mute-' + ch), f.mixer.isOn(ch)); };
-  // The kit only plays in the Groove step, once the drums are found; elsewhere its row says so.
+  // The kit only plays in the Groove and Notes steps, once the drums are found; elsewhere its row says so.
   const syncDrums = () => {
     const live = f.playback.kitLive;
     $('mixDrums').classList.toggle('idle', !live);
@@ -45,7 +45,7 @@ export function bindMixerPanel(app: App, f: Features): void {
   app.bus.on('mix', syncLevels);
   app.bus.on(['mute', 'transport'], syncMutes);
   app.bus.on(['step', 'drums'], syncDrums);
-  // The same for the synth voice, in the Notes step once the notes are found.
+  // The same for the synth voice, in the same steps once the notes are found.
   const syncNotes = () => {
     const live = f.playback.synthLive;
     $('mixNotes').classList.toggle('idle', !live);

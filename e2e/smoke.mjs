@@ -75,8 +75,12 @@ try {
     await page.keyboard.press('3');
     assert.equal(await page.isVisible('#p3'), true);
     assert.equal(await page.isVisible('#warpListen'), false);
-    // The Warped switch shows from this step on, since Slice and Groove follow it too.
+    // The Warped switch shows from this step on, since Slice and Groove follow it too. It starts off,
+    // and is turned on here, in the Warp row; the top bar's follows.
     assert.equal(await page.isVisible('#warpBtn'), true);
+    assert.equal(await page.getAttribute('#warpBtn', 'aria-pressed'), 'false');
+    await page.click('#wListen');
+    assert.equal(await page.getAttribute('#wListen', 'aria-pressed'), 'true');
     assert.equal(await page.getAttribute('#warpBtn', 'aria-pressed'), 'true');
     assert.match(await text('wSum'), /^The file averages 97\.87 BPM · warped to 98 BPM, stretched \d+ %–\d+ %/);
     assert.equal(await page.getAttribute('#warpBpmB', 'placeholder'), '98');
@@ -317,6 +321,16 @@ try {
     assert.match(await text('expInfo'), /^28 notes · E1–A2 · legato/);
     const [d] = await Promise.all([page.waitForEvent('download'), page.click('#expSave')]);
     assert.match(d.suggestedFilename(), /^bass-demo-notes(-warped)?\.mid$/);
+    // Everything in one REAPER project: the audio, the tempo map and the notes.
+    await page.keyboard.press('Control+e');
+    await page.click('[data-fmt=project]');
+    assert.match(await text('expInfo'), / · notes: 28 notes\.$/);
+    const [p] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#expSave')]);
+    assert.equal(p.suggestedFilename(), 'bass-demo-project-reaper.zip');
+    // The window remembers the format picked in each step: back to the notes' own for what follows.
+    await page.keyboard.press('Control+e');
+    await page.click('[data-fmt=notesMidi]');
+    await page.click('#expCancel');
     await page.selectOption('#nMode', 'chords');
     await page.waitForFunction(() => document.getElementById('busy').hidden, null, { timeout: 30000 });
     assert.notEqual(await text('nN'), '');
