@@ -35,6 +35,8 @@ export function bindGroovePanel(app: App, f: Features): GrooveChart {
   const counts = () => {
     const h = app.drumHits;
     for (const v of VOICES) setText($('gN-' + v), h ? String(h[v].length) : '');
+    const open = h ? h.hat.filter((x) => x.open).length : 0;
+    $('gN-hat').title = h ? `${h.hat.length} hats, ${open} open (they ring on: written as note 46)` : '';
     setText($('gSum'), gr.summary());
   };
   app.bus.on('groove', sync);

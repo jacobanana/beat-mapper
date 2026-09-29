@@ -1,6 +1,6 @@
 // A small synthesised kit, to hear the drums the Groove step found: a pitch-swept sine for the kick,
-// a tone and filtered noise for the snare, bright noise for the hats. Each hit is a handful of nodes
-// that stop by themselves, so scheduling one is fire-and-forget.
+// a tone and filtered noise for the snare, bright noise for the hats, short or ringing when open. Each
+// hit is a handful of nodes that stop by themselves, so scheduling one is fire-and-forget.
 import type { Voice } from '../core/drums/voices';
 import { audioContext } from './audio-context';
 
@@ -14,15 +14,18 @@ function noiseBuffer(c: BaseAudioContext): AudioBuffer {
   return (noise = b);
 }
 
-/** Plays one hit of `voice` at context time `when`, as loud as MIDI velocity `vel` says, into `dest`. */
-export function drumHit(voice: Voice, when: number, vel: number, dest?: AudioNode): void {
+/**
+ * Plays one hit of `voice` at context time `when`, as loud as MIDI velocity `vel` says, into `dest`.
+ * An `open` hat rings on instead of ticking.
+ */
+export function drumHit(voice: Voice, when: number, vel: number, dest?: AudioNode, open = false): void {
   const c = audioContext(), out = c.createGain();
   // Velocity to gain as a drum machine does it: squared, so ghost notes sit well below the accents.
   out.gain.value = Math.pow(Math.max(1, Math.min(127, vel)) / 127, 2) * 0.9;
   out.connect(dest ?? c.destination);
   if (voice === 'kick') kick(c, out, when);
   else if (voice === 'snare') snare(c, out, when);
-  else hat(c, out, when);
+  else hat(c, out, when, open);
 }
 
 function env(c: BaseAudioContext, when: number, peak: number, decay: number): GainNode {
@@ -59,13 +62,14 @@ function snare(c: BaseAudioContext, out: AudioNode, when: number): void {
   n.stop(when + 0.22);
 }
 
-function hat(c: BaseAudioContext, out: AudioNode, when: number): void {
-  const n = c.createBufferSource(), f = c.createBiquadFilter(), e = env(c, when, 0.45, 0.05);
+function hat(c: BaseAudioContext, out: AudioNode, when: number, open: boolean): void {
+  // Open, it rings for a third of a second: when the drummer closed it is more than the kit knows.
+  const len = open ? 0.35 : 0.05, n = c.createBufferSource(), f = c.createBiquadFilter(), e = env(c, when, open ? 0.35 : 0.45, len);
   n.buffer = noiseBuffer(c);
   f.type = 'highpass';
   f.frequency.value = 7500;
   n.connect(f).connect(e).connect(out);
   // Start somewhere different in the noise each time, so repeated hats don't sound identical.
-  n.start(when, Math.random() * 0.9);
-  n.stop(when + 0.06);
+  n.start(when, Math.random() * (0.95 - len));
+  n.stop(when + len + 0.01);
 }

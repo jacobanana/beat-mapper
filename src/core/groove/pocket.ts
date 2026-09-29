@@ -25,6 +25,8 @@ export interface PlacedHit {
   readonly t: number;
   /** MIDI velocity, from the hit's loudness against the voice's loud hits. */
   readonly vel: number;
+  /** An open hat. */
+  readonly open?: boolean;
   /** Bar (0 = bar 1) and grid step within it. */
   readonly bar: number;
   readonly step: number;
@@ -122,6 +124,8 @@ export interface VoiceNote {
   readonly voice: Voice;
   readonly t: number;
   readonly vel: number;
+  /** An open hat. */
+  readonly open?: boolean;
 }
 
 /**
@@ -133,7 +137,7 @@ export function transcribe(hits: PerVoice<readonly DrumHit[]>): VoiceNote[] {
   const out: VoiceNote[] = [];
   for (const v of VOICES) {
     const vel = velocities(hits[v]);
-    hits[v].forEach((h, i) => out.push({ voice: v, t: h.t, vel: vel[i] }));
+    hits[v].forEach((h, i) => out.push({ voice: v, t: h.t, vel: vel[i], ...(h.open && { open: true }) }));
   }
   return out.sort((a, b) => a.t - b.t);
 }
@@ -159,7 +163,7 @@ export function analyseGroove(input: PerVoice<readonly DrumHit[]>, o: GrooveOpti
         if (bar < 0) return;
         const gq = bar * bq + step * sq, gt = map.posToTime(gq);
         if (!inRange(gt)) return;
-        placed.push({ voice: v, t: h.t, vel: vel[i], bar, step, gridMs: (th - gt) * 1000 });
+        placed.push({ voice: v, t: h.t, vel: vel[i], ...(h.open && { open: true }), bar, step, gridMs: (th - gt) * 1000 });
         spq.push(map.posToTime(gq + 0.01) - gt);
       });
     }

@@ -186,7 +186,7 @@ export function markers({ g, app, L, C, xOf, t0, t1, beatsMode }: Frame): void {
 // The Groove step: kick, snare and hats in three lanes over the waveform (hats on top), each hit a
 // tick as tall as it is loud, with a tail back to the grid line it was measured from when zoomed in
 // far enough to see a few milliseconds. The transients show faintly behind, since hits placed by hand
-// land on them; those hits wear a dot, and the selected or hovered hit a frame.
+// land on them; those hits wear a dot, open hats a ring, and the selected or hovered hit a frame.
 export function drums({ g, app, L, C, xOf, xAtPos, t0, t1 }: Frame): void {
   if (app.step !== STEP.groove) return;
   const hits = app.drumHits;
@@ -207,7 +207,7 @@ export function drums({ g, app, L, C, xOf, xAtPos, t0, t1 }: Frame): void {
     const top = wy + i * lh, mid = top + lh / 2, col = C[voice];
     g.fillStyle = rgba(col, 0.06); g.fillRect(0, top + 1, w, lh - 2);
     g.fillStyle = rgba(col, 0.9); g.fillText(voice === 'hat' ? 'HATS' : voice.toUpperCase(), 6, top + 10);
-    const list = placed ? placed.filter((h) => h.voice === voice) : hits[voice].map((h) => ({ t: h.t, vel: 100, gridMs: 0, bar: 0, step: 0 }));
+    const list = placed ? placed.filter((h) => h.voice === voice) : hits[voice].map((h) => ({ t: h.t, vel: 100, open: h.open, gridMs: 0, bar: 0, step: 0 }));
     const manual = new Set(hits[voice].filter((h) => h.id != null).map((h) => h.t));
     for (const h of list) {
       if (h.t < t0 - 0.05 || h.t > t1 + 0.05) continue;
@@ -218,7 +218,10 @@ export function drums({ g, app, L, C, xOf, xAtPos, t0, t1 }: Frame): void {
       }
       g.strokeStyle = col; g.lineWidth = 2;
       g.beginPath(); g.moveTo(x, mid - hh / 2); g.lineTo(x, mid + hh / 2); g.stroke();
-      if (manual.has(h.t)) { g.fillStyle = col; g.beginPath(); g.arc(x, mid - hh / 2 - 4, 3, 0, Math.PI * 2); g.fill(); }
+      const isManual = manual.has(h.t);
+      if (isManual) { g.fillStyle = col; g.beginPath(); g.arc(x, mid - hh / 2 - 4, 3, 0, Math.PI * 2); g.fill(); }
+      // An open hat wears the small circle drum notation puts over it, above the placed-by-hand dot if it has one.
+      if (h.open) { g.strokeStyle = col; g.lineWidth = 1.5; g.beginPath(); g.arc(x, mid - hh / 2 - (isManual ? 11 : 5), 3, 0, Math.PI * 2); g.stroke(); }
       const isSel = sel?.voice === voice && sel.t === h.t;
       if (isSel || (hov?.voice === voice && hov.t === h.t)) {
         g.strokeStyle = isSel ? C.ink : rgba(C.ink, 0.5); g.lineWidth = 1;

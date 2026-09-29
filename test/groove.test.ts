@@ -3,8 +3,9 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { KIT_POCKET, synthKit } from '../src/core/demo';
 import { type DrumAnalysis, detectDrums } from '../src/core/drums/detect';
 import { selectHits } from '../src/core/drums/select';
-import { VOICES, perVoice } from '../src/core/drums/voices';
-import { analyseGroove, describeGroove } from '../src/core/groove/pocket';
+import { markOpenHats, ringTime } from '../src/core/drums/open-hat';
+import { type DrumHit, VOICES, gmNote, perVoice } from '../src/core/drums/voices';
+import { analyseGroove, describeGroove, transcribe } from '../src/core/groove/pocket';
 import { TempoMap } from '../src/core/tempo/tempo-map';
 import { grooveJson, offApprox } from '../src/io/formats/groove';
 import { buildMidi } from '../src/io/formats/midi';
@@ -123,6 +124,41 @@ describe('exports', () => {
     let on = 0;
     for (let i = 0; i < drums.length - 2; i++) if (drums[i] === 0x99 && drums[i + 1] === 36) on++;
     expect(on).toBe(notes.length);
+  });
+});
+
+describe('open hats', () => {
+  // A sound whose level falls by a factor k every frame, from a peak at frame 10 of 1000 frames a second.
+  const decay = (k: number, n = 400): Float32Array => Float32Array.from({ length: n }, (_, i) => (i < 10 ? 0 : Math.pow(k, i - 10)));
+
+  it('measure how long a sound takes to fall 12 dB, carried on past the next hit when it has not', () => {
+    const h = decay(0.99), full = Math.log(0.25) / Math.log(0.99) / 1000;
+    expect(ringTime(h, 1000, 0.01)).toBeCloseTo(full, 3);
+    // Cut off 60 ms in, before it has fallen 12 dB: the same decay is carried on.
+    expect(ringTime(h, 1000, 0.01, 0.075)).toBeCloseTo(full, 2);
+    expect(ringTime(decay(0.9), 1000, 0.01, 0.075)).toBeLessThan(0.02);
+    // The next hit on the peak itself leaves nothing to read.
+    expect(ringTime(h, 1000, 0.01, 0.02)).toBe(0);
+  });
+
+  it('are told from closed ones by how long they ring, the backbeat hats under the snare included', async () => {
+    const open = synthKit(SR, 8, true), a = await detectDrums(open.x, SR, { yieldToEventLoop: false });
+    const hats = markOpenHats(selectHits(a.hits, perVoice(() => 55)).hat, a.hatRing, a.fr);
+    const truth = (h: DrumHit) => open.hits.find((k) => k.voice === 'hat' && Math.abs(k.t - h.t) < 0.01);
+    const found = hats.filter((h) => truth(h)?.open);
+    expect(found.length).toBe(open.hits.filter((h) => h.open).length);
+    expect(found.every((h) => h.open)).toBe(true);
+    expect(hats.filter((h) => h.open && !truth(h)?.open)).toEqual([]);
+    // The kit without open hats has none.
+    expect(markOpenHats(selectHits(an.hits, perVoice(() => 55)).hat, an.hatRing, an.fr).some((h) => h.open)).toBe(false);
+  }, 60_000);
+
+  it('are written as note 46, the closed ones as 42', () => {
+    expect(gmNote('hat')).toBe(42);
+    expect(gmNote('hat', true)).toBe(46);
+    expect(gmNote('snare', true)).toBe(38);
+    const hits = { kick: [], snare: [], hat: [{ t: 0, s: 1, a: 1 }, { t: 0.2, s: 1, a: 1, open: true }] };
+    expect(transcribe(hits).map((n) => n.open ?? false)).toEqual([false, true]);
   });
 });
 
