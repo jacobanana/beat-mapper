@@ -142,6 +142,10 @@ export interface NoteSettings {
   showNotes: boolean;
   /** What fills the stage: the waveform, as in every other step, or the piano roll over its spectrogram. */
   main: NoteMainView;
+  /** The transients drawn on the piano roll, as lines down the rows, to put notes' starts on. */
+  transients: boolean;
+  /** What a drawn, moved or lengthened note's start and end land on. */
+  snap: NoteSnap;
   /** The pencil: drags on the piano roll draw, move and resize notes. A tool, so not saved. */
   draw: boolean;
 }
@@ -177,6 +181,9 @@ export type GrooveChartMode = 'pocket' | 'midi';
 
 export const NOTE_MAIN_VIEWS = ['wave', 'roll'] as const;
 export type NoteMainView = (typeof NOTE_MAIN_VIEWS)[number];
+/** The piano roll's magnet: a transient within reach, else the grid line nearest; one of them alone; or nothing. */
+export const NOTE_SNAPS = ['both', 'grid', 'markers', 'off'] as const;
+export type NoteSnap = (typeof NOTE_SNAPS)[number];
 
 export const defaultDetection = (): DetectionSettings => ({ sens: 55, gap: 60, band: 'full', algo: 'superflux', showOdf: true });
 export const defaultBeats = (): BeatSettings => ({ grid: '16', mapEvery: 'beat', tol: 20, snapTo: 'markers', loopBars: null, shuffle: 0 });
@@ -187,7 +194,7 @@ export const defaultSlicer = (): SlicerSettings => ({
 });
 export const defaultTransport = (): TransportState => ({ loop: null, loopOn: false, start: 0, playhead: 0, stay: false, click: false, scrubMode: false });
 export const defaultGroove = (): GrooveSettings => ({ source: 'drums', sens: { kick: 55, snare: 55, hat: 55 }, grid: '16', exaggerate: true, chart: 'pocket' });
-export const defaultNotes = (): NoteSettings => ({ mode: 'line', instrument: 'any', sens: 55, legato: false, spec: true, view: 'fundamental', harmonics: 4, range: 30, filter: defaultSpecFilter(), showNotes: true, main: 'wave', draw: false });
+export const defaultNotes = (): NoteSettings => ({ mode: 'line', instrument: 'any', sens: 55, legato: false, spec: true, view: 'fundamental', harmonics: 4, range: 30, filter: defaultSpecFilter(), showNotes: true, main: 'wave', transients: false, snap: 'both', draw: false });
 /** What every rendered slice gets; the warped .wav gets the same channels and level. */
 export function sliceRenderOptions(o: SlicerSettings): RenderOptions {
   return { fadeIn: o.fadeIn / 1000, fadeOut: o.fadeOut / 1000, mono: o.mono, normalize: o.norm, target: Math.pow(10, o.target / 20) };

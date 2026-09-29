@@ -11,11 +11,18 @@ import { noteName } from '../../core/notes/types';
 import { hasBridge, saveError, saveFile } from '../../io/download';
 import { type PitchedNote, buildMidi } from '../../io/formats/midi';
 import { zipFiles } from '../../io/formats/zip';
-import { type NoteMainView, SPEC_RANGE, defaultNotes } from '../../state/settings';
+import { NOTE_SNAPS, type NoteMainView, type NoteSnap, SPEC_RANGE, defaultNotes } from '../../state/settings';
 import { type ProjectDoc, withNoteEdits } from '../../state/project';
 import type { App } from '../app';
 import type { Exports } from './exports';
 import type { Playback } from './playback';
+
+const NOTE_SNAP: Record<NoteSnap, string> = {
+  both: 'Notes snap to a transient near, else to the grid (hold Alt to bypass)',
+  grid: 'Notes snap to the grid (hold Alt to bypass)',
+  markers: 'Notes snap to transients (hold Alt to bypass)',
+  off: 'Notes snap to nothing',
+};
 
 const FINDING: Record<NoteMode, string> = { line: 'Finding the notes', chords: 'Finding the chords', draw: '' };
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
@@ -160,6 +167,24 @@ export class Notes {
     const { app } = this, showNotes = !app.notes.showNotes;
     app.set('notes', { showNotes });
     app.notify.toast(showNotes ? 'Notes: shown' : 'Notes: hidden, the spectrogram alone');
+  }
+
+  /** The transients drawn on the roll or not: the lines a note's start can be put on. */
+  toggleTransients(): void {
+    const { app } = this, transients = !app.notes.transients;
+    app.set('notes', { transients });
+    app.notify.toast(transients ? 'Transients: shown on the roll' : 'Transients: hidden');
+  }
+
+  /** What a note drawn, moved or lengthened on the roll lands on. */
+  setSnap(snap: NoteSnap, quiet = false): void {
+    this.app.set('notes', { snap });
+    if (!quiet) this.app.notify.toast(NOTE_SNAP[snap]);
+  }
+
+  cycleSnap(dir: 1 | -1): void {
+    const i = NOTE_SNAPS.indexOf(this.app.notes.snap);
+    this.setSnap(NOTE_SNAPS[(i + dir + NOTE_SNAPS.length) % NOTE_SNAPS.length]);
   }
 
   setRange(db: number): void {
