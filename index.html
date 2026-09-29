@@ -385,6 +385,8 @@
     <!-- On a phone the formats are a dropdown: this shows the chosen one and opens the list. -->
     <button class="fmtPick" id="fmtPick" aria-haspopup="true" aria-expanded="false" aria-controls="fmtList"><span class="nm" id="fmtPickNm"></span><small id="fmtPickExt"></small><span class="sub" id="fmtPickSub"></span><svg class="ic chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
     <nav class="fmts" id="fmtList" aria-label="Format">
+      <h3>Everything</h3>
+      <button data-fmt="project"><span class="nm">REAPER project</span><small>.zip</small><span class="sub">Audio, tempo map, drums and notes, in one project</span></button>
       <h3>Tempo map</h3>
       <button data-fmt="midi"><span class="nm">MIDI</span><small>.mid</small><span class="sub">The tempo map, for any DAW</span></button>
       <button data-fmt="rpp"><span class="nm">REAPER</span><small>.rpp</small><span class="sub">The tempo map and the audio, in REAPER</span></button>
@@ -406,8 +408,8 @@
       <!-- Each group is one label/value grid, and shows only when a row in it applies to the format. -->
       <div class="fields">
         <section class="grp"><h4>In the DAW</h4>
-          <label class="fld" data-for="midi rpp warpWav"><span>Placement</span><select id="lead" aria-label="Audio placement"><option value="full">Whole file + lead-in</option><option value="trim">Trim to bar 1</option></select></label>
-          <label class="fld" data-for="midi rpp slicesRpp"><span>Tempo change</span><select id="res" aria-label="Tempo change at"><option value="pins">at every pin</option><option value="bar">at every bar</option><option value="beat">at every beat</option></select></label>
+          <label class="fld" data-for="midi rpp warpWav project"><span>Placement</span><select id="lead" aria-label="Audio placement"><option value="full">Whole file + lead-in</option><option value="trim">Trim to bar 1</option></select></label>
+          <label class="fld" data-for="midi rpp slicesRpp project"><span>Tempo change</span><select id="res" aria-label="Tempo change at"><option value="pins">at every pin</option><option value="bar">at every bar</option><option value="beat">at every beat</option></select></label>
           <label class="fld" data-for="midi"><span>Click track</span><span class="chk"><input type="checkbox" id="clicks" checked>MIDI notes on the beats</span></label>
           <label class="fld" data-for="rpp"><span>Audio file</span><span class="chk"><input type="checkbox" id="rppAudio" checked>packed in the zip</span></label>
         </section>

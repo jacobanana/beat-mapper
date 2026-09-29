@@ -105,7 +105,7 @@ timeline.
 ## io/
 
 `formats/` writes MIDI (type 1, tempo track + click, and a drum track when given notes), REAPER
-`.rpp`, PCM WAV (16 or 24-bit, at the audio's rate or resampled to another, dithered if asked) and stored ZIP, all byte-for-byte what the single-file app wrote by default, plus the Pocket
+`.rpp` (with the drums and notes as inline MIDI items when given them), PCM WAV (16 or 24-bit, at the audio's rate or resampled to another, dithered if asked) and stored ZIP, all byte-for-byte what the single-file app wrote by default, plus the Pocket
 Science groove file (`groove.ts`). `session.ts` reads and writes the session JSON,
 validating and clamping everything it reads. `download.ts` saves a file (through a host's download
 bridge when the app runs inside one).
@@ -130,7 +130,7 @@ bridge when the app runs inside one).
   what the metronome clicks on, where the synth kit plays, which have an edit half. Anything that
   differs by step reads the table rather than comparing step numbers.
 - **Features** (`app/features/`) are the verbs: `Markers`, `Beats`, `Playback`, `Slicer`,
-  `Exports`, `Warp` (what is warped and how), `WarpRender` (rendering it, and making what plays follow
+  `Exports`, `ReaperProject` (everything in one REAPER project: the audio as heard, its tempo map, the drums and the notes as MIDI items), `Warp` (what is warped and how), `WarpRender` (rendering it, and making what plays follow
   what is wanted), `Groove`, `Notes`, `Mixer`, `Sessions`, `Loader`, `Workflow`. They change the App and emit topics (`'doc'`,
   `'transport'`, `'slices'`…). They talk to the user only through the `Notifier` interface.
 - **`'heard'`** is a topic the App emits itself whenever what is heard changes (the warp or the

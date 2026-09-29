@@ -52,7 +52,7 @@ moved down when Session joined the file group: ten 38 px buttons don't fit one r
   default action at the bottom right. Escape and a click on the backdrop close it.
 - Every file a step makes goes out through the one Export window, never through a button in a panel.
   The window lists only what the current step makes (Beats: tempo map; Warp: warped audio; Slice:
-  samples; Groove: drums; Notes: the notes as MIDI), and the Export button is off in Transients, which makes nothing of its
+  samples; Groove: drums; Notes: the notes as MIDI), and from Beats on the REAPER project that holds everything, and the Export button is off in Transients, which makes nothing of its
   own. The session is the exception: it is the work itself, so it has its own popover by Open.
 - On a phone the Export window's formats are a dropdown: a button showing the chosen format and a
   line on what it holds, opening the grouped list with that line under every format. Escape or a

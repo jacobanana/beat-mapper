@@ -13,17 +13,17 @@ import type { Step } from '../../state/steps';
 import { buildMidi } from '../../io/formats/midi';
 import { $, $btn, $in, $sel, setText, setValue } from '../dom';
 
-export const FORMATS = ['midi', 'rpp', 'warpWav', 'slices', 'slicesRpp', 'sliceWav', 'loopWav', 'drumsMidi', 'groove', 'notesMidi'] as const;
+export const FORMATS = ['project', 'midi', 'rpp', 'warpWav', 'slices', 'slicesRpp', 'sliceWav', 'loopWav', 'drumsMidi', 'groove', 'notesMidi'] as const;
 export type ExportFormat = (typeof FORMATS)[number];
 
 /** What each step makes, in the order the window lists it. */
 export const STEP_FORMATS: Record<Step, readonly ExportFormat[]> = {
   1: [],
-  2: ['midi', 'rpp'],
-  3: ['warpWav'],
-  4: ['slices', 'slicesRpp', 'sliceWav', 'loopWav'],
-  5: ['drumsMidi', 'groove'],
-  6: ['notesMidi'],
+  2: ['midi', 'rpp', 'project'],
+  3: ['warpWav', 'project'],
+  4: ['slices', 'slicesRpp', 'sliceWav', 'loopWav', 'project'],
+  5: ['drumsMidi', 'groove', 'project'],
+  6: ['notesMidi', 'project'],
 };
 
 interface Format {
@@ -90,6 +90,10 @@ export function bindExportDialog(app: App, f: Features): (fmt?: ExportFormat) =>
   };
 
   const formats: Record<ExportFormat, Format> = {
+    project: {
+      desc: 'Everything in one REAPER project: the audio as it is heard (warped onto the grid when Warped is on, the original otherwise), the tempo map that goes with it, and the drums and the notes found, each on a MIDI track of its own, lined up with the audio. Zipped with the audio.',
+      save: 'Save .zip', info: () => f.reaper.contents(), run: () => f.reaper.save(),
+    },
     midi: {
       desc: 'The tempo map as a MIDI file, for any DAW that reads tempo from MIDI.',
       save: 'Save .mid', info: mapInfo, run: () => f.exports.saveMidi(),

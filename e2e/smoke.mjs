@@ -321,6 +321,16 @@ try {
     assert.match(await text('expInfo'), /^28 notes · E1–A2 · legato/);
     const [d] = await Promise.all([page.waitForEvent('download'), page.click('#expSave')]);
     assert.match(d.suggestedFilename(), /^bass-demo-notes(-warped)?\.mid$/);
+    // Everything in one REAPER project: the audio, the tempo map and the notes.
+    await page.keyboard.press('Control+e');
+    await page.click('[data-fmt=project]');
+    assert.match(await text('expInfo'), / · notes: 28 notes\.$/);
+    const [p] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#expSave')]);
+    assert.equal(p.suggestedFilename(), 'bass-demo-project-reaper.zip');
+    // The window remembers the format picked in each step: back to the notes' own for what follows.
+    await page.keyboard.press('Control+e');
+    await page.click('[data-fmt=notesMidi]');
+    await page.click('#expCancel');
     await page.selectOption('#nMode', 'chords');
     await page.waitForFunction(() => document.getElementById('busy').hidden, null, { timeout: 30000 });
     assert.notEqual(await text('nN'), '');

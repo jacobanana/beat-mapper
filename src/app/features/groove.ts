@@ -186,10 +186,16 @@ export class Groove {
    * each hit (quantized as far as the Warp step says), at the grid's one tempo, so the notes line up
    * with the warped .wav; otherwise where it was played, on the tempo map. Null with nothing to write.
    */
-  drumMidi(): { bytes: Uint8Array; notes: readonly DrumNote[] } | null {
-    const { app } = this, g = app.pocket, out = app.warpOut;
+  /** The hits as GM drum notes, where what is heard has them (the warp places them). Null before they are measured. */
+  drumNotes(): DrumNote[] | null {
+    const { app } = this, g = app.pocket;
     if (!app.audio || !g) return null;
-    const notes: DrumNote[] = g.hits.map((h) => ({ t: app.placed(h.t), note: GM_NOTE[h.voice], vel: h.vel }));
+    return g.hits.map((h) => ({ t: app.placed(h.t), note: GM_NOTE[h.voice], vel: h.vel }));
+  }
+
+  drumMidi(): { bytes: Uint8Array; notes: readonly DrumNote[] } | null {
+    const { app } = this, out = app.warpOut, notes = this.drumNotes();
+    if (!notes) return null;
     return { bytes: buildMidi({ ...this.exports.options(out), clicks: false, notes }).bytes, notes };
   }
 

@@ -1,6 +1,6 @@
 // REAPER project (.rpp). Field layout follows the community "State Chunk Definitions" (ReaTeam/Doc):
 // PT <seconds> <bpm> <shape 1=square> [<65536*den+num> <selected> <flags &1 = set time signature>]
-import { type ExportOptions, type ExportPlan, type TempoPoint, planExport } from './midi';
+import { type ExportOptions, type ExportPlan, type MidiEvent, type TempoPoint, noteTracks, planExport } from './midi';
 
 export function rppQuote(n: string): string {
   if (!n.includes('"')) return '"' + n + '"';
@@ -41,7 +41,10 @@ export interface RppOptions extends ExportOptions {
   now?: number;
 }
 
-/** A project with the tempo map, and the audio on a track placed so its beats sit on the grid. */
+/**
+ * A project with the tempo map, the audio on a track placed so its beats sit on the grid, and the drum
+ * and pitched notes given (`notes`, `pitched`) each on a track of its own as a MIDI item.
+ */
 export function buildRpp(o: RppOptions): { text: string; info: ExportPlan['info']; points: TempoPoint[] } {
   const plan = planExport(o), pts = plan.points, f = pts[0], sig0 = f.sig || [o.meter.num, o.meter.den];
   const L = header(f.bpm, sig0, o.now ?? Date.now());
@@ -51,8 +54,28 @@ export function buildRpp(o: RppOptions): { text: string; info: ExportPlan['info'
     L.push('  <TRACK', `    NAME ${rppQuote(o.trackName || 'Audio')}`, '    BEAT 0', '    <ITEM', '      POSITION 0', `      LENGTH ${(o.dur - off).toFixed(12)}`, '      LOOP 0', '      BEAT 0',
       `      NAME ${rppQuote(o.fileName)}`, `      SOFFS ${off.toFixed(12)}`, `      <SOURCE ${rppSourceType(o.fileName)}`, `        FILE ${rppQuote(o.fileName)}`, '      >', '    >', '  >');
   }
+  for (const t of noteTracks(o, plan)) L.push(...midiTrack(t.name, t.events, plan.ppq, o.dur - (o.trimmed ? plan.info.t0 : 0)));
   L.push('>', '');
   return { text: L.join('\n'), info: plan.info, points: pts };
+}
+
+// A track holding one MIDI item from the project's start, its events inline in quarter notes (so they
+// follow the tempo envelope, as the MIDI file's follow its tempo track) as REAPER writes them: `E`,
+// the ticks since the one before, then the bytes in hex. Meta events (the track name) are left out,
+// since the track carries the name; an all-notes-off ends the source.
+function midiTrack(name: string, events: readonly MidiEvent[], ppq: number, len: number): string[] {
+  const hex = (b: number) => b.toString(16).padStart(2, '0');
+  const L = ['  <TRACK', `    NAME ${rppQuote(name)}`, '    <ITEM', '      POSITION 0', `      LENGTH ${Math.max(0, len).toFixed(12)}`, '      LOOP 0',
+    `      NAME ${rppQuote(name)}`, '      <SOURCE MIDI', `        HASDATA 1 ${ppq} QN`];
+  let last = 0;
+  for (const e of events) {
+    if (e.data[0] === 0xff) continue;
+    L.push(`        E ${e.tick - last} ${e.data.map(hex).join(' ')}`);
+    last = e.tick;
+  }
+  const ch = events.find((e) => e.data[0] !== 0xff)?.data[0] ?? 0x90;
+  L.push(`        E ${ppq} ${hex(0xb0 | (ch & 15))} 7b 00`, '      >', '    >', '  >');
+  return L;
 }
 
 export interface NamedSlice {

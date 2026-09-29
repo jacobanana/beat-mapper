@@ -128,9 +128,10 @@ const vlq = (n: number): number[] => {
   while ((n >>= 7) > 0) b.unshift((n & 127) | 128);
   return b;
 };
-interface MidiEvent { tick: number; pr: number; data: number[] }
+export interface MidiEvent { tick: number; pr: number; data: number[] }
+const sorted = (events: MidiEvent[]): MidiEvent[] => events.sort((a, b) => a.tick - b.tick || a.pr - b.pr);
 function track(events: MidiEvent[]): number[] {
-  events.sort((a, b) => a.tick - b.tick || a.pr - b.pr);
+  sorted(events);
   const bytes: number[] = [];
   let last = 0;
   for (const e of events) { bytes.push(...vlq(e.tick - last), ...e.data); last = e.tick; }
@@ -168,6 +169,22 @@ export function buildMidi(o: ExportOptions): { bytes: Uint8Array; info: ExportIn
     for (let k = 0; k * beatQ < endQ && k < 200000; k++) add(leadTicks + Math.round(k * beatQ * ppq), k % o.meter.num === 0);
     tracks.push(track(nv));
   }
+  for (const t of noteTracks(o, plan)) tracks.push(track(t.events));
+  const head = [0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 1, 0, tracks.length, (ppq >> 8) & 255, ppq & 255];
+  const total = head.length + tracks.reduce((s, t) => s + t.length, 0), bytes = new Uint8Array(total);
+  bytes.set(head, 0);
+  let p = head.length;
+  for (const t of tracks) { bytes.set(t, p); p += t.length; }
+  return { bytes, info: plan.info };
+}
+
+/**
+ * The drum and pitched tracks, each in tick order: what the MIDI file writes after its tempo (and
+ * click) tracks, and what a REAPER project writes as MIDI items. Ticks are at `plan.ppq`, from the
+ * project's start.
+ */
+export function noteTracks(o: ExportOptions, plan: ExportPlan = planExport(o)): { name: string; events: MidiEvent[] }[] {
+  const { ppq, leadTicks } = plan, out: { name: string; events: MidiEvent[] }[] = [];
   // A note's tick is its place on the tempo map, so it lands where it was played against the tempo
   // track written above: exactly with a tempo change at every pin (the map is straight between pins),
   // to within the rounding of one tick otherwise. In the lead-in the tempo is the lead-in's.
@@ -184,15 +201,10 @@ export function buildMidi(o: ExportOptions): { bytes: Uint8Array; info: ExportIn
       const v = Math.max(1, Math.min(127, Math.round(n.vel)));
       dv.push({ tick, pr: 4, data: [0x99, n.note, v] }, { tick: tick + len, pr: 3, data: [0x89, n.note, 0] });
     }
-    tracks.push(track(dv));
+    out.push({ name: 'Drums', events: sorted(dv) });
   }
-  if (o.pitched?.length) tracks.push(track(pitchedEvents(o.pitched, tickOf)));
-  const head = [0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 1, 0, tracks.length, (ppq >> 8) & 255, ppq & 255];
-  const total = head.length + tracks.reduce((s, t) => s + t.length, 0), bytes = new Uint8Array(total);
-  bytes.set(head, 0);
-  let p = head.length;
-  for (const t of tracks) { bytes.set(t, p); p += t.length; }
-  return { bytes, info: plan.info };
+  if (o.pitched?.length) out.push({ name: 'Notes', events: sorted(pitchedEvents(o.pitched, tickOf)) });
+  return out;
 }
 
 // The pitched track: channel 1, the bend range set to ±2 semitones first (RPN 0, the General MIDI

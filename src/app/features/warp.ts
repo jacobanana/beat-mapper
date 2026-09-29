@@ -221,21 +221,32 @@ export class Warp {
     return `${base}_${bars}bar${bars === 1 ? '' : 's'}_${fmtBpm(p.bpm)}bpm_warped.wav`;
   }
 
+  /**
+   * The warp rendered and written as a .wav, with the channels, level, depth and rate the slicer has:
+   * a warped file is one long sample. Null when the audio changed while it was warping.
+   */
+  async wav(): Promise<{ bytes: Uint8Array; plan: WarpPlan } | null> {
+    const { app } = this, a = app.audio!;
+    const r = await this.rendered.render();
+    if (!r) return null;
+    const n = r.chans[0].length;
+    const out = renderSlice(r.chans, a.sr, 0, n / a.sr, { ...sliceRenderOptions(app.slicer), fadeIn: 0, fadeOut: 0 });
+    app.notify.busy('Writing the .wav', 0.95);
+    const bytes = wavFile(out.chans, a.sr, wavOptions(app.slicer));
+    app.notify.idle();
+    return { bytes, plan: r.plan };
+  }
+
   async save(): Promise<void> {
     const { app } = this, a = app.audio;
     if (!a) return app.notify.toast('Open an audio file first.');
     this.beats.ensureDownbeat();
     if (!this.plan()) return app.notify.toast('Set bar 1 and at least a tempo in step 2 first.');
     try {
-      const r = await this.rendered.render();
-      if (!r) return app.notify.toast('The audio changed while it was warping – save again.');
-      const p = r.plan, n = r.chans[0].length;
-      // Channels, level, depth and rate as the slicer has them; a warped file is one long sample.
-      const out = renderSlice(r.chans, a.sr, 0, n / a.sr, { ...sliceRenderOptions(app.slicer), fadeIn: 0, fadeOut: 0 });
-      app.notify.busy('Writing the .wav', 0.95);
-      const bytes = wavFile(out.chans, a.sr, wavOptions(app.slicer));
-      app.notify.idle();
-      const res = await saveFile(this.fileName(p), bytes as BlobPart, 'audio/wav');
+      const w = await this.wav();
+      if (!w) return app.notify.toast('The audio changed while it was warping – save again.');
+      const p = w.plan;
+      const res = await saveFile(this.fileName(p), w.bytes as BlobPart, 'audio/wav');
       app.notify.toast(res.ok ? `Warped to ${fmtBpm(p.bpm)} BPM and saved.` : saveError(res.code, 'Too large for this viewer. Loop a shorter part, or use 16-bit mono.'));
     } catch (e) {
       console.error(e);
