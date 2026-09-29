@@ -22,6 +22,16 @@ export function bindBeatsPanel(app: App, f: Features, refocus: () => void): void
   $('steady').onclick = () => b.steadyFromLoop();
   $in('loopBars').onchange = (e) => { const n = Math.round(+(e.target as HTMLInputElement).value); app.set('beats', { loopBars: n >= 1 ? n : null }); };
   $('autoMap').onclick = () => b.autoMap();
+  const midiIn = $in('midiIn');
+  if (matchMedia('(pointer:fine)').matches) midiIn.accept = '.mid,.midi,audio/midi';
+  midiIn.addEventListener('change', () => {
+    const file = midiIn.files && midiIn.files[0];
+    if (file) void b.importMidi(file, file.name);
+    midiIn.value = '';
+  });
+  $('midiOpen').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); midiIn.click(); }
+  });
   $sel('mapEvery').onchange = (e) => app.set('beats', { mapEvery: (e.target as HTMLSelectElement).value === 'bar' ? 'bar' : 'beat' });
   $in('shuffle').oninput = (e) => b.setShuffle(+(e.target as HTMLInputElement).value);
   $in('tol').oninput = (e) => app.set('beats', { tol: +(e.target as HTMLInputElement).value });

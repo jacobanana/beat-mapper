@@ -1,8 +1,10 @@
 // Step 2: the tempo map. Bar 1, pins, auto-mapping, deriving from a loop, meter and tempo.
 import * as edit from '../../core/beats/edit';
-import { fmtTime } from '../../core/format';
+import { fmtTime, plural } from '../../core/format';
+import { importTempo } from '../../core/tempo/import';
 import { GRID_STEPS, type GridDivision } from '../../core/tempo/meter';
 import type { Anchor } from '../../core/types';
+import { MidiReadError, readMidiTempo } from '../../io/formats/midi-read';
 import { type ProjectDoc, emptyDoc, withAnchors } from '../../state/project';
 import { SNAP_MODES, type SnapMode, defaultBeats } from '../../state/settings';
 import type { App } from '../app';
@@ -136,6 +138,35 @@ export class Beats {
     app.notify.toast(`Steady ${r.bpm.toFixed(2)} BPM · ${n} bar${n > 1 ? 's' : ''} from the loop${moved} · bar 1 at ${fmtTime(r.anchors[0].t)}`);
   }
 
+  /**
+   * The tempo map of a MIDI file (from a DAW, or one BeatMapper exported) laid onto the audio: its
+   * start at the start of the audio, a pin on every tempo change, its time signature. One undo step.
+   */
+  async importMidi(file: Blob, name = 'the MIDI file'): Promise<boolean> {
+    const { app } = this;
+    if (!app.audio) { app.notify.toast('Open the audio first, then its MIDI tempo map.'); return false; }
+    let r;
+    try {
+      r = importTempo(readMidiTempo(new Uint8Array(await file.arrayBuffer())), app.dur);
+    } catch (e) {
+      if (!(e instanceof MidiReadError)) console.error(e);
+      app.notify.toast(e instanceof MidiReadError ? e.message : "Couldn't read that MIDI file.");
+      return false;
+    }
+    if (!r) { app.notify.toast(`Bar 1 of ${name} comes after the end of the audio.`); return false; }
+    const { anchors, baseBpm, meter } = r;
+    app.edit((d) => ({ ...d, meter, tempo: { anchors, baseBpm: edit.clampBpm(baseBpm) } }));
+    app.select(null);
+    const range = r.maxBpm - r.minBpm < 0.005 ? `${r.minBpm.toFixed(2)} BPM` : `${r.minBpm.toFixed(2)}–${r.maxBpm.toFixed(2)} BPM`;
+    const notes = [
+      r.pickupQ > 0 ? `bar 1 at ${fmtTime(r.bar1)}, after the file's pickup` : '',
+      r.meterKept ? "its time signature can't be used here, so 4/4" : '',
+      r.meterChangeBar ? `the meter changes at bar ${r.meterChangeBar}: only ${meter.num}/${meter.den} is kept` : '',
+    ].filter(Boolean);
+    app.notify.toast(`Tempo map from ${name}: ${range} · ${meter.num}/${meter.den} · ${plural(anchors.length, 'pin')}${notes.length ? ' · ' + notes.join(' · ') : ''}. Undo brings your map back.`);
+    return true;
+  }
+
   tap(): void {
     const r = this.taps.tap(performance.now(), this.app.doc.meter);
     if (!r) return this.app.notify.toast('Keep tapping…');
@@ -202,3 +233,5 @@ export class Beats {
     this.setSnap(SNAP_MODES[(i + dir + SNAP_MODES.length) % SNAP_MODES.length]);
   }
 }
+
+export const isMidiFile = (f: File): boolean => /\.(mid|midi|smf)$/i.test(f.name) || /^audio\/(x-)?midi$/.test(f.type);

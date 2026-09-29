@@ -193,7 +193,9 @@
             <button class="btn primary" id="autoMap" title="Auto-map: follow the beat from bar 1 and pin every beat to a transient (M)" aria-label="Auto-map"><svg class="ic"><use href="#i-auto"/></svg>Auto-map</button>
             <button class="btn" id="derive" title="From loop: keep the beats in the loop, rebuild the rest of the map to match (F)" aria-label="Map from the loop"><svg class="ic"><use href="#i-derive"/></svg>From loop</button>
             <button class="btn" id="steady" title="Steady: one tempo for the whole take from the loop, fitted to the transients, for a part played to a click; bar 1 a whole number of bars before the loop (Shift+F)" aria-label="One steady tempo from the loop">Steady</button>
-            <label class="sl" title="Bars in the loop, for From loop and Steady (blank takes the nearest whole number)">loop<input type="number" id="loopBars" min="1" max="64" placeholder="auto" aria-label="Bars in the loop">bars</label></span>
+            <label class="sl" title="Bars in the loop, for From loop and Steady (blank takes the nearest whole number)">loop<input type="number" id="loopBars" min="1" max="64" placeholder="auto" aria-label="Bars in the loop">bars</label>
+            <label class="btn" id="midiOpen" for="midiIn" tabindex="0" role="button" title="From MIDI: the tempo map of a MIDI file from your DAW, its start at the start of the audio: a pin on every tempo change, and its time signature. Or drop the .mid on the page" aria-label="Tempo map from a MIDI file"><svg class="ic"><use href="#i-import"/></svg>From MIDI</label>
+            <input type="file" id="midiIn" class="vh" tabindex="-1" aria-hidden="true"></span>
           </div>
           <div class="row2">
             <span class="cap" title="Move one beat by hand, at the playhead">Fix</span><span class="items">
@@ -479,6 +481,7 @@
     <div><span>Tempo</span><span>What the map starts from: the starting tempo (it seeds Auto-map and holds after the last pin), tap tempo, and the time signature</span><span><kbd>T</kbd></span></div>
     <div><svg class="ic"><use href="#i-auto"/></svg><span>Map · Auto-map: follow the beat from bar 1 and pin every beat to a transient</span><span><kbd>M</kbd></span></div>
     <div><svg class="ic"><use href="#i-derive"/></svg><span>Map · From loop: loop a part that is right, keep its beats, rebuild the rest of the map to match</span><span><kbd>F</kbd></span></div>
+    <div><svg class="ic"><use href="#i-import"/></svg><span>Map · From MIDI: take the tempo map of a MIDI file, from the DAW the audio was bounced from or one BeatMapper exported. The file's start goes at the start of the audio, every tempo change becomes a pin and its time signature the meter. A pickup bar at the start of the file comes before bar 1. Dropping a .mid on the page does the same</span><span></span></div>
     <div><span>Map · Steady: for a part played to a click. Loop a stretch you trust, say how many bars it is, and the whole take gets one tempo from it, fitted to every transient near a beat so it holds to the end. The loop starts on a bar line and bar 1 is a whole number of bars before it. No bar-by-bar map: tidy the hits in Warp with Quantize</span><span><kbd>⇧</kbd><kbd>F</kbd></span></div>
     <div><svg class="ic"><use href="#i-down"/></svg><span>Fix · Bar 1 starts at the playhead</span><span><kbd>D</kbd></span></div>
     <div><svg class="ic"><use href="#i-pin"/></svg><span>Fix · Pin the nearest grid line to the playhead. Or drag a pin or a bar line in the bar ruler</span><span><kbd>B</kbd></span></div>
