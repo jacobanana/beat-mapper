@@ -1,10 +1,11 @@
 // Step 6 – Notes: whether the piano roll takes the waveform's place, what the audio is played as (a line, chords, or by hand), how much is let through,
-// the spectrogram under the piano roll and how it is shown, how long notes are held, the synth voice,
-// the pencil, and the piano roll. The MIDI is saved from the Export window.
+// the spectrogram under the piano roll and how it is shown, the transients on it, how long notes are held, the synth voice,
+// the pencil and what it snaps to, and the piano roll. The MIDI is saved from the Export window.
 import type { App } from '../../app/app';
 import type { Features } from '../../app/features';
 import type { SpecView } from '../../core/notes/spectrogram';
 import type { NoteInstrument, NoteMode } from '../../core/notes/types';
+import type { NoteSnap } from '../../state/settings';
 import { STEP } from '../../state/steps';
 import { PianoRoll } from '../canvas/piano-roll';
 import { $, $btn, $in, $sel, setPressed, setText, setValue } from '../dom';
@@ -21,6 +22,7 @@ export function bindNotesPanel(app: App, f: Features): PianoRoll {
   $in('nHarm').oninput = (e) => nt.setHarmonics(+(e.target as HTMLInputElement).value);
   $in('nRange').oninput = (e) => nt.setRange(+(e.target as HTMLInputElement).value);
   $('nShow').onclick = () => nt.toggleNotes();
+  $('nTrans').onclick = () => nt.toggleTransients();
   // The filters run over the whole take, a moment's work each: the number follows the finger and the
   // picture is redrawn where the slider is let go.
   const labels = { nSteady: (v: number) => (v ? String(v) : 'off'), nFloor: (v: number) => (v ? v + ' dB' : 'off'), nMinLen: (v: number) => (v ? v + ' ms' : 'off'), nVoices: String };
@@ -36,6 +38,7 @@ export function bindNotesPanel(app: App, f: Features): PianoRoll {
   $('nLegato').onclick = () => nt.toggleLegato();
   $('nSynth').onclick = () => nt.toggleSynth();
   $('nDraw').onclick = () => nt.toggleDraw();
+  $sel('nSnapTo').onchange = (e) => nt.setSnap((e.target as HTMLSelectElement).value as NoteSnap, true);
   $('nDel').onclick = () => nt.removeSelected();
 
   const cv = $('notesCv') as HTMLCanvasElement, slot = cv.parentElement!;
@@ -71,6 +74,8 @@ export function bindNotesPanel(app: App, f: Features): PianoRoll {
     setValue($in('nRange'), s.range);
     setText($('nRangeO'), s.range + ' dB');
     setPressed($('nShow'), s.showNotes);
+    setPressed($('nTrans'), s.transients);
+    setValue($sel('nSnapTo'), s.snap);
     const f = s.filter;
     for (const id of Object.keys(keys) as (keyof typeof keys)[]) {
       setValue($in(id), f[keys[id]]);

@@ -23,7 +23,7 @@ describe('session files', () => {
   });
 
   it('carries the Notes step: its settings and deleted notes, only when they differ from how it starts', () => {
-    const s = parseSession(legacy, legacy.audio.duration, fb), n0 = { mode: 'line' as const, instrument: 'any' as const, sens: 55, legato: false, spec: true, view: 'fundamental' as const, harmonics: 4, range: 30, filter: defaultSpecFilter(), showNotes: true, main: 'wave' as const };
+    const s = parseSession(legacy, legacy.audio.duration, fb), n0 = { mode: 'line' as const, instrument: 'any' as const, sens: 55, legato: false, spec: true, view: 'fundamental' as const, harmonics: 4, range: 30, filter: defaultSpecFilter(), showNotes: true, main: 'wave' as const, transients: false, snap: 'both' as const };
     expect(s.notes).toEqual(n0);
     expect(s.removedNotes).toEqual([]);
     expect('notes' in toSessionJson(s)).toBe(false);
@@ -60,6 +60,18 @@ describe('session files', () => {
     expect(json.notes).toEqual({ main: 'roll' });
     expect(parseSession(JSON.parse(JSON.stringify(json)), legacy.audio.duration, fb).notes).toEqual(set.notes);
     expect(parseSession({ ...legacy, notes: { main: 'sideways' } }, legacy.audio.duration, fb).notes.main).toBe('wave');
+  });
+
+  it('carries the transients on the piano roll and its magnet, only when they differ from how they start', () => {
+    const s = parseSession(legacy, legacy.audio.duration, fb);
+    expect([s.notes.transients, s.notes.snap]).toEqual([false, 'both']);
+    expect('notes' in toSessionJson(s)).toBe(false);
+    const set = { ...s, notes: { ...s.notes, transients: true, snap: 'markers' as const } };
+    const json = toSessionJson(set) as { notes: object };
+    expect(json.notes).toEqual({ transients: true, snap: 'markers' });
+    expect(parseSession(JSON.parse(JSON.stringify(json)), legacy.audio.duration, fb).notes).toEqual(set.notes);
+    const odd = parseSession({ ...legacy, notes: { transients: 'yes', snap: 'magnet' } }, legacy.audio.duration, fb).notes;
+    expect([odd.transients, odd.snap]).toEqual([false, 'both']);
   });
 
   it('carries the spectrogram\'s filters and hidden notes, only what differs from how they start', () => {

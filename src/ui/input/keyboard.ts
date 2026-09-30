@@ -108,6 +108,8 @@ export function bindKeyboard(app: App, f: Features, hooks: KeyboardHooks): void 
       else if (k === 'c') f.notes.toggleMain();
       else if (k === 'd') f.notes.toggleDraw();
       else if (k === 'n') f.notes.toggleNotes();
+      else if (k === 't') f.notes.toggleTransients();
+      else if (k === 'g') f.notes.cycleSnap(e.shiftKey ? -1 : 1);
     }
   });
 

@@ -12,7 +12,7 @@ import { type WarpMarker, placeWarpMarker } from '../core/warp/markers';
 import { WARP_MODES, type WarpMode } from '../core/warp/modes';
 import { WAV_RATES } from './formats/wav';
 import {
-  type BeatSettings, type DetectionSettings, type ExportSettings, NOTE_MAIN_VIEWS, type NoteMainView, type NoteSettings, SNAP_MODES, SPEC_RANGE, type SlicerSettings, type SnapMode, type TransportState,
+  type BeatSettings, type DetectionSettings, type ExportSettings, NOTE_MAIN_VIEWS, NOTE_SNAPS, type NoteMainView, type NoteSnap, type NoteSettings, SNAP_MODES, SPEC_RANGE, type SlicerSettings, type SnapMode, type TransportState,
   type WarpSettings, defaultNotes, defaultWarp,
 } from '../state/settings';
 import { STEPS, type Step } from '../state/steps';
@@ -101,8 +101,9 @@ function warpJson(s: SessionContent): object {
 
 // The Notes step came after the hit edits, and is written the same way: only what differs from how
 // the step starts, so a session that never opened it saves byte-identical. The spectrogram's view and
-// the notes drawn by hand came later still, and the piano roll in the main view after them; a reader
-// that predates them ignores the fields, and reads the by-hand mode as a line.
+// the notes drawn by hand came later still, and the piano roll in the main view after them, then the
+// transients on the roll and its magnet; a reader that predates them ignores the fields, and reads the
+// by-hand mode as a line.
 function notesJson(s: SessionContent): object {
   const n0 = defaultNotes(), n = s.notes;
   const out = {
@@ -117,6 +118,8 @@ function notesJson(s: SessionContent): object {
     ...filterJson(n.filter),
     ...(n.showNotes !== n0.showNotes ? { showNotes: n.showNotes } : {}),
     ...(n.main !== n0.main ? { main: n.main } : {}),
+    ...(n.transients !== n0.transients ? { transients: n.transients } : {}),
+    ...(n.snap !== n0.snap ? { snap: n.snap } : {}),
     ...(s.removedNotes.length ? { removed: s.removedNotes.map((r) => ({ pitch: r.pitch, t: r.t })) } : {}),
     ...(s.manualNotes.length ? { manual: s.manualNotes.map((m) => ({ pitch: m.pitch, t: m.t, end: m.end, a: m.a })) } : {}),
   };
@@ -270,6 +273,8 @@ export function parseSession(d: Json, dur: number, fallback: { band: Band; algo:
       filter: parseFilter(nt.filter),
       showNotes: typeof nt.showNotes === 'boolean' ? nt.showNotes : n0.showNotes,
       main: oneOf<NoteMainView>(NOTE_MAIN_VIEWS, nt.main, n0.main),
+      transients: typeof nt.transients === 'boolean' ? nt.transients : n0.transients,
+      snap: oneOf<NoteSnap>(NOTE_SNAPS, nt.snap, n0.snap),
     },
     removedNotes: (Array.isArray(nt.removed) ? nt.removed : [])
       .filter((r: Json) => r && P(r.pitch) && T(r.t)).slice(0, 20000)

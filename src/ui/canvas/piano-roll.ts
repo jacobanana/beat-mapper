@@ -6,7 +6,7 @@
 // Tap a note to hear it, select it and put the playhead on it; double-tap it to delete it; tap anywhere
 // else to hear that pitch and put the playhead there, or a note name to hear it. With the pencil on,
 // drag on the roll to draw a note, drag a note to move it, or its end to lengthen it, each pitch heard
-// as it is reached; off, a drag scrolls in time and pitch. Two fingers pinch to zoom: spread sideways
+// as it is reached, its start and end landing on a transient or the grid as the roll's magnet is set; off, a drag scrolls in time and pitch. Two fingers pinch to zoom: spread sideways
 // they zoom the time, up and down the rows, across both; moved together, they scroll. The wheel
 // scrolls the rows, and zooms in time with Ctrl (a trackpad's pinch), scrolls in time with Shift, and
 // zooms the rows with Alt. The rows also scroll by dragging the note names.
@@ -112,14 +112,18 @@ export class PianoRoll {
   private xOf(t: number): number { const a = this.axis; return a.L + ((this.app.timeline.axisAt(t) - a.t0) / a.span) * (a.R - a.L); }
   private pitchAt(y: number): number { const a = this.axis; return Math.max(0, Math.min(127, Math.ceil(a.top - (y - TOP) / a.rh))); }
 
-  /** Where a drawn note's start or end lands: on the grid or a transient, as the Beats step's magnet is set. */
-  private snap(t: number, touch: boolean): number {
-    const { app } = this, mode = app.beats.snapTo;
+  /**
+   * Where a drawn note's start or end lands, as the roll's magnet is set: with both, on a transient
+   * within a finger's reach, else on the grid line nearest. Alt lets it go anywhere.
+   */
+  private snap(t: number, e: PointerEvent): number {
+    const { app } = this, mode = e.altKey ? 'off' : app.notes.snap;
     t = Math.max(0, Math.min(app.dur, t));
-    if (mode === 'grid') return this.f.playback.gridSnap(t);
-    if (mode !== 'markers') return t;
-    const m = nearest(app.markers, t);
-    return m && Math.abs(this.xOf(m.t) - this.xOf(t)) <= (touch ? 14 : 9) ? m.t : t;
+    if (mode === 'both' || mode === 'markers') {
+      const m = nearest(app.markers, t);
+      if (m && Math.abs(this.xOf(m.t) - this.xOf(t)) <= (e.pointerType === 'touch' ? 14 : 9)) return m.t;
+    }
+    return mode === 'both' || mode === 'grid' ? this.f.playback.gridSnap(t) : t;
   }
 
   /** How long a tapped note is: one grid step, or a quarter of a second without a map. */
@@ -184,7 +188,7 @@ export class PianoRoll {
       this.drag = { kind: x >= box.x1 - grip ? 'resize' : 'move', x0: x, y0: y, box, from, moved: false, heard: from.pitch };
     } else {
       const pitch = this.pitchAt(y);
-      this.drag = { kind: 'new', x0: x, y0: y, pitch, t: this.snap(this.tOf(x), touch), moved: false };
+      this.drag = { kind: 'new', x0: x, y0: y, pitch, t: this.snap(this.tOf(x), e), moved: false };
       this.hear(pitch, TRY_PITCH);
     }
   }
@@ -212,14 +216,14 @@ export class PianoRoll {
     if (!d.moved && Math.hypot(x - d.x0, y - d.y0) < 4) return;
     if (!d.moved) { d.moved = true; if (d.kind !== 'new') this.f.notes.beginDrag(); }
     if (d.kind === 'new') {
-      const t1 = this.snap(this.tOf(x), touch), t = Math.min(d.t, t1);
+      const t1 = this.snap(this.tOf(x), e), t = Math.min(d.t, t1);
       this.preview = { pitch: d.pitch, t, end: Math.max(t + MIN_NOTE, Math.max(d.t, t1)) };
       this.invalidate();
     } else if (d.kind === 'resize') {
-      this.f.notes.dragTo(d.from, { pitch: d.from.pitch, t: d.from.t, end: Math.max(d.from.t + MIN_NOTE, this.snap(this.tOf(x), touch)) });
+      this.f.notes.dragTo(d.from, { pitch: d.from.pitch, t: d.from.t, end: Math.max(d.from.t + MIN_NOTE, this.snap(this.tOf(x), e)) });
     } else {
       // Moved by the distance dragged along the axis, so under the warp it stays where the finger is.
-      const t = this.snap(this.tOf(this.xOf(d.from.t) + (x - d.x0)), touch), dp = Math.round((d.y0 - y) / a.rh);
+      const t = this.snap(this.tOf(this.xOf(d.from.t) + (x - d.x0)), e), dp = Math.round((d.y0 - y) / a.rh);
       this.f.notes.dragTo(d.from, { pitch: d.from.pitch + dp, t, end: t + (d.from.end - d.from.t) });
       // Moved to another row: its new pitch heard, so it is put where it sounds right.
       if (d.from.pitch + dp !== d.heard) { d.heard = d.from.pitch + dp; this.hear(d.heard, TRY_PITCH); }
@@ -452,6 +456,23 @@ export class PianoRoll {
         g.beginPath(); g.moveTo(x, TOP - 4); g.lineTo(x, axisY); g.stroke();
         if (bar && Math.round(q / bq) % every === 0) { g.fillStyle = C.ink; g.fillText(String(Math.round(q / bq) + 1), x + 3, axisY + 10); }
       }
+    }
+    // Transients: a line down the rows at each, in the markers' colour, faint enough for the notes
+    // and the spectrogram to read through, for a note's start to be put on.
+    if (app.notes.transients) {
+      const M = app.markers;
+      clipRows(L, R);
+      g.strokeStyle = rgba(C.mark, 0.55);
+      g.beginPath();
+      for (let i = Math.max(0, lowerBound(M, tl.sourceAt(t0) - 1)); i < M.length; i++) {
+        const a = tl.axisAt(M[i].t);
+        if (a > t0 + span) break;
+        if (a < t0) continue;
+        const x = Math.round(xOf(a)) + 0.5;
+        g.moveTo(x, TOP); g.lineTo(x, TOP + area);
+      }
+      g.stroke();
+      g.restore();
     }
     // Notes: as long as they are held, darker the louder, lit while they sound; a bend drawn through
     // the note, a row a semitone. Over the spectrogram every note gets an edge, so it reads as a note
